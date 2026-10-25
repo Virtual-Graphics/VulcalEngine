@@ -14,8 +14,7 @@ namespace editor {
 // might be moved to other classes.
 class ProjectManager {
 public:
-    static ProjectManager& instance();
-
+    ProjectManager();
     ProjectManager(const ProjectManager&) = delete;
     ProjectManager& operator=(const ProjectManager&) = delete;
     ~ProjectManager();
@@ -27,6 +26,7 @@ public:
     void save_project();
 
     bool has_scene() const;
+    std::unique_ptr<vulcal::scene::Scene> create_scene();
     void set_scene(std::unique_ptr<vulcal::scene::Scene> scene);
     void open_scene(const std::filesystem::path& scene_file);
     void save_scene(const std::filesystem::path& scene_file);
@@ -43,8 +43,6 @@ public:
     const vulcal::scene::Scene* current_scene() const;
 
 private:
-    ProjectManager();
-
     std::filesystem::path current_project_file_;
     ProjectInfo current_project_info_;
     std::filesystem::path current_scene_file_;

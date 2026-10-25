@@ -1,4 +1,4 @@
-#include "editor/default_scene.h"
+#include "editor/project/scene/default_scene.h"
 
 #include "scene/scene.h"
 

@@ -4,7 +4,6 @@
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
 #include "common/nfd/file_dialog.h"
-#include "editor/default_scene.h"
 #include "engine/application.h"
 #include "gfx/command.h"
 #include "render/renderer.h"
@@ -39,7 +38,7 @@ void EditorLayer::on_attach() {
     io.IniFilename = "vulcal_editor.ini";
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     renderer_ = std::make_unique<vulcal::render::Renderer>();
-    context_.set_scene(create_default_scene());
+    context_.new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
     base::log::info("Editor initialized with {} entities", entity_count);
 }
@@ -60,36 +59,18 @@ void EditorLayer::run_operation(const std::function<void()>& operation) {
     }
 }
 
-void EditorLayer::new_scene() { context_.set_scene(create_default_scene()); }
-
 void EditorLayer::open_scene() {
-    auto directory = context_.project_manager().current_scene_file().parent_path();
-    if (directory.empty()) directory = context_.project_manager().current_project_dir();
-    if (directory.empty()) directory = std::filesystem::current_path();
-
-    if (auto path = apps::nfd::open_file(scene_filter, directory)) context_.open_scene(*path);
+    if (auto path = apps::nfd::open_file(scene_filter, context_.scene_dialog_directory())) context_.open_scene(*path);
 }
 
 void EditorLayer::save_scene() {
-    if (context_.project_manager().current_scene_file().empty()) {
-        save_scene_as();
-        return;
-    }
-    context_.save_scene();
+    if (context_.save_scene() == EditorContext::SaveResult::NeedsPath) save_scene_as();
 }
 
 void EditorLayer::save_scene_as() {
-    const auto& manager = context_.project_manager();
-
-    auto directory = manager.current_scene_file().parent_path();
-    if (directory.empty()) directory = manager.current_project_dir();
-    if (directory.empty()) directory = std::filesystem::current_path();
-
-    const auto name = manager.current_scene_file().empty() ? std::filesystem::path{ "Untitled.vscene" } : manager.current_scene_file().filename();
-    if (auto path = apps::nfd::save_file(scene_filter, directory, name)) {
-        if (path->extension() != ".vscene") path->replace_extension(".vscene");
-        context_.save_scene_as(*path);
-    }
+    const auto directory = context_.scene_dialog_directory();
+    const auto name = context_.suggested_scene_name();
+    if (auto path = apps::nfd::save_file(scene_filter, directory, name)) context_.save_scene_as(*path);
 }
 
 void EditorLayer::draw_file_menu() {
@@ -104,16 +85,13 @@ void EditorLayer::draw_file_menu() {
     }
     if (ImGui::MenuItem("Open Project...")) {
         run_operation([this] {
-            if (auto path = apps::nfd::open_file(project_filter)) {
-                context_.project_manager().open_project(*path);
-                context_.set_scene(create_default_scene());
-            }
+            if (auto path = apps::nfd::open_file(project_filter)) context_.open_project(*path);
         });
     }
 
     ImGui::Separator();
 
-    if (ImGui::MenuItem("New Scene")) run_operation([this] { new_scene(); });
+    if (ImGui::MenuItem("New Scene")) run_operation([this] { context_.new_scene(); });
     if (ImGui::MenuItem("Open Scene...")) run_operation([this] { open_scene(); });
 
     ImGui::BeginDisabled(!context_.has_scene());
@@ -159,8 +137,7 @@ void EditorLayer::draw_new_project_dialog() {
     ImGui::BeginDisabled(!can_create);
     if (ImGui::Button("Create")) {
         try {
-            context_.project_manager().create_project(new_project_directory_, new_project_name_);
-            context_.set_scene(create_default_scene());
+            context_.create_project(new_project_directory_, new_project_name_);
             new_project_error_.clear();
             ImGui::CloseCurrentPopup();
         } catch (const std::exception& error) {

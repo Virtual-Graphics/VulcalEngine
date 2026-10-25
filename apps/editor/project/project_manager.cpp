@@ -1,6 +1,7 @@
 #include "editor/project/project_manager.h"
 
 #include "base/logger.h"
+#include "editor/project/scene/default_scene.h"
 #include "editor/project/scene/scene_serializer.h"
 #include "scene/scene.h"
 
@@ -9,11 +10,6 @@
 #include <utility>
 
 namespace editor {
-
-ProjectManager& ProjectManager::instance() {
-    static ProjectManager instance;
-    return instance;
-}
 
 ProjectManager::ProjectManager() = default;
 
@@ -80,6 +76,8 @@ void ProjectManager::save_project() {
 }
 
 bool ProjectManager::has_scene() const { return opened_scene_ != nullptr; }
+
+std::unique_ptr<vulcal::scene::Scene> ProjectManager::create_scene() { return create_default_scene(); }
 
 void ProjectManager::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
     if (!scene) {

@@ -3,6 +3,7 @@ add_executable(editor_state_test
     ../../apps/editor/editor_context.cpp
     ../../apps/editor/editor_camera.cpp
     ../../apps/editor/project/project_manager.cpp
+    ../../apps/editor/project/scene/default_scene.cpp
     ../../apps/editor/project/scene/scene_serializer.cpp
 )
 target_include_directories(editor_state_test PRIVATE ../../apps)

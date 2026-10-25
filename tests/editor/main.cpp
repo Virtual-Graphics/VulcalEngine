@@ -1,12 +1,20 @@
 #include "editor/editor_camera.h"
 #include "editor/editor_context.h"
 
+#include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace {
+
+std::filesystem::path temporary_directory() {
+    const auto suffix = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    return std::filesystem::temp_directory_path() / ("vulcal_editor_test_" + suffix);
+}
 
 TEST(EditorContext, StartsWithoutSceneAndRejectsEntityCreation) {
     editor::EditorContext context;
@@ -66,6 +74,66 @@ TEST(EditorContext, NullSceneReplacementPreservesExistingSceneAndSelection) {
     auto selected = context.create_entity();
     EXPECT_THROW(context.set_scene(nullptr), std::invalid_argument);
     EXPECT_EQ(context.selected_entity(), selected);
+}
+
+TEST(EditorContext, NewSceneCreatesDefaultSceneAndClearsSelection) {
+    editor::EditorContext context;
+    context.set_scene(std::make_unique<vulcal::scene::Scene>());
+    context.create_entity();
+    context.new_scene();
+    EXPECT_FALSE(context.selected_entity());
+    EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+}
+
+TEST(EditorContext, SaveWithoutPathRequestsSaveAs) {
+    editor::EditorContext context;
+    context.new_scene();
+    EXPECT_EQ(context.save_scene(), editor::EditorContext::SaveResult::NeedsPath);
+}
+
+TEST(EditorContext, SaveAsAddsSceneExtensionAndRemembersPath) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::EditorContext context;
+    context.new_scene();
+    context.save_scene_as(directory / "level");
+
+    EXPECT_TRUE(std::filesystem::exists(directory / "level.vscene"));
+    EXPECT_EQ(context.scene_dialog_directory(), directory);
+    EXPECT_EQ(context.suggested_scene_name(), std::filesystem::path{ "level.vscene" });
+    EXPECT_EQ(context.save_scene(), editor::EditorContext::SaveResult::Saved);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, CreateProjectStartsDefaultScene) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::EditorContext context;
+    context.create_project(directory, "Demo");
+
+    EXPECT_TRUE(std::filesystem::exists(directory / "Demo.vproj"));
+    EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, OpenProjectStartsDefaultScene) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    {
+        editor::EditorContext creator;
+        creator.create_project(directory, "Demo");
+    }
+
+    editor::EditorContext context;
+    context.open_project(directory / "Demo.vproj");
+
+    EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+
+    std::filesystem::remove_all(directory);
 }
 
 TEST(EditorCamera, MovementIsIndependentOfFrameRate) {

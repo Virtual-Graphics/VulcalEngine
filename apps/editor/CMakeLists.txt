@@ -4,7 +4,7 @@ add_library(vulcal_editor STATIC
     editor_layer.cpp
     editor_context.cpp
     editor_camera.cpp
-    default_scene.cpp
+    project/scene/default_scene.cpp
     panels/viewport_panel.cpp
     panels/hierarchy_panel.cpp
     panels/inspector_panel.cpp

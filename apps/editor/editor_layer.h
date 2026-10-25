@@ -37,7 +37,6 @@ private:
     void draw_file_menu();
     void draw_new_project_dialog();
     void draw_error_dialog();
-    void new_scene();
     void open_scene();
     void save_scene();
     void save_scene_as();
