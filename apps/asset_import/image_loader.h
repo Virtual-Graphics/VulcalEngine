@@ -2,11 +2,11 @@
 #include "base/logger.h"
 #include <cstdint>
 #include <filesystem>
-#include <stdexcept>
 #include <stb_image.h>
+#include <stdexcept>
 #include <vector>
 
-namespace vulcal::asset {
+namespace apps::asset_import {
 
 struct ImageData {
     std::uint32_t width = 0;
@@ -34,8 +34,7 @@ inline ImageData load_image(const std::filesystem::path& path, int desired_chann
         channels = desired_channels;
     }
 
-    const std::size_t size = static_cast<std::size_t>(width) * static_cast<std::size_t>(height)
-                           * static_cast<std::size_t>(channels);
+    const std::size_t size = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * static_cast<std::size_t>(channels);
 
     ImageData image;
     image.width = static_cast<std::uint32_t>(width);
@@ -49,4 +48,4 @@ inline ImageData load_image(const std::filesystem::path& path, int desired_chann
     return image;
 }
 
-}
+} // namespace apps::asset_import

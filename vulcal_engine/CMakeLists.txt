@@ -16,7 +16,5 @@ target_link_libraries(vulcal_engine PUBLIC
     glad::glad
     spdlog::spdlog
     glm::glm
-    tinyobjloader::tinyobjloader
-    stb::stb_image
     EnTT::EnTT
 )

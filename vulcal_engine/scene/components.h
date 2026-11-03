@@ -1,7 +1,7 @@
 #pragma once
 
+#include "asset/asset_id.h"
 #include "base/uuid.h"
-#include "render/resources/resources_handle.h"
 
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -26,8 +26,8 @@ struct TransformComponent {
 };
 
 struct MeshRendererComponent {
-    render::MeshHandle mesh_;
-    render::MaterialHandle material_;
+    asset::AssetID mesh_asset_id_;
+    asset::AssetID material_asset_id_;
     bool visible_ = true;
 };
 

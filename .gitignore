@@ -2,7 +2,7 @@ build/
 build-release/
 build-msvc/
 build-msvc-release/
-projects/Library/
+.vulcal_engine/
 build-gcc/
 build-gcc-release/
 imgui.ini

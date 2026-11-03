@@ -36,6 +36,9 @@ public:
 
     std::filesystem::path current_project_file() const;
     std::filesystem::path current_project_dir() const;
+    std::filesystem::path current_assets_dir() const;
+    std::filesystem::path current_library_dir() const;
+    std::filesystem::path current_build_dir() const;
     const ProjectInfo& current_project_info() const;
     std::filesystem::path current_scene_file() const;
 

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
 #include <stdexcept>
@@ -115,6 +116,9 @@ TEST(EditorContext, CreateProjectStartsDefaultScene) {
     context.create_project(directory, "Demo");
 
     EXPECT_TRUE(std::filesystem::exists(directory / "Demo.vproj"));
+    EXPECT_TRUE(std::filesystem::is_directory(directory / "assets"));
+    EXPECT_TRUE(std::filesystem::is_directory(directory / ".vulcal_engine"));
+    EXPECT_TRUE(std::filesystem::is_directory(directory / "Build"));
     EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
 
     std::filesystem::remove_all(directory);
@@ -132,6 +136,33 @@ TEST(EditorContext, OpenProjectStartsDefaultScene) {
     context.open_project(directory / "Demo.vproj");
 
     EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, FailedProjectOpenPreservesPreviousProjectAndScene) {
+    const auto directory = temporary_directory();
+    const auto previous  = directory / "previous";
+    const auto broken    = directory / "broken";
+    std::filesystem::create_directories(previous);
+    std::filesystem::create_directories(broken);
+    {
+        editor::EditorContext creator;
+        creator.create_project(broken, "Broken");
+    }
+    std::filesystem::remove(broken / "Build");
+    std::ofstream(broken / "Build").put('x');
+
+    editor::EditorContext context;
+    context.create_project(previous, "Previous");
+    const auto selected = context.create_entity();
+    const auto* scene   = &context.scene();
+
+    EXPECT_THROW(context.open_project(broken / "Broken.vproj"), std::filesystem::filesystem_error);
+    EXPECT_EQ(context.assets_directory(), previous / "assets");
+    EXPECT_EQ(context.library_directory(), previous / ".vulcal_engine");
+    EXPECT_EQ(&context.scene(), scene);
+    EXPECT_EQ(context.selected_entity(), selected);
 
     std::filesystem::remove_all(directory);
 }

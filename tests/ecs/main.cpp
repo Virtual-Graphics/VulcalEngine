@@ -37,7 +37,7 @@ TEST(Uuid, DefaultIsNil) {
 }
 
 TEST(Uuid, GeneratedUuidsAreUnique) {
-    const auto first = base::UUID::generate();
+    const auto first  = base::UUID::generate();
     const auto second = base::UUID::generate();
     EXPECT_FALSE(first.is_nil());
     EXPECT_NE(first, second);
@@ -50,7 +50,7 @@ TEST(Uuid, ToStringIsZeroPaddedHex) {
 }
 
 TEST(Uuid, UsableAsUnorderedMapKey) {
-    const auto first = base::UUID::generate();
+    const auto first  = base::UUID::generate();
     const auto second = base::UUID::generate();
 
     std::unordered_map<base::UUID, int> values;
@@ -72,13 +72,13 @@ TEST(Scene, CreatesEntityWithDefaultComponents) {
 
 TEST(Scene, AddGetAndRemoveComponents) {
     vulcal::scene::Scene scene;
-    auto entity = scene.create_entity("Player");
+    auto entity                      = scene.create_entity("Player");
 
-    auto& mesh_renderer = entity.add_component<vulcal::scene::MeshRendererComponent>();
-    mesh_renderer.mesh_ = vulcal::render::MeshHandle{ 7 };
-    mesh_renderer.material_ = vulcal::render::MaterialHandle{ 9 };
+    auto& mesh_renderer              = entity.add_component<vulcal::scene::MeshRendererComponent>();
+    mesh_renderer.mesh_asset_id_     = base::UUID{ 7 };
+    mesh_renderer.material_asset_id_ = base::UUID{ 9 };
     EXPECT_TRUE(entity.has_component<vulcal::scene::MeshRendererComponent>());
-    EXPECT_EQ(entity.get_component<vulcal::scene::MeshRendererComponent>().mesh_.value_, 7ull);
+    EXPECT_EQ(entity.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, base::UUID{ 7 });
 
     entity.remove_component<vulcal::scene::MeshRendererComponent>();
     EXPECT_FALSE(entity.has_component<vulcal::scene::MeshRendererComponent>());
@@ -86,7 +86,7 @@ TEST(Scene, AddGetAndRemoveComponents) {
 
 TEST(Scene, EntityIdsAreUnique) {
     vulcal::scene::Scene scene;
-    auto first = scene.create_entity("Player");
+    auto first  = scene.create_entity("Player");
     auto second = scene.create_entity("Enemy");
 
     EXPECT_NE(first.get_component<vulcal::scene::IDComponent>().id_, second.get_component<vulcal::scene::IDComponent>().id_);
@@ -105,7 +105,7 @@ TEST(Scene, SceneLevelComponentAccess) {
 TEST(Scene, RejectsForeignEntityEvenWhenItsHandleMatches) {
     vulcal::scene::Scene scene;
     vulcal::scene::Scene other;
-    auto local = scene.create_entity("Local");
+    auto local   = scene.create_entity("Local");
     auto foreign = other.create_entity("Foreign");
     EXPECT_THROW(scene.destroy_entity(foreign), std::invalid_argument);
     EXPECT_TRUE(local.valid());
@@ -130,13 +130,14 @@ TEST(Scene, WrapperTraversalFiltersComponentsAndReturnsOwnedEntities) {
     entity.add_component<vulcal::scene::MeshRendererComponent>();
     scene.create_entity("Empty");
     int visited = 0;
-    scene.each<vulcal::scene::TagComponent, vulcal::scene::MeshRendererComponent>([&](vulcal::scene::Entity current, auto& tag, auto& mesh) {
-        EXPECT_EQ(current, entity);
-        EXPECT_TRUE(scene.contains(current));
-        tag.name_ = "Edited";
-        mesh.visible_ = false;
-        ++visited;
-    });
+    scene.each<vulcal::scene::TagComponent, vulcal::scene::MeshRendererComponent>(
+            [&](vulcal::scene::Entity current, auto& tag, auto& mesh) {
+                EXPECT_EQ(current, entity);
+                EXPECT_TRUE(scene.contains(current));
+                tag.name_     = "Edited";
+                mesh.visible_ = false;
+                ++visited;
+            });
     EXPECT_EQ(visited, 1);
     EXPECT_EQ(entity.get_component<vulcal::scene::TagComponent>().name_, "Edited");
     EXPECT_FALSE(entity.get_component<vulcal::scene::MeshRendererComponent>().visible_);
@@ -167,11 +168,15 @@ TEST(Scene, DestroyEntityInvalidatesOnlyThatEntity) {
 TEST(TransformAndCamera, TransformMatrixAppliesTranslationAndScale) {
     vulcal::scene::TransformComponent transform;
     transform.translation_ = glm::vec3{ 1.0f, 2.0f, 3.0f };
-    transform.scale_ = glm::vec3{ 2.0f };
+    transform.scale_       = glm::vec3{ 2.0f };
 
-    const auto matrix = transform.matrix();
+    const auto matrix      = transform.matrix();
     expect_near(glm::vec3{ matrix[3] }, glm::vec3{ 1.0f, 2.0f, 3.0f });
-    expect_near(glm::vec3{ matrix * glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f } }, glm::vec3{ 3.0f, 2.0f, 3.0f });
+    expect_near(
+            glm::vec3{
+                matrix * glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f }
+    },
+            glm::vec3{ 3.0f, 2.0f, 3.0f });
 }
 
 TEST(TransformAndCamera, SetAspectUpdatesPerspectiveAspect) {
@@ -186,11 +191,11 @@ TEST(TransformAndCamera, TransformRoundTripsCameraOrientation) {
     const glm::mat4 camera_world =
             glm::inverse(glm::lookAt(glm::vec3{ 0.0f, 4.0f, 8.0f }, glm::vec3{ 0.0f, -0.5f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }));
     vulcal::scene::TransformComponent camera_transform;
-    camera_transform.translation_ = glm::vec3{ camera_world[3] };
-    camera_transform.rotation_ = glm::eulerAngles(glm::quat_cast(camera_world));
+    camera_transform.translation_  = glm::vec3{ camera_world[3] };
+    camera_transform.rotation_     = glm::eulerAngles(glm::quat_cast(camera_world));
 
     const glm::mat3 expected_basis = glm::mat3{ camera_world };
-    const glm::mat3 actual_basis = glm::mat3{ camera_transform.matrix() };
+    const glm::mat3 actual_basis   = glm::mat3{ camera_transform.matrix() };
     expect_near(glm::vec3{ actual_basis[0] }, glm::vec3{ expected_basis[0] });
     expect_near(glm::vec3{ actual_basis[1] }, glm::vec3{ expected_basis[1] });
     expect_near(glm::vec3{ actual_basis[2] }, glm::vec3{ expected_basis[2] });
@@ -198,43 +203,43 @@ TEST(TransformAndCamera, TransformRoundTripsCameraOrientation) {
 
 TEST(SceneCopy, CopyPreservesEntitiesAndComponents) {
     vulcal::scene::Scene scene;
-    auto source = scene.create_entity("Source");
+    auto source                                                            = scene.create_entity("Source");
     source.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 4.0f, 5.0f, 6.0f };
 
-    auto& source_renderer = source.add_component<vulcal::scene::MeshRendererComponent>();
-    source_renderer.mesh_ = vulcal::render::MeshHandle{ 21 };
-    source_renderer.material_ = vulcal::render::MaterialHandle{ 22 };
+    auto& source_renderer                                                  = source.add_component<vulcal::scene::MeshRendererComponent>();
+    source_renderer.mesh_asset_id_                                         = base::UUID{ 21 };
+    source_renderer.material_asset_id_                                     = base::UUID{ 22 };
 
-    auto& camera = source.add_component<vulcal::scene::CameraComponent>();
-    camera.primary_ = true;
-    camera.perspective_fov_y_ = glm::radians(50.0f);
+    auto& camera                                                           = source.add_component<vulcal::scene::CameraComponent>();
+    camera.primary_                                                        = true;
+    camera.perspective_fov_y_                                              = glm::radians(50.0f);
 
-    auto environment_entity = scene.create_entity("Environment");
-    auto& environment = environment_entity.add_component<vulcal::scene::EnvironmentComponent>();
+    auto environment_entity                                                = scene.create_entity("Environment");
+    auto& environment          = environment_entity.add_component<vulcal::scene::EnvironmentComponent>();
     environment.ambient_color_ = glm::vec3{ 0.2f, 0.3f, 0.4f };
-    environment.clear_color_ = glm::vec4{ 0.5f, 0.6f, 0.7f, 1.0f };
+    environment.clear_color_   = glm::vec4{ 0.5f, 0.6f, 0.7f, 1.0f };
 
-    auto light_entity = scene.create_entity("Light");
-    auto& light = light_entity.add_component<vulcal::scene::LightComponent>();
+    auto light_entity          = scene.create_entity("Light");
+    auto& light                = light_entity.add_component<vulcal::scene::LightComponent>();
     light_entity.get_component<vulcal::scene::TransformComponent>().rotation_ = { 0.0f, glm::radians(90.0f), 0.0f };
-    light.color_ = glm::vec3{ 1.0f };
-    light.intensity_ = 2.0f;
-    light.shadow_enabled_ = false;
-    light.shadow_map_size_ = 1024;
-    light.shadow_extent_ = 6.0f;
+    light.color_                                                              = glm::vec3{ 1.0f };
+    light.intensity_                                                          = 2.0f;
+    light.shadow_enabled_                                                     = false;
+    light.shadow_map_size_                                                    = 1024;
+    light.shadow_extent_                                                      = 6.0f;
 
-    const auto source_id = source.get_component<vulcal::scene::IDComponent>().id_;
+    const auto source_id                                                      = source.get_component<vulcal::scene::IDComponent>().id_;
     const auto source_translation = source.get_component<vulcal::scene::TransformComponent>().translation_;
 
-    vulcal::scene::Scene copy = scene;
-    auto copied_source = find_entity_by_id(copy, source_id);
+    vulcal::scene::Scene copy     = scene;
+    auto copied_source            = find_entity_by_id(copy, source_id);
     ASSERT_TRUE(copied_source.valid());
     EXPECT_EQ(copied_source.get_component<vulcal::scene::IDComponent>().id_, source_id);
     EXPECT_EQ(copied_source.get_component<vulcal::scene::TagComponent>().name_, std::string{ "Source" });
     expect_near(copied_source.get_component<vulcal::scene::TransformComponent>().translation_, source_translation);
     EXPECT_TRUE(copied_source.has_component<vulcal::scene::CameraComponent>());
     EXPECT_TRUE(copied_source.get_component<vulcal::scene::CameraComponent>().primary_);
-    EXPECT_EQ(copied_source.get_component<vulcal::scene::MeshRendererComponent>().mesh_.value_, 21ull);
+    EXPECT_EQ(copied_source.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, base::UUID{ 21 });
 
     const auto environment_view = copy.registry().view<const vulcal::scene::EnvironmentComponent>();
     ASSERT_FALSE(environment_view.empty());
@@ -254,12 +259,12 @@ TEST(SceneCopy, CopyPreservesEntitiesAndComponents) {
 
 TEST(SceneCopy, CopiesAreIndependent) {
     vulcal::scene::Scene scene;
-    auto source = scene.create_entity("Source");
+    auto source                                                            = scene.create_entity("Source");
     source.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 4.0f, 5.0f, 6.0f };
-    const auto source_id = source.get_component<vulcal::scene::IDComponent>().id_;
+    const auto source_id                                                   = source.get_component<vulcal::scene::IDComponent>().id_;
 
-    vulcal::scene::Scene copy = scene;
-    auto copied_source = find_entity_by_id(copy, source_id);
+    vulcal::scene::Scene copy                                              = scene;
+    auto copied_source                                                     = find_entity_by_id(copy, source_id);
     ASSERT_TRUE(copied_source.valid());
 
     copied_source.get_component<vulcal::scene::TransformComponent>().translation_.x = 100.0f;
@@ -272,13 +277,13 @@ TEST(SceneCopy, CopiesAreIndependent) {
 
 TEST(SceneCopy, CopyAssignmentPreservesTransforms) {
     vulcal::scene::Scene scene;
-    auto source = scene.create_entity("Source");
+    auto source                                                            = scene.create_entity("Source");
     source.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 4.0f, 5.0f, 6.0f };
-    const auto source_id = source.get_component<vulcal::scene::IDComponent>().id_;
+    const auto source_id                                                   = source.get_component<vulcal::scene::IDComponent>().id_;
     const auto source_translation = source.get_component<vulcal::scene::TransformComponent>().translation_;
 
     vulcal::scene::Scene assigned;
-    assigned = scene;
+    assigned             = scene;
 
     auto assigned_source = find_entity_by_id(assigned, source_id);
     ASSERT_TRUE(assigned_source.valid());
@@ -288,45 +293,45 @@ TEST(SceneCopy, CopyAssignmentPreservesTransforms) {
 class SceneExtractorTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        camera_entity_ = scene_.create_entity("Camera");
+        camera_entity_                                                                 = scene_.create_entity("Camera");
         camera_entity_.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 0.0f, 0.0f, 5.0f };
-        camera_ = &camera_entity_.add_component<vulcal::scene::CameraComponent>();
-        camera_->primary_ = true;
-        camera_->perspective_fov_y_ = glm::radians(45.0f);
+        camera_                      = &camera_entity_.add_component<vulcal::scene::CameraComponent>();
+        camera_->primary_            = true;
+        camera_->perspective_fov_y_  = glm::radians(45.0f);
         camera_->perspective_aspect_ = 2.0f;
-        camera_->perspective_near_ = 0.1f;
-        camera_->perspective_far_ = 100.0f;
+        camera_->perspective_near_   = 0.1f;
+        camera_->perspective_far_    = 100.0f;
 
-        auto environment_entity = scene_.create_entity("Environment");
-        auto& environment = environment_entity.add_component<vulcal::scene::EnvironmentComponent>();
-        environment.ambient_color_ = glm::vec3{ 0.1f, 0.2f, 0.3f };
-        environment.clear_color_ = glm::vec4{ 0.4f, 0.5f, 0.6f, 1.0f };
+        auto environment_entity      = scene_.create_entity("Environment");
+        auto& environment            = environment_entity.add_component<vulcal::scene::EnvironmentComponent>();
+        environment.ambient_color_   = glm::vec3{ 0.1f, 0.2f, 0.3f };
+        environment.clear_color_     = glm::vec4{ 0.4f, 0.5f, 0.6f, 1.0f };
 
-        auto light_entity = scene_.create_entity("Light");
-        auto& light = light_entity.add_component<vulcal::scene::LightComponent>();
-        light_entity.get_component<vulcal::scene::TransformComponent>().rotation_ = { 0.0f, glm::radians(90.0f), 0.0f };
-        light.color_ = glm::vec3{ 1.0f };
-        light.intensity_ = 3.0f;
-        light.shadow_enabled_ = true;
-        light.shadow_map_size_ = 1024;
-        light.shadow_center_ = glm::vec3{ 0.0f, -0.5f, 0.0f };
-        light.shadow_extent_ = 6.0f;
-        light.shadow_near_ = 0.2f;
-        light.shadow_far_ = 30.0f;
-        light.shadow_depth_bias_ = 0.002f;
-        light.shadow_normal_bias_ = 0.03f;
+        auto light_entity            = scene_.create_entity("Light");
+        auto& light                  = light_entity.add_component<vulcal::scene::LightComponent>();
+        light_entity.get_component<vulcal::scene::TransformComponent>().rotation_   = { 0.0f, glm::radians(90.0f), 0.0f };
+        light.color_                                                                = glm::vec3{ 1.0f };
+        light.intensity_                                                            = 3.0f;
+        light.shadow_enabled_                                                       = true;
+        light.shadow_map_size_                                                      = 1024;
+        light.shadow_center_                                                        = glm::vec3{ 0.0f, -0.5f, 0.0f };
+        light.shadow_extent_                                                        = 6.0f;
+        light.shadow_near_                                                          = 0.2f;
+        light.shadow_far_                                                           = 30.0f;
+        light.shadow_depth_bias_                                                    = 0.002f;
+        light.shadow_normal_bias_                                                   = 0.03f;
 
-        auto mesh_entity = scene_.create_entity("Mesh");
+        auto mesh_entity                                                            = scene_.create_entity("Mesh");
         mesh_entity.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 1.0f, 2.0f, 3.0f };
-        auto& mesh_renderer = mesh_entity.add_component<vulcal::scene::MeshRendererComponent>();
-        mesh_renderer.mesh_ = vulcal::render::MeshHandle{ 11 };
-        mesh_renderer.material_ = vulcal::render::MaterialHandle{ 22 };
+        auto& mesh_renderer                = mesh_entity.add_component<vulcal::scene::MeshRendererComponent>();
+        mesh_renderer.mesh_asset_id_       = base::UUID{ 11 };
+        mesh_renderer.material_asset_id_   = base::UUID{ 22 };
 
-        auto hidden_entity = scene_.create_entity("Hidden");
-        auto& hidden_renderer = hidden_entity.add_component<vulcal::scene::MeshRendererComponent>();
-        hidden_renderer.mesh_ = vulcal::render::MeshHandle{ 33 };
-        hidden_renderer.material_ = vulcal::render::MaterialHandle{ 44 };
-        hidden_renderer.visible_ = false;
+        auto hidden_entity                 = scene_.create_entity("Hidden");
+        auto& hidden_renderer              = hidden_entity.add_component<vulcal::scene::MeshRendererComponent>();
+        hidden_renderer.mesh_asset_id_     = base::UUID{ 33 };
+        hidden_renderer.material_asset_id_ = base::UUID{ 44 };
+        hidden_renderer.visible_           = false;
     }
 
     vulcal::scene::Scene scene_;
@@ -345,13 +350,11 @@ TEST_F(SceneExtractorTest, UsesPrimaryCamera) {
     EXPECT_NEAR(data.camera_.projection_[0][0], expected_projection_00, 1e-4f);
 }
 
-TEST_F(SceneExtractorTest, SkipsInvisibleRenderers) {
+TEST_F(SceneExtractorTest, ExtractsCameraAndLightsWithoutRenderResources) {
     const auto data = extractor_.extract(scene_);
-
-    ASSERT_EQ(data.items_.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(data.items_[0].mesh_.value_, 11ull);
-    EXPECT_EQ(data.items_[0].material_.value_, 22ull);
-    expect_near(glm::vec3{ data.items_[0].world_transform_[3] }, glm::vec3{ 1.0f, 2.0f, 3.0f });
+    EXPECT_TRUE(data.items_.empty());
+    EXPECT_TRUE(data.directional_light_);
+    expect_near(data.camera_.position_, { 0.0f, 0.0f, 5.0f });
 }
 
 TEST_F(SceneExtractorTest, ExtractsEnvironment) {
@@ -379,27 +382,27 @@ TEST_F(SceneExtractorTest, ExtractsDirectionalLightAndShadow) {
 }
 
 TEST_F(SceneExtractorTest, BuildsOrthographicProjection) {
-    camera_->projection_type_ = vulcal::scene::CameraComponent::ProjectionType::Orthographic;
-    camera_->orthographic_left_ = -2.0f;
-    camera_->orthographic_right_ = 2.0f;
+    camera_->projection_type_     = vulcal::scene::CameraComponent::ProjectionType::Orthographic;
+    camera_->orthographic_left_   = -2.0f;
+    camera_->orthographic_right_  = 2.0f;
     camera_->orthographic_bottom_ = -1.0f;
-    camera_->orthographic_top_ = 1.0f;
-    camera_->orthographic_near_ = 0.1f;
-    camera_->orthographic_far_ = 100.0f;
+    camera_->orthographic_top_    = 1.0f;
+    camera_->orthographic_near_   = 0.1f;
+    camera_->orthographic_far_    = 100.0f;
 
-    const auto data = extractor_.extract(scene_);
+    const auto data               = extractor_.extract(scene_);
     EXPECT_NEAR(data.camera_.projection_[0][0], 0.5f, 1e-4f);
 }
 
 TEST_F(SceneExtractorTest, CameraOverrideTakesPrecedence) {
     vulcal::render::CameraData override_camera;
-    override_camera.view_ = glm::mat4{ 2.0f };
+    override_camera.view_       = glm::mat4{ 2.0f };
     override_camera.projection_ = glm::mat4{ 3.0f };
-    override_camera.position_ = glm::vec3{ 7.0f, 8.0f, 9.0f };
+    override_camera.position_   = glm::vec3{ 7.0f, 8.0f, 9.0f };
 
     vulcal::scene::SceneExtractor::Options options;
     options.camera_override_ = override_camera;
-    const auto data = extractor_.extract(scene_, options);
+    const auto data          = extractor_.extract(scene_, options);
 
     expect_near(glm::vec3{ data.camera_.view_[3] }, glm::vec3{ 0.0f, 0.0f, 0.0f });
     expect_near(glm::vec3{ data.camera_.view_[0] }, glm::vec3{ 2.0f, 0.0f, 0.0f });
@@ -409,7 +412,7 @@ TEST_F(SceneExtractorTest, CameraOverrideTakesPrecedence) {
 TEST_F(SceneExtractorTest, FallsBackToFirstCameraWhenNoneIsPrimary) {
     camera_->primary_ = false;
 
-    const auto data = extractor_.extract(scene_);
+    const auto data   = extractor_.extract(scene_);
     expect_near(data.camera_.position_, glm::vec3{ 0.0f, 0.0f, 5.0f });
 }
 
@@ -422,32 +425,29 @@ TEST(SceneLight, DirectionUsesRotationWithoutTranslationOrScale) {
     vulcal::scene::Scene scene;
     auto entity = scene.create_entity("Light");
     entity.add_component<vulcal::scene::LightComponent>();
-    auto& transform = entity.get_component<vulcal::scene::TransformComponent>();
-    transform.rotation_ = { 0.0f, glm::radians(90.0f), 0.0f };
+    auto& transform        = entity.get_component<vulcal::scene::TransformComponent>();
+    transform.rotation_    = { 0.0f, glm::radians(90.0f), 0.0f };
     transform.translation_ = { 100.0f, -20.0f, 30.0f };
-    transform.scale_ = { -2.0f, 4.0f, 0.25f };
+    transform.scale_       = { -2.0f, 4.0f, 0.25f };
     vulcal::scene::SceneExtractor::Options options;
     options.camera_override_ = vulcal::render::CameraData{};
-    const auto data = vulcal::scene::SceneExtractor{}.extract(scene, options);
+    const auto data          = vulcal::scene::SceneExtractor{}.extract(scene, options);
     ASSERT_TRUE(data.directional_light_);
     expect_near(data.directional_light_->direction_, { -1.0f, 0.0f, 0.0f });
 }
 
-TEST(SceneExtractor, SkipsRenderersUntilBothResourcesAreAssigned) {
+TEST(SceneExtractor, SkipsMeshDataWithoutBoundCache) {
     vulcal::scene::Scene scene;
     auto entity = scene.create_entity();
-    auto& mesh = entity.add_component<vulcal::scene::MeshRendererComponent>();
+    auto& mesh  = entity.add_component<vulcal::scene::MeshRendererComponent>();
     vulcal::scene::SceneExtractor::Options options;
     options.camera_override_ = vulcal::render::CameraData{};
     vulcal::scene::SceneExtractor extractor;
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
-    mesh.mesh_ = vulcal::render::MeshHandle{ 1 };
+    mesh.mesh_asset_id_ = base::UUID{ 1 };
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
-    mesh.mesh_ = {};
-    mesh.material_ = vulcal::render::MaterialHandle{ 2 };
+    mesh.material_asset_id_ = base::UUID{ 2 };
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
-    mesh.mesh_ = vulcal::render::MeshHandle{ 1 };
-    EXPECT_EQ(extractor.extract(scene, options).items_.size(), 1u);
 }
 
 } // namespace

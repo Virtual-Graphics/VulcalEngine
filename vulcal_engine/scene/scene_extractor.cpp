@@ -1,5 +1,6 @@
 #include "scene/scene_extractor.h"
 
+#include "asset/render_asset_cache.h"
 #include "base/logger.h"
 #include "scene/components.h"
 #include "scene/scene.h"
@@ -19,11 +20,11 @@ CameraSelection find_camera(const Scene& scene, SceneExtractor::CameraPolicy pol
     CameraSelection result;
 
     for (const auto entity: view) {
-        const auto& camera = view.get<const CameraComponent>(entity);
+        const auto& camera    = view.get<const CameraComponent>(entity);
         const auto& transform = view.get<const TransformComponent>(entity);
 
         if (result.camera_ == nullptr) {
-            result.camera_ = &camera;
+            result.camera_          = &camera;
             result.world_transform_ = transform.matrix();
         }
 
@@ -36,6 +37,8 @@ CameraSelection find_camera(const Scene& scene, SceneExtractor::CameraPolicy pol
 }
 
 } // namespace
+
+SceneExtractor::SceneExtractor(asset::RenderAssetCache& resources) : resources_(&resources) {}
 
 render::RenderData SceneExtractor::extract(const Scene& scene) const { return extract(scene, Options{}); }
 
@@ -72,12 +75,16 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
     const auto render_view = scene.registry().view<const TransformComponent, const MeshRendererComponent>();
     for (const auto entity: render_view) {
         const auto& transform = render_view.get<const TransformComponent>(entity);
-        const auto& renderer = render_view.get<const MeshRendererComponent>(entity);
-        if (!renderer.visible_ || renderer.mesh_.value_ == 0 || renderer.material_.value_ == 0) {
+        const auto& renderer  = render_view.get<const MeshRendererComponent>(entity);
+        if (!renderer.visible_ || renderer.mesh_asset_id_.is_nil() || !resources_) {
             continue;
         }
 
-        data.items_.push_back(render::RenderItem{ renderer.mesh_, renderer.material_, transform.matrix() });
+        const auto mesh = resources_->resolve_mesh(renderer.mesh_asset_id_);
+        if (mesh.value_ == 0) continue;
+        const auto material = resources_->resolve_material(renderer.material_asset_id_);
+        if (material.value_ == 0) continue;
+        data.items_.push_back(render::RenderItem{ mesh, material, transform.matrix() });
     }
 
     return data;
