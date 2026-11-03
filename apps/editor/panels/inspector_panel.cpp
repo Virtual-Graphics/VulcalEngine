@@ -1,5 +1,6 @@
 #include "editor/panels/inspector_panel.h"
 
+#include "base/logger.h"
 #include "editor/editor_context.h"
 
 #include <algorithm>
@@ -17,23 +18,29 @@ void draw_component(vulcal::scene::Entity entity, const char* label, Draw&& draw
     if (!entity.has_component<Component>()) return;
     ImGui::PushID(label);
     const bool expanded = section(label);
-    bool remove = false;
+    bool remove         = false;
     if (ImGui::BeginPopupContextItem("ComponentMenu")) {
         remove = ImGui::MenuItem("Remove Component");
         ImGui::EndPopup();
     }
     if (expanded) draw(entity.get_component<Component>());
     // No reference to this component is used after removal.
-    if (remove) entity.remove_component<Component>();
+    if (remove) {
+        entity.remove_component<Component>();
+        base::log::debug("Inspector: removed {} from entity {}", label, entity.get_component<vulcal::scene::IDComponent>().id_.to_string());
+    }
     ImGui::PopID();
 }
 
 template<typename Component>
 void add_component_item(EditorContext& context, vulcal::scene::Entity entity, const char* label, bool singleton = false) {
     const bool already_attached = entity.has_component<Component>();
-    bool occupied = false;
+    bool occupied               = false;
     if (singleton) context.scene().each<Component>([&](auto, const auto&) { occupied = true; });
-    if (ImGui::MenuItem(label, nullptr, false, !already_attached && !occupied)) entity.add_component<Component>();
+    if (ImGui::MenuItem(label, nullptr, false, !already_attached && !occupied)) {
+        entity.add_component<Component>();
+        base::log::debug("Inspector: added {} to entity {}", label, entity.get_component<vulcal::scene::IDComponent>().id_.to_string());
+    }
     if ((already_attached || occupied) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip("%s", already_attached ? "Entity already has this component." : "Only one per scene is currently supported.");
     }
@@ -42,7 +49,7 @@ void add_component_item(EditorContext& context, vulcal::scene::Entity entity, co
 bool finite(const glm::vec3& value) { return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z); }
 
 void bounded_drag(const char* label, float& value, float minimum, float maximum = 100000.0f, float speed = 0.01f,
-        const char* format = "%.3f") {
+                  const char* format = "%.3f") {
     float candidate = value;
     if (ImGui::DragFloat(label, &candidate, speed, minimum, maximum, format, ImGuiSliderFlags_AlwaysClamp) && std::isfinite(candidate)) {
         value = std::clamp(candidate, minimum, maximum);
@@ -82,7 +89,7 @@ void draw_camera(vulcal::scene::CameraComponent& camera) {
         auto edit_bound = [](const char* label, float& value, float minimum, float maximum) {
             float candidate = value;
             if (ImGui::DragFloat(label, &candidate, 0.01f, minimum, maximum, "%.3f", ImGuiSliderFlags_AlwaysClamp) &&
-                    std::isfinite(candidate))
+                std::isfinite(candidate))
                 value = std::clamp(candidate, minimum, maximum);
         };
         edit_bound("Left", camera.orthographic_left_, -100000.0f, camera.orthographic_right_ - 0.01f);
@@ -140,10 +147,11 @@ void InspectorPanel::draw(EditorContext& context, bool& open) const {
                 draw_transform(entity.get_component<vulcal::scene::TransformComponent>());
             draw_component<vulcal::scene::MeshRendererComponent>(entity, "Mesh Renderer", [](auto& mesh) {
                 ImGui::Checkbox("Visible", &mesh.visible_);
-                ImGui::Text("Mesh: %llu", static_cast<unsigned long long>(mesh.mesh_.value_));
-                ImGui::Text("Material: %llu", static_cast<unsigned long long>(mesh.material_.value_));
-                if (mesh.mesh_.value_ == 0 || mesh.material_.value_ == 0)
-                    ImGui::TextDisabled("Not rendered: mesh and material must both be assigned.");
+                const auto mesh_id     = mesh.mesh_asset_id_.to_string();
+                const auto material_id = mesh.material_asset_id_.to_string();
+                ImGui::Text("Mesh Asset: %s", mesh.mesh_asset_id_.is_nil() ? "None" : mesh_id.c_str());
+                ImGui::Text("Material Asset: %s", mesh.material_asset_id_.is_nil() ? "None" : material_id.c_str());
+                if (mesh.mesh_asset_id_.is_nil()) ImGui::TextDisabled("Assign a mesh asset to render this entity.");
             });
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
