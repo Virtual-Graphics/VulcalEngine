@@ -1,6 +1,5 @@
 #include "common/imgui/imgui_integration.h"
 
-#include "base/logger.h"
 #include "base/window.h"
 #include "gfx/command.h"
 #include "gfx/pipeline_state.h"
@@ -47,7 +46,6 @@ ImGuiIntegration::ImGuiIntegration(base::Window& window)
             ImGui::SetCurrentContext(context_);
             ImGui_ImplSDL3_ProcessEvent(&event);
         });
-        base::log::debug("ImGuiIntegration: initialized SDL3 and OpenGL backends");
     } catch (...) {
         shutdown();
         throw;
@@ -92,7 +90,6 @@ bool ImGuiIntegration::wants_keyboard() const {
 }
 
 void ImGuiIntegration::shutdown() {
-    base::log::debug("ImGuiIntegration: shutting down (SDL3: {}, OpenGL: {})", sdl_initialized_, opengl_initialized_);
     ImGui::SetCurrentContext(context_);
     if (opengl_initialized_) {
         ImGui_ImplOpenGL3_Shutdown();

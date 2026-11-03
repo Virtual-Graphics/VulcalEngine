@@ -1,7 +1,4 @@
-#include "asset/asset_manager.h"
-#include "asset/render_asset_cache.h"
-#include "asset_import/obj_loader.h"
-#include "base/logger.h"
+#include "asset/obj_loader.h"
 #include "common/imgui/imgui_integration.h"
 #include "engine/application.h"
 #include "engine/layer.h"
@@ -31,94 +28,89 @@ public:
               model_path_(std::move(model_path)) {}
 
     void on_attach() override {
-        base::log::debug("ModelViewer: loading {}", model_path_.string());
-        auto mesh_data = apps::asset_import::OBJImporter::load_obj(model_path_);
+        const vulcal::MeshData mesh_data = vulcal::asset::OBJImporter::load_obj(model_path_);
         if (mesh_data.vertices_.empty() || mesh_data.indices_.empty()) {
             throw std::runtime_error("Failed to load model: " + model_path_.string());
         }
-        model_name_                    = model_path_.filename().string();
-        vertex_count_                  = mesh_data.vertices_.size();
-        triangle_count_                = mesh_data.indices_.size() / 3;
+        model_name_ = model_path_.filename().string();
+        vertex_count_ = mesh_data.vertices_.size();
+        triangle_count_ = mesh_data.indices_.size() / 3;
 
-        renderer_                      = std::make_unique<vulcal::render::Renderer>();
-        render_assets_                 = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-        extractor_                     = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
-        const auto model_mesh_asset_id = assets_.add_mesh(std::move(mesh_data));
+        renderer_ = std::make_unique<vulcal::render::Renderer>();
+        const auto mesh = renderer_->create_mesh(mesh_data);
 
         vulcal::render::Material material;
-        material.diffuse_                  = glm::vec3{ 0.9f };
-        material.specular_                 = glm::vec3{ 0.08f };
-        material.shininess_                = 8.0f;
-        const auto model_material_asset_id = assets_.add_material(material);
+        material.diffuse_ = glm::vec3{ 0.9f };
+        material.specular_ = glm::vec3{ 0.08f };
+        material.shininess_ = 8.0f;
+        const auto material_handle = renderer_->create_material(material);
 
         vulcal::MeshData ground_data;
-        const float half      = 20.0f;
-        const float y         = -1.05f;
+        const float half = 20.0f;
+        const float y = -1.05f;
         ground_data.vertices_ = {
             { { -half, y, -half }, { 0.0f, 1.0f, 0.0f } },
-            {  { half, y, -half }, { 0.0f, 1.0f, 0.0f } },
-            {   { half, y, half }, { 0.0f, 1.0f, 0.0f } },
-            {  { -half, y, half }, { 0.0f, 1.0f, 0.0f } },
+            { { half, y, -half }, { 0.0f, 1.0f, 0.0f } },
+            { { half, y, half }, { 0.0f, 1.0f, 0.0f } },
+            { { -half, y, half }, { 0.0f, 1.0f, 0.0f } },
         };
-        ground_data.indices_            = { 0, 1, 2, 2, 3, 0 };
-        const auto ground_mesh_asset_id = assets_.add_mesh(std::move(ground_data));
+        ground_data.indices_ = { 0, 1, 2, 2, 3, 0 };
+        const auto ground_mesh = renderer_->create_mesh(ground_data);
 
         vulcal::render::Material ground_material;
-        ground_material.diffuse_            = glm::vec3{ 0.55f, 0.57f, 0.6f };
-        ground_material.specular_           = glm::vec3{ 0.02f };
-        ground_material.shininess_          = 4.0f;
-        const auto ground_material_asset_id = assets_.add_material(ground_material);
+        ground_material.diffuse_ = glm::vec3{ 0.55f, 0.57f, 0.6f };
+        ground_material.specular_ = glm::vec3{ 0.02f };
+        ground_material.shininess_ = 4.0f;
+        const auto ground_material_handle = renderer_->create_material(ground_material);
 
-        scene_                              = std::make_unique<vulcal::scene::Scene>();
+        scene_ = std::make_unique<vulcal::scene::Scene>();
 
-        model_entity_                       = scene_->create_entity("Model");
-        auto& model_transform               = model_entity_.get_component<vulcal::scene::TransformComponent>();
-        model_transform.translation_        = glm::vec3{ 0.0f, -1.0f, 0.0f };
-        model_transform.scale_              = glm::vec3{ 15.0f };
-        auto& model_renderer                = model_entity_.add_component<vulcal::scene::MeshRendererComponent>();
-        model_renderer.mesh_asset_id_       = model_mesh_asset_id;
-        model_renderer.material_asset_id_   = model_material_asset_id;
+        model_entity_ = scene_->create_entity("Model");
+        auto& model_transform = model_entity_.get_component<vulcal::scene::TransformComponent>();
+        model_transform.translation_ = glm::vec3{ 0.0f, -1.0f, 0.0f };
+        model_transform.scale_ = glm::vec3{ 15.0f };
+        auto& model_renderer = model_entity_.add_component<vulcal::scene::MeshRendererComponent>();
+        model_renderer.mesh_ = mesh;
+        model_renderer.material_ = material_handle;
 
-        auto ground_entity                  = scene_->create_entity("Ground");
-        auto& ground_renderer               = ground_entity.add_component<vulcal::scene::MeshRendererComponent>();
-        ground_renderer.mesh_asset_id_      = ground_mesh_asset_id;
-        ground_renderer.material_asset_id_  = ground_material_asset_id;
+        auto ground_entity = scene_->create_entity("Ground");
+        auto& ground_renderer = ground_entity.add_component<vulcal::scene::MeshRendererComponent>();
+        ground_renderer.mesh_ = ground_mesh;
+        ground_renderer.material_ = ground_material_handle;
 
-        environment_entity_                 = scene_->create_entity("Environment");
-        auto& environment                   = environment_entity_.add_component<vulcal::scene::EnvironmentComponent>();
-        environment.ambient_color_          = glm::vec3{ 0.15f };
-        environment.clear_color_            = glm::vec4{ 0.08f, 0.09f, 0.11f, 1.0f };
+        environment_entity_ = scene_->create_entity("Environment");
+        auto& environment = environment_entity_.add_component<vulcal::scene::EnvironmentComponent>();
+        environment.ambient_color_ = glm::vec3{ 0.15f };
+        environment.clear_color_ = glm::vec4{ 0.08f, 0.09f, 0.11f, 1.0f };
 
-        light_entity_                       = scene_->create_entity("Directional Light");
-        auto& light                         = light_entity_.add_component<vulcal::scene::LightComponent>();
+        light_entity_ = scene_->create_entity("Directional Light");
+        auto& light = light_entity_.add_component<vulcal::scene::LightComponent>();
         light_entity_.get_component<vulcal::scene::TransformComponent>().rotation_ =
                 glm::eulerAngles(glm::quatLookAt(glm::normalize(glm::vec3{ -1.0f }), glm::vec3{ 0.0f, 1.0f, 0.0f }));
-        light.color_           = glm::vec3{ 1.0f };
-        light.intensity_       = 1.0f;
+        light.color_ = glm::vec3{ 1.0f };
+        light.intensity_ = 1.0f;
         light.shadow_map_size_ = 2048;
-        light.shadow_center_   = glm::vec3{ 0.0f, -0.5f, 0.0f };
-        light.shadow_extent_   = 8.0f;
-        light.shadow_near_     = 0.1f;
-        light.shadow_far_      = 40.0f;
+        light.shadow_center_ = glm::vec3{ 0.0f, -0.5f, 0.0f };
+        light.shadow_extent_ = 8.0f;
+        light.shadow_near_ = 0.1f;
+        light.shadow_far_ = 40.0f;
 
-        camera_entity_         = scene_->create_entity("Main Camera");
+        camera_entity_ = scene_->create_entity("Main Camera");
         auto& camera_transform = camera_entity_.get_component<vulcal::scene::TransformComponent>();
         const glm::vec3 camera_position{ 0.0f, 4.0f, 8.0f };
         const glm::mat4 camera_world =
                 glm::inverse(glm::lookAt(camera_position, glm::vec3{ 0.0f, -0.5f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }));
         camera_transform.translation_ = glm::vec3{ camera_world[3] };
-        camera_transform.rotation_    = glm::eulerAngles(glm::quat_cast(camera_world));
+        camera_transform.rotation_ = glm::eulerAngles(glm::quat_cast(camera_world));
 
-        auto& camera                  = camera_entity_.add_component<vulcal::scene::CameraComponent>();
-        camera.primary_               = true;
-        camera.perspective_fov_y_     = glm::radians(45.0f);
-        camera.perspective_near_      = 0.1f;
-        camera.perspective_far_       = 100.0f;
+        auto& camera = camera_entity_.add_component<vulcal::scene::CameraComponent>();
+        camera.primary_ = true;
+        camera.perspective_fov_y_ = glm::radians(45.0f);
+        camera.perspective_near_ = 0.1f;
+        camera.perspective_far_ = 100.0f;
 
         update_camera_aspect();
         imgui_ = std::make_unique<apps::ImGuiIntegration>(application().get_window());
-        base::log::info("ModelViewer: ready to render {} ({} vertices, {} triangles)", model_path_.string(), vertex_count_,
-                        triangle_count_);
     }
 
     void on_update(base::Timestep dt) override {
@@ -130,24 +122,16 @@ public:
             angle_ = std::fmod(angle_ + dt.get_seconds() * rotate_speed_, 360.0f);
         }
 
-        auto& model_transform       = model_entity_.get_component<vulcal::scene::TransformComponent>();
+        auto& model_transform = model_entity_.get_component<vulcal::scene::TransformComponent>();
         model_transform.rotation_.y = glm::radians(angle_);
 
         update_camera_aspect();
     }
 
-    void on_detach() override {
-        base::log::debug("ModelViewer: releasing scene and resources for {}", model_path_.string());
-        imgui_.reset();
-        scene_.reset();
-        extractor_.reset();
-        render_assets_.reset();
-        assets_.clear();
-        renderer_.reset();
-    }
+    void on_detach() override { imgui_.reset(); }
 
     void on_render() override {
-        renderer_->render(extractor_->extract(*scene_));
+        renderer_->render(extractor_.extract(*scene_));
         imgui_->render();
     }
 
@@ -169,9 +153,9 @@ private:
             auto& light = light_entity_.get_component<vulcal::scene::LightComponent>();
             if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) {
                 auto& transform = light_entity_.get_component<vulcal::scene::TransformComponent>();
-                auto rotation   = glm::degrees(transform.rotation_);
+                auto rotation = glm::degrees(transform.rotation_);
                 if (ImGui::DragFloat3("Rotation (deg)", &rotation.x, 0.5f) && std::isfinite(rotation.x) && std::isfinite(rotation.y) &&
-                    std::isfinite(rotation.z)) {
+                        std::isfinite(rotation.z)) {
                     transform.rotation_ = glm::radians(rotation);
                 }
                 ImGui::ColorEdit3("Light color", &light.color_.x);
@@ -215,22 +199,20 @@ private:
     }
 
     std::filesystem::path model_path_;
-    vulcal::asset::AssetManager assets_;
     std::unique_ptr<vulcal::render::Renderer> renderer_;
-    std::unique_ptr<vulcal::asset::RenderAssetCache> render_assets_;
     std::unique_ptr<vulcal::scene::Scene> scene_;
     vulcal::scene::Entity model_entity_;
     vulcal::scene::Entity camera_entity_;
     vulcal::scene::Entity light_entity_;
     vulcal::scene::Entity environment_entity_;
-    std::unique_ptr<vulcal::scene::SceneExtractor> extractor_;
+    vulcal::scene::SceneExtractor extractor_;
     std::unique_ptr<apps::ImGuiIntegration> imgui_;
     std::string model_name_;
-    std::size_t vertex_count_   = 0;
+    std::size_t vertex_count_ = 0;
     std::size_t triangle_count_ = 0;
-    bool rotate_model_          = true;
-    float angle_                = 0.0f;
-    float rotate_speed_         = 60.0f;
+    bool rotate_model_ = true;
+    float angle_ = 0.0f;
+    float rotate_speed_ = 60.0f;
 };
 
 int main(int argc, char** argv) {
@@ -247,9 +229,9 @@ int main(int argc, char** argv) {
     }
 
     engine::ApplicationCreateInfo info;
-    info.width  = 1280;
+    info.width = 1280;
     info.height = 720;
-    info.title  = "VulcalEngine - Model Viewer";
+    info.title = "VulcalEngine - Model Viewer";
 
     engine::Application app(info);
     try {

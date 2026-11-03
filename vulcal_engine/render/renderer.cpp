@@ -25,11 +25,9 @@ struct Renderer::Impl {
     Pipeline pipeline_;
 };
 
-Renderer::Renderer() : impl_(std::make_unique<Impl>()) { base::log::debug("Renderer: initialized"); }
+Renderer::Renderer() : impl_(std::make_unique<Impl>()) {}
 
-Renderer::~Renderer() {
-    base::log::debug("Renderer: shutting down ({} meshes, {} materials remaining)", impl_->meshes_.size(), impl_->materials_.size());
-}
+Renderer::~Renderer() = default;
 
 MeshHandle Renderer::create_mesh(const MeshData& data) {
     auto mesh = std::make_unique<MeshGPU>(data);

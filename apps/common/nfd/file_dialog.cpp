@@ -1,7 +1,5 @@
 #include "common/nfd/file_dialog.h"
 
-#include "base/logger.h"
-
 #include <nfd.h>
 
 #include <memory>
@@ -18,7 +16,6 @@ namespace {
 struct NfdGuard {
     NfdGuard() {
         if (NFD_Init() != NFD_OKAY) fail("Failed to initialize native file dialog");
-        base::log::debug("FileDialog: initialized native dialogs");
     }
     ~NfdGuard() { NFD_Quit(); }
 };
@@ -36,15 +33,10 @@ std::filesystem::path path_from_utf8(const char* text) {
 
 std::optional<std::filesystem::path> result(nfdresult_t status, nfdu8char_t* path) {
     const std::unique_ptr<nfdu8char_t, decltype(&NFD_FreePathU8)> owned(path, NFD_FreePathU8);
-    if (status == NFD_CANCEL) {
-        base::log::trace("FileDialog: cancelled");
-        return std::nullopt;
-    }
+    if (status == NFD_CANCEL) return std::nullopt;
     if (status != NFD_OKAY) fail("Native file dialog failed");
     if (!path) return std::nullopt;
-    const auto selected = path_from_utf8(path);
-    base::log::debug("FileDialog: selected {}", selected.string());
-    return selected;
+    return path_from_utf8(path);
 }
 
 std::vector<nfdu8filteritem_t> make_filters(const std::vector<FileFilter>& filters) {
@@ -59,13 +51,12 @@ std::vector<nfdu8filteritem_t> make_filters(const std::vector<FileFilter>& filte
 } // namespace
 
 std::optional<std::filesystem::path> open_file(const std::vector<FileFilter>& filters, const std::filesystem::path& default_path) {
-    base::log::debug("FileDialog: opening file chooser (directory: {})", default_path.string());
     ensure_initialized();
-    const auto items   = make_filters(filters);
+    const auto items = make_filters(filters);
     const auto initial = path_to_utf8(default_path);
-    nfdu8char_t* path  = nullptr;
-    const auto status  = NFD_OpenDialogU8(&path, items.empty() ? nullptr : items.data(), static_cast<nfdfiltersize_t>(items.size()),
-                                          initial.empty() ? nullptr : initial.c_str());
+    nfdu8char_t* path = nullptr;
+    const auto status = NFD_OpenDialogU8(&path, items.empty() ? nullptr : items.data(), static_cast<nfdfiltersize_t>(items.size()),
+            initial.empty() ? nullptr : initial.c_str());
     return result(status, path);
 }
 
@@ -74,29 +65,27 @@ std::optional<std::filesystem::path> open_file(const FileFilter& filter, const s
 }
 
 std::optional<std::filesystem::path> save_file(const std::vector<FileFilter>& filters, const std::filesystem::path& default_path,
-                                               const std::filesystem::path& default_name) {
-    base::log::debug("FileDialog: opening Save As (directory: {}, name: {})", default_path.string(), default_name.string());
+        const std::filesystem::path& default_name) {
     ensure_initialized();
-    const auto items   = make_filters(filters);
+    const auto items = make_filters(filters);
     const auto initial = path_to_utf8(default_path);
-    const auto name    = path_to_utf8(default_name);
-    nfdu8char_t* path  = nullptr;
-    const auto status  = NFD_SaveDialogU8(&path, items.empty() ? nullptr : items.data(), static_cast<nfdfiltersize_t>(items.size()),
-                                          initial.empty() ? nullptr : initial.c_str(), name.empty() ? nullptr : name.c_str());
+    const auto name = path_to_utf8(default_name);
+    nfdu8char_t* path = nullptr;
+    const auto status = NFD_SaveDialogU8(&path, items.empty() ? nullptr : items.data(), static_cast<nfdfiltersize_t>(items.size()),
+            initial.empty() ? nullptr : initial.c_str(), name.empty() ? nullptr : name.c_str());
     return result(status, path);
 }
 
 std::optional<std::filesystem::path> save_file(const FileFilter& filter, const std::filesystem::path& default_path,
-                                               const std::filesystem::path& default_name) {
+        const std::filesystem::path& default_name) {
     return save_file(std::vector<FileFilter>{ filter }, default_path, default_name);
 }
 
 std::optional<std::filesystem::path> pick_folder(const std::filesystem::path& default_path) {
-    base::log::debug("FileDialog: opening folder chooser (directory: {})", default_path.string());
     ensure_initialized();
     const auto initial = path_to_utf8(default_path);
-    nfdu8char_t* path  = nullptr;
-    const auto status  = NFD_PickFolderU8(&path, initial.empty() ? nullptr : initial.c_str());
+    nfdu8char_t* path = nullptr;
+    const auto status = NFD_PickFolderU8(&path, initial.empty() ? nullptr : initial.c_str());
     return result(status, path);
 }
 

@@ -1,7 +1,5 @@
 #include "editor/editor_layer.h"
 
-#include "asset/render_asset_cache.h"
-#include "asset_import/obj_asset_importer.h"
 #include "base/input.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
@@ -20,7 +18,6 @@ namespace {
 
 const apps::nfd::FileFilter project_filter{ "Vulcal Project", "vproj" };
 const apps::nfd::FileFilter scene_filter{ "Vulcal Scene", "vscene" };
-const apps::nfd::FileFilter obj_filter{ "Wavefront OBJ", "obj" };
 
 std::string to_utf8(const std::filesystem::path& path) {
     const auto text = path.u8string();
@@ -35,14 +32,12 @@ EditorLayer::EditorLayer()
 EditorLayer::~EditorLayer() = default;
 
 void EditorLayer::on_attach() {
-    imgui_   = std::make_unique<apps::ImGuiIntegration>(application().get_window());
+    imgui_ = std::make_unique<apps::ImGuiIntegration>(application().get_window());
     auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.IniFilename                       = "vulcal_editor.ini";
+    io.IniFilename = "vulcal_editor.ini";
     io.ConfigWindowsMoveFromTitleBarOnly = true;
-    renderer_                            = std::make_unique<vulcal::render::Renderer>();
-    render_assets_                       = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-    extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
+    renderer_ = std::make_unique<vulcal::render::Renderer>();
     context_.new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
     base::log::info("Editor initialized with {} entities", entity_count);
@@ -51,10 +46,6 @@ void EditorLayer::on_attach() {
 void EditorLayer::on_detach() {
     release_camera();
     imgui_.reset();
-    extractor_.reset();
-    render_assets_.reset();
-    assets_.clear();
-    renderer_.reset();
 }
 
 void EditorLayer::run_operation(const std::function<void()>& operation) {
@@ -63,7 +54,7 @@ void EditorLayer::run_operation(const std::function<void()>& operation) {
         operation();
     } catch (const std::exception& error) {
         base::log::error("Editor operation failed: {}", error.what());
-        error_message_   = error.what();
+        error_message_ = error.what();
         error_requested_ = true;
     }
 }
@@ -78,7 +69,7 @@ void EditorLayer::save_scene() {
 
 void EditorLayer::save_scene_as() {
     const auto directory = context_.scene_dialog_directory();
-    const auto name      = context_.suggested_scene_name();
+    const auto name = context_.suggested_scene_name();
     if (auto path = apps::nfd::save_file(scene_filter, directory, name)) context_.save_scene_as(*path);
 }
 
@@ -94,14 +85,9 @@ void EditorLayer::draw_file_menu() {
     }
     if (ImGui::MenuItem("Open Project...")) {
         run_operation([this] {
-            if (auto path = apps::nfd::open_file(project_filter)) {
-                context_.open_project(*path);
-                reset_project_resources();
-            }
+            if (auto path = apps::nfd::open_file(project_filter)) context_.open_project(*path);
         });
     }
-
-    if (ImGui::MenuItem("Import OBJ...", nullptr, false, context_.has_project())) run_operation([this] { import_obj(); });
 
     ImGui::Separator();
 
@@ -114,29 +100,6 @@ void EditorLayer::draw_file_menu() {
     ImGui::EndDisabled();
 
     ImGui::EndMenu();
-}
-
-void EditorLayer::import_obj() {
-    if (auto path = apps::nfd::open_file(obj_filter, context_.assets_directory())) {
-        const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
-        const auto selected = context_.selected_entity();
-        if (selected) {
-            auto& component          = selected.has_component<vulcal::scene::MeshRendererComponent>()
-                                               ? selected.get_component<vulcal::scene::MeshRendererComponent>()
-                                               : selected.add_component<vulcal::scene::MeshRendererComponent>();
-            component.mesh_asset_id_ = id;
-            base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
-                             selected.get_component<vulcal::scene::TagComponent>().name_,
-                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        }
-        render_assets_->invalidate(id);
-        assets_.invalidate(id);
-    }
-}
-
-void EditorLayer::reset_project_resources() {
-    render_assets_->clear();
-    assets_.set_directory(context_.library_directory());
 }
 
 void EditorLayer::draw_new_project_dialog() {
@@ -160,7 +123,6 @@ void EditorLayer::draw_new_project_dialog() {
                 if (new_project_name_.empty()) new_project_name_ = to_utf8(new_project_directory_.filename());
             }
         } catch (const std::exception& error) {
-            base::log::error("Editor: could not choose project directory: {}", error.what());
             new_project_error_ = error.what();
         }
     }
@@ -176,12 +138,9 @@ void EditorLayer::draw_new_project_dialog() {
     if (ImGui::Button("Create")) {
         try {
             context_.create_project(new_project_directory_, new_project_name_);
-            reset_project_resources();
             new_project_error_.clear();
             ImGui::CloseCurrentPopup();
         } catch (const std::exception& error) {
-            base::log::error("Editor: could not create project '{}' in {}: {}", new_project_name_, new_project_directory_.string(),
-                             error.what());
             new_project_error_ = error.what();
         }
     }
@@ -222,7 +181,7 @@ void EditorLayer::draw_workspace() {
             ImGui::MenuItem("Viewport", nullptr, &viewport_open_);
             ImGui::Separator();
             if (ImGui::MenuItem("Reset Layout")) {
-                reset_layout_   = true;
+                reset_layout_ = true;
                 hierarchy_open_ = inspector_open_ = viewport_open_ = true;
             }
             ImGui::EndMenu();
@@ -232,15 +191,15 @@ void EditorLayer::draw_workspace() {
         ImGui::EndMainMenuBar();
     }
 
-    const auto* viewport    = ImGui::GetMainViewport();
+    const auto* viewport = ImGui::GetMainViewport();
     const ImGuiID dockspace = ImGui::GetID("EditorDockSpace");
     if (reset_layout_ || ImGui::DockBuilderGetNode(dockspace) == nullptr) {
         // DockBuilder's internal API is confined to initial layout creation.
         ImGui::DockBuilderRemoveNode(dockspace);
         ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dockspace, viewport->WorkSize);
-        ImGuiID center      = dockspace;
-        const ImGuiID left  = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.18f, nullptr, &center);
+        ImGuiID center = dockspace;
+        const ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.18f, nullptr, &center);
         const ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.28f, nullptr, &center);
         ImGui::DockBuilderDockWindow("Hierarchy", left);
         ImGui::DockBuilderDockWindow("Inspector", right);
@@ -264,10 +223,10 @@ void EditorLayer::on_update(base::Timestep dt) {
 }
 
 void EditorLayer::update_camera(base::Timestep dt) {
-    auto* window          = application().get_window().handle();
-    const bool focused    = (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
-    const bool popup      = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-    const bool escape     = base::Input::is_key_down(base::Key::Escape);
+    auto* window = application().get_window().handle();
+    const bool focused = (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
+    const bool popup = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+    const bool escape = base::Input::is_key_down(base::Key::Escape);
     const bool right_down = base::Input::is_mouse_button_down(base::MouseButton::Right);
     if (controlling_camera_ && (!right_down || escape || !focused || !viewport_.visible() || !viewport_.focused() || popup)) {
         release_camera();
@@ -276,11 +235,11 @@ void EditorLayer::update_camera(base::Timestep dt) {
     bool started = false;
     if (!controlling_camera_ && viewport_.camera_requested() && right_down && focused && !escape && !popup) {
         const auto [x, y] = base::Input::mouse_position();
-        saved_mouse_x_    = x;
-        saved_mouse_y_    = y;
+        saved_mouse_x_ = x;
+        saved_mouse_y_ = y;
         if (SDL_SetWindowRelativeMouseMode(window, true)) {
             controlling_camera_ = true;
-            started             = true;
+            started = true;
             ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
             SDL_HideCursor();
             base::log::debug("Editor camera control started");
@@ -312,7 +271,7 @@ void EditorLayer::on_render() {
         auto& target = viewport_.target();
         vulcal::scene::SceneExtractor::Options options;
         options.camera_override_ = camera_.data(static_cast<float>(target.width()) / static_cast<float>(target.height()));
-        renderer_->render(extractor_->extract(context_.scene(), options), &target);
+        renderer_->render(extractor_.extract(context_.scene(), options), &target);
     }
     vulcal::gfx::RenderTarget::unbind();
     const auto& window = application().get_window();

@@ -24,10 +24,7 @@ void EditorContext::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
     selected_ = {};
 }
 
-void EditorContext::new_scene() {
-    set_scene(project_manager_.create_scene());
-    base::log::debug("EditorContext: created a new scene and cleared selection");
-}
+void EditorContext::new_scene() { set_scene(project_manager_.create_scene()); }
 
 void EditorContext::open_scene(const std::filesystem::path& scene_file) {
     project_manager_.open_scene(scene_file);
@@ -36,10 +33,7 @@ void EditorContext::open_scene(const std::filesystem::path& scene_file) {
 
 EditorContext::SaveResult EditorContext::save_scene() {
     if (!project_manager_.has_scene()) throw std::logic_error("No scene is currently open");
-    if (project_manager_.current_scene_file().empty()) {
-        base::log::debug("EditorContext: scene has no file path; Save As is required");
-        return SaveResult::NeedsPath;
-    }
+    if (project_manager_.current_scene_file().empty()) return SaveResult::NeedsPath;
     project_manager_.save_scene();
     return SaveResult::Saved;
 }
@@ -58,10 +52,6 @@ void EditorContext::open_project(const std::filesystem::path& project_file) {
     project_manager_.open_project(project_file);
     new_scene();
 }
-
-std::filesystem::path EditorContext::assets_directory() const { return project_manager_.current_assets_dir(); }
-
-std::filesystem::path EditorContext::library_directory() const { return project_manager_.current_library_dir(); }
 
 std::filesystem::path EditorContext::scene_dialog_directory() const {
     auto directory = project_manager_.current_scene_file().parent_path();
@@ -85,16 +75,7 @@ void EditorContext::select(vulcal::scene::Entity entity) {
         const auto* scene = project_manager_.current_scene();
         if (!scene || !scene->contains(entity)) throw std::invalid_argument("Entity belongs to a different scene");
     }
-    const auto selection = entity ? entity : vulcal::scene::Entity{};
-    if (selection != selected_) {
-        if (selection) {
-            base::log::trace("EditorContext: selected entity '{}' ({})", selection.get_component<vulcal::scene::TagComponent>().name_,
-                             selection.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        } else {
-            base::log::trace("EditorContext: cleared selection");
-        }
-    }
-    selected_ = selection;
+    selected_ = entity ? entity : vulcal::scene::Entity{};
 }
 
 vulcal::scene::Entity EditorContext::create_entity() {
