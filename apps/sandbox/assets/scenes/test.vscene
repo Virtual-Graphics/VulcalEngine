@@ -1,15 +1,21 @@
-format_version: 1
+format_version: 2
 entities:
-  - id: 2971036953416869891
+  - id: 8912122927174721280
+    name: Entity
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [4, 4, 4]
+  - id: 3950411888081444643
     name: Environment
     transform:
       translation: [0, 0, 0]
       rotation: [0, 0, 0]
       scale: [1, 1, 1]
     environment:
-      ambient_color: [0.176470593, 0.149019614, 0.149019614]
-      clear_color: [0.356862754, 0.0901960805, 0.109803922, 1]
-  - id: 12302446532940829342
+      ambient_color: [0.150000006, 0.150000006, 0.150000006]
+      clear_color: [0.187716275, 0.308823526, 0.248269856, 1]
+  - id: 6826384270445376577
     name: Camera
     transform:
       translation: [-0, 4, 8]
@@ -28,16 +34,16 @@ entities:
       orthographic_top: 1
       orthographic_near: 0.100000001
       orthographic_far: 100
-  - id: 13357824475731343727
+  - id: 7066125730918130968
     name: Sun
     transform:
       translation: [0, 0, 0]
-      rotation: [-0.615479648, 0.785398066, 2.10734239e-08]
+      rotation: [-0.615479648, 0.04363323, 2.10734239e-08]
       scale: [1, 1, 1]
     light:
       type: directional
       color: [1, 1, 1]
-      intensity: 1
+      intensity: 0.99000001
       shadow_enabled: true
       shadow_map_size: 2048
       shadow_center: [0, -0.5, 0]

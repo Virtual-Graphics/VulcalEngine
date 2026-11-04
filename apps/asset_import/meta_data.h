@@ -7,6 +7,7 @@
 
 namespace apps::asset_import {
 constexpr std::uint32_t metadata_format_version = 1;
+
 struct Metadata {
     std::uint32_t format_version = metadata_format_version;
     vulcal::asset::AssetID id;

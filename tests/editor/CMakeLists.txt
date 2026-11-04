@@ -14,7 +14,7 @@ if (BUILD_APPS)
     target_sources(editor_state_test PRIVATE
         importer.cpp
     )
-    target_link_libraries(editor_state_test PRIVATE vulcal_asset_import)
+    target_link_libraries(editor_state_test PRIVATE vulcal_asset_pipeline)
 endif()
 
 include(GoogleTest)

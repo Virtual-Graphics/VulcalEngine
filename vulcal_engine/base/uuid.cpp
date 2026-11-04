@@ -18,7 +18,7 @@ UUID UUID::generate() {
 
 std::string UUID::to_string() const {
     std::ostringstream stream;
-    stream << std::hex << std::setfill('0') << std::setw(16) << value_;
+    stream << std::dec << value_;
     return stream.str();
 }
 

@@ -54,7 +54,7 @@ TEST(ObjAssetImporter, ReimportKeepsIdAndRuntimeLibraryLoadsCookedMesh) {
 
 TEST(RuntimeAssetLibrary, RejectsCorruptCookedMesh) {
     TemporaryDirectory directory;
-    const base::UUID id{ 0x123456789abcdef0ull };
+    const base::UUID id{ 1311768467463790320ull };
     const auto path = directory.path() / (id.to_string() + ".vmesh");
     {
         std::ofstream output(path, std::ios::binary);

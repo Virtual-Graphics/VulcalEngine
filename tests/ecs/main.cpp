@@ -43,10 +43,11 @@ TEST(Uuid, GeneratedUuidsAreUnique) {
     EXPECT_NE(first, second);
 }
 
-TEST(Uuid, ToStringIsZeroPaddedHex) {
-    const auto uuid = base::UUID::generate();
-    EXPECT_EQ(uuid.to_string().size(), static_cast<std::size_t>(16));
-    EXPECT_EQ(base::UUID{ 0x1234ull }.to_string(), std::string{ "0000000000001234" });
+TEST(Uuid, ToStringIsDecimal) {
+    EXPECT_EQ(base::UUID{}.to_string(), std::string{ "0" });
+    EXPECT_EQ(base::UUID{ 1ull }.to_string(), std::string{ "1" });
+    EXPECT_EQ(base::UUID{ 4660ull }.to_string(), std::string{ "4660" });
+    EXPECT_EQ(base::UUID{ 18446744073709551615ull }.to_string(), std::string{ "18446744073709551615" });
 }
 
 TEST(Uuid, UsableAsUnorderedMapKey) {

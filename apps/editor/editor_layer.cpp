@@ -40,9 +40,11 @@ void EditorLayer::on_attach() {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename                       = "vulcal_editor.ini";
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+
     renderer_                            = std::make_unique<vulcal::render::Renderer>();
     render_assets_                       = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
     extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
+
     context_.new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
     base::log::info("Editor initialized with {} entities", entity_count);
@@ -69,17 +71,24 @@ void EditorLayer::run_operation(const std::function<void()>& operation) {
 }
 
 void EditorLayer::open_scene() {
-    if (auto path = apps::nfd::open_file(scene_filter, context_.scene_dialog_directory())) context_.open_scene(*path);
+    // TODO: 也许 apps::ndf 可以下沉到下层去 ndf 只需要 filter 和 context 的状态，让 EditorContext 依赖 ndf
+    // 我不太希望再在 EditorLayer 包含 open_scene sava_scene sava_scene_as 等这类方法
+    if (auto path = apps::nfd::open_file(scene_filter, context_.scene_dialog_directory())) {
+        context_.open_scene(*path);
+    }
 }
 
 void EditorLayer::save_scene() {
+    // TODO: 很显然这里处理的逻辑只有 EditorContext 中的状态，没有使用到除了 EditorContext 之外的状态，应该将这个逻辑下沉到 EditorContext 中去处理
     if (context_.save_scene() == EditorContext::SaveResult::NeedsPath) save_scene_as();
 }
 
 void EditorLayer::save_scene_as() {
     const auto directory = context_.scene_dialog_directory();
     const auto name      = context_.suggested_scene_name();
-    if (auto path = apps::nfd::save_file(scene_filter, directory, name)) context_.save_scene_as(*path);
+    if (auto path = apps::nfd::save_file(scene_filter, directory, name)) {
+        context_.save_scene_as(*path);
+    }
 }
 
 void EditorLayer::draw_file_menu() {
@@ -117,6 +126,7 @@ void EditorLayer::draw_file_menu() {
 }
 
 void EditorLayer::import_obj() {
+    // TODO: 这里不应该存在 Import OBJ 或许应该由 Asset Pipeline 来处理，放在这里很莫名奇妙
     if (auto path = apps::nfd::open_file(obj_filter, context_.assets_directory())) {
         const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
         const auto selected = context_.selected_entity();

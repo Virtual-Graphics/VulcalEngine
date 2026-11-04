@@ -30,8 +30,8 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
     vulcal::scene::Scene scene;
     auto entity = scene.create_entity("Mesh");
     auto& mesh = entity.add_component<vulcal::scene::MeshRendererComponent>();
-    mesh.mesh_asset_id_ = base::UUID{ 0x123456789abcdef0ull };
-    mesh.material_asset_id_ = base::UUID{ 0x0fedcba987654321ull };
+    mesh.mesh_asset_id_ = base::UUID{ 1311768467463790320ull };
+    mesh.material_asset_id_ = base::UUID{ 1147797409030816545ull };
 
     const auto path = directory.path() / "scene.vscene";
     editor::SceneSerializer::serialize(scene, path);
@@ -40,8 +40,8 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
     ASSERT_EQ(loaded_mesh.size(), 1u);
     const auto& component = loaded_mesh.get<vulcal::scene::MeshRendererComponent>(loaded_mesh.front());
 
-    EXPECT_EQ(component.mesh_asset_id_, base::UUID{ 0x123456789abcdef0ull });
-    EXPECT_EQ(component.material_asset_id_, base::UUID{ 0x0fedcba987654321ull });
+    EXPECT_EQ(component.mesh_asset_id_, base::UUID{ 1311768467463790320ull });
+    EXPECT_EQ(component.material_asset_id_, base::UUID{ 1147797409030816545ull });
 }
 
 TEST(SceneSerializer, LegacyRuntimeHandlesAreNotTreatedAsAssetIds) {

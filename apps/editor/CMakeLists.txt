@@ -13,7 +13,7 @@ add_library(vulcal_editor STATIC
     "${IMGUI_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp"
 )
 target_compile_definitions(vulcal_editor PRIVATE ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
-target_link_libraries(vulcal_editor PUBLIC vulcal_app_imgui PRIVATE vulcal_asset_import yaml-cpp::yaml-cpp)
+target_link_libraries(vulcal_editor PUBLIC vulcal_app_imgui PRIVATE vulcal_asset_pipeline yaml-cpp::yaml-cpp)
 
 add_executable(editor main.cpp)
 target_link_libraries(editor PRIVATE vulcal_editor)
