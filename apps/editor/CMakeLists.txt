@@ -2,6 +2,7 @@ FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 
 add_library(vulcal_editor STATIC
     editor_layer.cpp
+    editor_actions.cpp
     editor_context.cpp
     editor_camera.cpp
     project/scene/default_scene.cpp

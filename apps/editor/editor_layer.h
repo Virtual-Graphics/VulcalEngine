@@ -1,7 +1,6 @@
 #pragma once
 
 #include "asset/asset_manager.h"
-#include "editor/editor_camera.h"
 #include "editor/editor_context.h"
 #include "editor/panels/hierarchy_panel.h"
 #include "editor/panels/inspector_panel.h"
@@ -26,11 +25,9 @@ class RenderAssetCache;
 
 namespace editor {
 
-// EditorLayer 的职责应该是集中管理各个 Panel 以及 Kernel 中的模块，处理 on_xxx 钩子函数，其余的操作应该都放到
-// 对应的模块中处理，或者 Editor Context 中处理，EditorLayer 不应该直接操作 ProjectManager 或者其他模块。
-// EditorLayer 应该作为一种“调度者”的存在，其他模块需要使用另一些模块的功能时，应该通过 EditorLayer 来调度
-// 例如 EditorLayer 可以拥有 EditorContext，Renderer，AssetManager 等模块的所有权，其他模块需要使用这些模块的功能时，
-// 应该通过 EditorLayer 来调度，而不是直接依赖这些模块
+class EditorActions;
+
+// Assembles editor services and panels, manages their lifetime and frame order.
 class EditorLayer : public engine::Layer {
 public:
     EditorLayer();
@@ -47,20 +44,8 @@ private:
     void draw_new_project_dialog();
     void draw_error_dialog();
 
-
-    void import_obj(); // TODO: 这里不应该存在 Import OBJ 或许应该由 Asset Pipeline 来处理，放在这里很莫名奇妙
-    void reset_project_resources();
-
-    // TODO: 菜单操作，Project 相关的去哪了，为什么 Project 的可以不存在而 Scene 的方法需要存在，这从某些角度体现出了设计问题
-    void open_scene();
-    void save_scene();
-    void save_scene_as();
-
+    void handle_shortcuts();
     void run_operation(const std::function<void()>& operation);
-
-    // TODO: 也许应该放入 Viewport Panel 中，因为只有 Viewport Panel 才会使用到 Camera
-    void update_camera(base::Timestep dt);
-    void release_camera();
 
     std::unique_ptr<apps::ImGuiIntegration> imgui_;
 
@@ -71,7 +56,7 @@ private:
     std::unique_ptr<vulcal::scene::SceneExtractor> extractor_;
 
     EditorContext context_;
-    EditorCamera camera_; // TODO: 也许放入 Viewport Panel 中更合适
+    std::unique_ptr<EditorActions> actions_;
 
     HierarchyPanel hierarchy_;
     InspectorPanel inspector_;
@@ -81,9 +66,6 @@ private:
     bool inspector_open_        = true;
     bool viewport_open_         = true;
     bool reset_layout_          = false;
-    bool controlling_camera_    = false;
-    float saved_mouse_x_        = 0.0f;
-    float saved_mouse_y_        = 0.0f;
 
     bool new_project_requested_ = false;
     std::string new_project_name_;

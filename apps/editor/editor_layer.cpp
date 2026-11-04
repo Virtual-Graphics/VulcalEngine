@@ -1,26 +1,20 @@
 #include "editor/editor_layer.h"
 
 #include "asset/render_asset_cache.h"
-#include "asset_import/obj_asset_importer.h"
-#include "base/input.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
 #include "common/nfd/file_dialog.h"
+#include "editor/editor_actions.h"
 #include "engine/application.h"
 #include "gfx/command.h"
 #include "render/renderer.h"
 
-#include <SDL3/SDL.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 
 namespace editor {
 namespace {
-
-const apps::nfd::FileFilter project_filter{ "Vulcal Project", "vproj" };
-const apps::nfd::FileFilter scene_filter{ "Vulcal Scene", "vscene" };
-const apps::nfd::FileFilter obj_filter{ "Wavefront OBJ", "obj" };
 
 std::string to_utf8(const std::filesystem::path& path) {
     const auto text = path.u8string();
@@ -44,14 +38,16 @@ void EditorLayer::on_attach() {
     renderer_                            = std::make_unique<vulcal::render::Renderer>();
     render_assets_                       = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
     extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
+    actions_                             = std::make_unique<EditorActions>(context_, assets_, *render_assets_);
 
-    context_.new_scene();
+    actions_->new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
     base::log::info("Editor initialized with {} entities", entity_count);
 }
 
 void EditorLayer::on_detach() {
-    release_camera();
+    viewport_.release_resources();
+    actions_.reset();
     imgui_.reset();
     extractor_.reset();
     render_assets_.reset();
@@ -60,7 +56,7 @@ void EditorLayer::on_detach() {
 }
 
 void EditorLayer::run_operation(const std::function<void()>& operation) {
-    release_camera();
+    viewport_.release_camera();
     try {
         operation();
     } catch (const std::exception& error) {
@@ -70,83 +66,53 @@ void EditorLayer::run_operation(const std::function<void()>& operation) {
     }
 }
 
-void EditorLayer::open_scene() {
-    // TODO: 也许 apps::ndf 可以下沉到下层去 ndf 只需要 filter 和 context 的状态，让 EditorContext 依赖 ndf
-    // 我不太希望再在 EditorLayer 包含 open_scene sava_scene sava_scene_as 等这类方法
-    if (auto path = apps::nfd::open_file(scene_filter, context_.scene_dialog_directory())) {
-        context_.open_scene(*path);
-    }
-}
-
-void EditorLayer::save_scene() {
-    // TODO: 很显然这里处理的逻辑只有 EditorContext 中的状态，没有使用到除了 EditorContext 之外的状态，应该将这个逻辑下沉到 EditorContext 中去处理
-    if (context_.save_scene() == EditorContext::SaveResult::NeedsPath) save_scene_as();
-}
-
-void EditorLayer::save_scene_as() {
-    const auto directory = context_.scene_dialog_directory();
-    const auto name      = context_.suggested_scene_name();
-    if (auto path = apps::nfd::save_file(scene_filter, directory, name)) {
-        context_.save_scene_as(*path);
-    }
-}
-
 void EditorLayer::draw_file_menu() {
     if (!ImGui::BeginMenu("File")) return;
 
     if (ImGui::MenuItem("New Project...")) {
-        release_camera();
+        viewport_.release_camera();
         new_project_name_.clear();
         new_project_directory_ = std::filesystem::current_path();
         new_project_error_.clear();
         new_project_requested_ = true;
     }
     if (ImGui::MenuItem("Open Project...")) {
-        run_operation([this] {
-            if (auto path = apps::nfd::open_file(project_filter)) {
-                context_.open_project(*path);
-                reset_project_resources();
-            }
-        });
+        run_operation([this] { actions_->open_project(); });
     }
 
-    if (ImGui::MenuItem("Import OBJ...", nullptr, false, context_.has_project())) run_operation([this] { import_obj(); });
+    if (ImGui::MenuItem("Import OBJ...", nullptr, false, context_.has_project())) run_operation([this] { actions_->import_obj(); });
 
     ImGui::Separator();
 
-    if (ImGui::MenuItem("New Scene")) run_operation([this] { context_.new_scene(); });
-    if (ImGui::MenuItem("Open Scene...")) run_operation([this] { open_scene(); });
+    if (ImGui::MenuItem("New Scene", "Ctrl+N")) run_operation([this] { actions_->new_scene(); });
+    if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) run_operation([this] { actions_->open_scene(); });
 
     ImGui::BeginDisabled(!context_.has_scene());
-    if (ImGui::MenuItem("Save Scene")) run_operation([this] { save_scene(); });
-    if (ImGui::MenuItem("Save Scene As...")) run_operation([this] { save_scene_as(); });
+    if (ImGui::MenuItem("Save Scene", "Ctrl+S")) run_operation([this] { actions_->save_scene(); });
+    if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) run_operation([this] { actions_->save_scene_as(); });
     ImGui::EndDisabled();
 
     ImGui::EndMenu();
 }
 
-void EditorLayer::import_obj() {
-    // TODO: 这里不应该存在 Import OBJ 或许应该由 Asset Pipeline 来处理，放在这里很莫名奇妙
-    if (auto path = apps::nfd::open_file(obj_filter, context_.assets_directory())) {
-        const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
-        const auto selected = context_.selected_entity();
-        if (selected) {
-            auto& component          = selected.has_component<vulcal::scene::MeshRendererComponent>()
-                                               ? selected.get_component<vulcal::scene::MeshRendererComponent>()
-                                               : selected.add_component<vulcal::scene::MeshRendererComponent>();
-            component.mesh_asset_id_ = id;
-            base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
-                             selected.get_component<vulcal::scene::TagComponent>().name_,
-                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        }
-        render_assets_->invalidate(id);
-        assets_.invalidate(id);
-    }
-}
+void EditorLayer::handle_shortcuts() {
+    if (viewport_.controlling_camera() || ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive() ||
+        ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+        return;
 
-void EditorLayer::reset_project_resources() {
-    render_assets_->clear();
-    assets_.set_directory(context_.library_directory());
+    const bool new_scene     = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, ImGuiInputFlags_RouteGlobal);
+    const bool open_scene    = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_RouteGlobal);
+    const bool save_scene_as = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal);
+    const bool save_scene    = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal);
+    if (new_scene) {
+        run_operation([this] { actions_->new_scene(); });
+    } else if (open_scene) {
+        run_operation([this] { actions_->open_scene(); });
+    } else if (context_.has_scene() && save_scene_as) {
+        run_operation([this] { actions_->save_scene_as(); });
+    } else if (context_.has_scene() && save_scene) {
+        run_operation([this] { actions_->save_scene(); });
+    }
 }
 
 void EditorLayer::draw_new_project_dialog() {
@@ -185,8 +151,7 @@ void EditorLayer::draw_new_project_dialog() {
     ImGui::BeginDisabled(!can_create);
     if (ImGui::Button("Create")) {
         try {
-            context_.create_project(new_project_directory_, new_project_name_);
-            reset_project_resources();
+            actions_->create_project(new_project_directory_, new_project_name_);
             new_project_error_.clear();
             ImGui::CloseCurrentPopup();
         } catch (const std::exception& error) {
@@ -266,62 +231,19 @@ void EditorLayer::on_update(base::Timestep dt) {
     draw_workspace();
     hierarchy_.draw(context_, hierarchy_open_);
     inspector_.draw(context_, inspector_open_);
-    viewport_.draw(viewport_open_, camera_.speed(), application().get_graphics_context().limits());
+    viewport_.draw(viewport_open_, application().get_graphics_context().limits());
     draw_new_project_dialog();
     draw_error_dialog();
-    update_camera(dt);
+    viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
+    handle_shortcuts();
     imgui_->end_frame();
-}
-
-void EditorLayer::update_camera(base::Timestep dt) {
-    auto* window          = application().get_window().handle();
-    const bool focused    = (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
-    const bool popup      = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-    const bool escape     = base::Input::is_key_down(base::Key::Escape);
-    const bool right_down = base::Input::is_mouse_button_down(base::MouseButton::Right);
-    if (controlling_camera_ && (!right_down || escape || !focused || !viewport_.visible() || !viewport_.focused() || popup)) {
-        release_camera();
-    }
-
-    bool started = false;
-    if (!controlling_camera_ && viewport_.camera_requested() && right_down && focused && !escape && !popup) {
-        const auto [x, y] = base::Input::mouse_position();
-        saved_mouse_x_    = x;
-        saved_mouse_y_    = y;
-        if (SDL_SetWindowRelativeMouseMode(window, true)) {
-            controlling_camera_ = true;
-            started             = true;
-            ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-            SDL_HideCursor();
-            base::log::debug("Editor camera control started");
-        } else {
-            base::log::warn("Could not capture editor camera mouse: {}", SDL_GetError());
-        }
-    }
-    if (!controlling_camera_) return;
-
-    camera_.update_from_input(dt.get_seconds(), started);
-    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-}
-
-void EditorLayer::release_camera() {
-    if (!controlling_camera_) return;
-    auto* window = application().get_window().handle();
-    SDL_SetWindowRelativeMouseMode(window, false);
-    if ((SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0) {
-        SDL_WarpMouseInWindow(window, saved_mouse_x_, saved_mouse_y_);
-    }
-    SDL_ShowCursor();
-    ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
-    controlling_camera_ = false;
-    base::log::debug("Editor camera control released");
 }
 
 void EditorLayer::on_render() {
     if (viewport_.visible()) {
         auto& target = viewport_.target();
         vulcal::scene::SceneExtractor::Options options;
-        options.camera_override_ = camera_.data(static_cast<float>(target.width()) / static_cast<float>(target.height()));
+        options.camera_override_ = viewport_.camera_data();
         renderer_->render(extractor_->extract(context_.scene(), options), &target);
     }
     vulcal::gfx::RenderTarget::unbind();

@@ -25,4 +25,18 @@ if (BUILD_APPS)
     add_executable(editor_panel_test panels.cpp)
     target_link_libraries(editor_panel_test PRIVATE vulcal_editor GTest::gtest_main)
     gtest_discover_tests(editor_panel_test)
+
+    if (BUILD_GRAPHICS_TESTS)
+        add_executable(editor_actions_test actions.cpp)
+        target_link_libraries(editor_actions_test PRIVATE vulcal_editor GTest::gtest_main)
+        gtest_discover_tests(editor_actions_test PROPERTIES LABELS graphics)
+
+        add_executable(editor_viewport_test viewport.cpp)
+        target_link_libraries(editor_viewport_test PRIVATE vulcal_editor GTest::gtest_main)
+        gtest_discover_tests(editor_viewport_test PROPERTIES LABELS graphics RUN_SERIAL TRUE)
+
+        add_executable(editor_layer_test layer.cpp)
+        target_link_libraries(editor_layer_test PRIVATE vulcal_editor GTest::gtest_main)
+        gtest_discover_tests(editor_layer_test PROPERTIES LABELS graphics)
+    endif()
 endif()
