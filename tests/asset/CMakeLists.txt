@@ -1,12 +1,16 @@
 add_executable(asset_manager_test asset_manager.cpp)
 target_link_libraries(asset_manager_test PRIVATE vulcal_engine GTest::gtest_main)
 
-add_executable(runtime_mesh_asset_test runtime_mesh_asset.cpp)
-target_link_libraries(runtime_mesh_asset_test PRIVATE vulcal_engine GTest::gtest_main)
+add_executable(mesh_asset_test mesh_asset.cpp)
+target_link_libraries(mesh_asset_test PRIVATE vulcal_engine GTest::gtest_main)
+
+add_executable(material_asset_test material_asset.cpp)
+target_link_libraries(material_asset_test PRIVATE vulcal_engine GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(asset_manager_test)
-gtest_discover_tests(runtime_mesh_asset_test)
+gtest_discover_tests(mesh_asset_test)
+gtest_discover_tests(material_asset_test)
 
 option(BUILD_GRAPHICS_TESTS "Build tests requiring an OpenGL 4.6 context" OFF)
 if (BUILD_GRAPHICS_TESTS)

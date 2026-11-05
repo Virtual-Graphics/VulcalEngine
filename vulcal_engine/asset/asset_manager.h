@@ -1,13 +1,12 @@
 #pragma once
 
+#include "asset/asset_cache.h"
 #include "asset/asset_id.h"
 #include "render/resources/material.h"
 #include "render/resources/mesh_data.h"
 
 #include <filesystem>
 #include <memory>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace vulcal::asset {
 
@@ -18,12 +17,12 @@ public:
     AssetManager(const AssetManager&)            = delete;
     AssetManager& operator=(const AssetManager&) = delete;
 
-    std::shared_ptr<const MeshData> load_mesh(AssetID id);
-    // Nil selects the shared default. Other IDs must have been registered.
-    std::shared_ptr<const render::Material> load_material(AssetID id) const;
+    std::shared_ptr<const render::MeshData> load_mesh(AssetID id);
+    // Nil selects the shared default. Other IDs resolve from memory or the runtime library.
+    std::shared_ptr<const render::Material> load_material(AssetID id);
 
     // Procedural IDs are valid until invalidation, clear, or directory change.
-    AssetID add_mesh(MeshData mesh);
+    AssetID add_mesh(render::MeshData mesh);
     AssetID add_material(render::Material material);
 
     void invalidate(AssetID id);
@@ -32,9 +31,8 @@ public:
 
 private:
     std::filesystem::path directory_;
-    std::unordered_map<AssetID, std::shared_ptr<const MeshData>> meshes_;
-    std::unordered_map<AssetID, std::shared_ptr<const render::Material>> materials_;
-    std::unordered_set<AssetID> failed_meshes_;
+    AssetCache<render::MeshData> meshes_;
+    AssetCache<render::Material> materials_;
     std::shared_ptr<const render::Material> default_material_;
 };
 

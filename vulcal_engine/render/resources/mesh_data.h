@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
-namespace vulcal{
+namespace vulcal::render{
 struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;

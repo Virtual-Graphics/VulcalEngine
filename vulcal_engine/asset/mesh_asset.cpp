@@ -1,4 +1,4 @@
-#include "asset/runtime_mesh_asset.h"
+#include "asset/mesh_asset.h"
 
 #include "base/binary_io.h"
 #include "base/logger.h"
@@ -36,9 +36,9 @@ std::uint64_t expected_file_size(std::uint64_t vertex_count, std::uint64_t index
 
 } // namespace
 
-MeshData RuntimeMeshAsset::read(const std::filesystem::path& path) {
+render::MeshData MeshAsset::read(const std::filesystem::path& path) {
 
-    base::log::debug("RuntimeMeshAsset: reading {}", path.string());
+    base::log::debug("MeshAsset: reading {}", path.string());
     std::ifstream input(path, std::ios::binary);
     std::array<char, magic.size()> file_magic{};
     // 预处理 begin
@@ -67,7 +67,7 @@ MeshData RuntimeMeshAsset::read(const std::filesystem::path& path) {
         throw std::runtime_error("Invalid runtime mesh size: " + path.string());
     }
 
-    MeshData mesh;
+    render::MeshData mesh;
     mesh.vertices_.reserve(static_cast<std::size_t>(vertex_count));
     mesh.indices_.reserve(static_cast<std::size_t>(index_count));
     for (std::uint64_t i = 0; i < vertex_count; ++i) {
@@ -85,14 +85,14 @@ MeshData RuntimeMeshAsset::read(const std::filesystem::path& path) {
 
         mesh.indices_.push_back(index);
     }
-    base::log::debug("RuntimeMeshAsset: read {} (version {}, {} bytes, {} vertices, {} indices)", path.string(), version, expected_size,
+    base::log::debug("MeshAsset: read {} (version {}, {} bytes, {} vertices, {} indices)", path.string(), version, expected_size,
                      mesh.vertices_.size(), mesh.indices_.size());
     return mesh;
 }
 
-void RuntimeMeshAsset::write(const std::filesystem::path& path, const MeshData& mesh) {
+void MeshAsset::write(const std::filesystem::path& path, const render::MeshData& mesh) {
 
-    base::log::debug("RuntimeMeshAsset: writing {} (version {}, {} vertices, {} indices)", path.string(), version, mesh.vertices_.size(),
+    base::log::debug("MeshAsset: writing {} (version {}, {} vertices, {} indices)", path.string(), version, mesh.vertices_.size(),
                      mesh.indices_.size());
 
     // 预处理 begin
