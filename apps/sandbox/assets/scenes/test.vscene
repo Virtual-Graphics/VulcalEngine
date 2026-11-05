@@ -1,20 +1,23 @@
 format_version: 2
 entities:
-  - id: 8912122927174721280
-    name: Entity
+  - id: 7066125730918130968
+    name: Sun
     transform:
       translation: [0, 0, 0]
-      rotation: [0, 0, 0]
-      scale: [4, 4, 4]
-  - id: 3950411888081444643
-    name: Environment
-    transform:
-      translation: [0, 0, 0]
-      rotation: [0, 0, 0]
+      rotation: [-0.615479648, 0.04363323, 2.10734239e-08]
       scale: [1, 1, 1]
-    environment:
-      ambient_color: [0.150000006, 0.150000006, 0.150000006]
-      clear_color: [0.187716275, 0.308823526, 0.248269856, 1]
+    light:
+      type: directional
+      color: [1, 1, 1]
+      intensity: 0.99000001
+      shadow_enabled: true
+      shadow_map_size: 2048
+      shadow_center: [0, -0.5, 0]
+      shadow_extent: 8
+      shadow_near: 0.100000001
+      shadow_far: 40
+      shadow_depth_bias: 0.00150000001
+      shadow_normal_bias: 0.0199999996
   - id: 6826384270445376577
     name: Camera
     transform:
@@ -34,21 +37,22 @@ entities:
       orthographic_top: 1
       orthographic_near: 0.100000001
       orthographic_far: 100
-  - id: 7066125730918130968
-    name: Sun
+  - id: 3950411888081444643
+    name: Environment
     transform:
       translation: [0, 0, 0]
-      rotation: [-0.615479648, 0.04363323, 2.10734239e-08]
+      rotation: [0, 0, 0]
       scale: [1, 1, 1]
-    light:
-      type: directional
-      color: [1, 1, 1]
-      intensity: 0.99000001
-      shadow_enabled: true
-      shadow_map_size: 2048
-      shadow_center: [0, -0.5, 0]
-      shadow_extent: 8
-      shadow_near: 0.100000001
-      shadow_far: 40
-      shadow_depth_bias: 0.00150000001
-      shadow_normal_bias: 0.0199999996
+    environment:
+      ambient_color: [0.150000006, 0.150000006, 0.150000006]
+      clear_color: [0.187716275, 0.308823526, 0.248269856, 1]
+  - id: 8912122927174721280
+    name: Entity
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [4, 4, 4]
+    mesh_renderer:
+      mesh_asset_id: 11559153236028480115
+      material_asset_id: 0
+      visible: true
