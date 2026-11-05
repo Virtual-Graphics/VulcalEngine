@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <stdexcept>
 #include <string>
 
 namespace {
@@ -73,13 +74,12 @@ TEST(AssetImporter, DispatchesObjAndVmatSourcesByExtension) {
         output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 8\n";
     }
 
-    const auto mesh_id = apps::asset_import::AssetImporter::import(mesh_source, assets, library);
+    const auto mesh_id     = apps::asset_import::AssetImporter::import(mesh_source, assets, library);
     const auto material_id = apps::asset_import::AssetImporter::import(material_source, assets, library);
 
     EXPECT_TRUE(std::filesystem::exists(library / (mesh_id.to_string() + ".vmesh")));
     EXPECT_TRUE(std::filesystem::exists(library / (material_id.to_string() + ".vmatc")));
-    EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(mesh_source)).type,
-              vulcal::asset::AssetType::Mesh);
+    EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(mesh_source)).type, vulcal::asset::AssetType::Mesh);
     EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(material_source)).type,
               vulcal::asset::AssetType::Material);
 }
@@ -160,7 +160,7 @@ TEST(MaterialAssetImporter, RejectsSourceWhoseMetadataDeclaresAnotherType) {
     EXPECT_FALSE(std::filesystem::exists(library / "99.vmatc"));
 }
 
-TEST(AssetMetadata, ReadsLegacyMetadataAsMesh) {
+TEST(AssetMetadata, RejectsLegacyMetadataWithoutType) {
     TemporaryDirectory directory;
     const auto path = directory.path() / "legacy.obj.meta";
     {
@@ -168,9 +168,18 @@ TEST(AssetMetadata, ReadsLegacyMetadataAsMesh) {
         output << "format_version: 1\nid: 7\n";
     }
 
-    const auto metadata = apps::asset_import::read_metadata(path);
-    EXPECT_EQ(metadata.id, vulcal::asset::AssetID{ 7 });
-    EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Mesh);
+    EXPECT_THROW(apps::asset_import::read_metadata(path), std::runtime_error);
+}
+
+TEST(AssetMetadata, RejectsUnsupportedFormatVersion) {
+    TemporaryDirectory directory;
+    const auto path = directory.path() / "future.obj.meta";
+    {
+        std::ofstream output(path);
+        output << "format_version: 2\nid: 7\ntype: mesh\n";
+    }
+
+    EXPECT_THROW(apps::asset_import::read_metadata(path), std::runtime_error);
 }
 
 TEST(AssetLibrary, RejectsCorruptCookedMesh) {

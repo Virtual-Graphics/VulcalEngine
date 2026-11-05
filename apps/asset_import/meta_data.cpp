@@ -45,7 +45,7 @@ Metadata read_metadata(const std::filesystem::path& metadata_file_path) {
         }
 
         const auto version = metadata["format_version"].as<std::uint32_t>();
-        if (version != 1 && version != metadata_format_version) {
+        if (version != metadata_format_version) {
             throw std::runtime_error("Unsupported asset metadata: " + metadata_file_path.string());
         }
 
@@ -54,7 +54,7 @@ Metadata read_metadata(const std::filesystem::path& metadata_file_path) {
             throw std::runtime_error("Asset metadata has an empty ID: " + metadata_file_path.string());
         }
 
-        const auto type = version == 1 ? vulcal::asset::AssetType::Mesh : parse_type(metadata["type"].as<std::string>(), metadata_file_path);
+        const auto type = parse_type(metadata["type"].as<std::string>(), metadata_file_path);
         base::log::debug("Metadata: read {} asset {} from {} (version {})", type_name(type), id.to_string(), metadata_file_path.string(), version);
         return Metadata{ version, id, type };
     } catch (const YAML::Exception& error) {

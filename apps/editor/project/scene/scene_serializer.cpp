@@ -3,14 +3,14 @@
 #include "base/logger.h"
 #include "base/yaml.h"
 
+#include <cstdint>
 #include <fstream>
-#include <type_traits>
 #include <yaml-cpp/yaml.h>
 
 namespace editor {
 namespace {
 using namespace vulcal::scene;
-
+constexpr std::uint32_t scene_format_version = 1;
 template<typename T>
 void field(YAML::Node node, const char* key, T& value, bool loading) {
     if (loading) value = node[key].as<T>();
@@ -36,13 +36,11 @@ void fields(YAML::Node n, TransformComponent& c, bool load) {
     field(n, "scale", c.scale_, load);
 }
 
-void fields(YAML::Node n, MeshRendererComponent& c, bool load, std::uint32_t version = 2) {
+void fields(YAML::Node n, MeshRendererComponent& c, bool load) {
     if (load) {
-        if (version >= 2) {
-            c.mesh_asset_id_     = base::UUID{ n["mesh_asset_id"].as<std::uint64_t>() };
-            c.material_asset_id_ = base::UUID{ n["material_asset_id"].as<std::uint64_t>() };
-        }
-        c.visible_ = n["visible"].as<bool>();
+        c.mesh_asset_id_     = base::UUID{ n["mesh_asset_id"].as<std::uint64_t>() };
+        c.material_asset_id_ = base::UUID{ n["material_asset_id"].as<std::uint64_t>() };
+        c.visible_           = n["visible"].as<bool>();
     } else {
         n["mesh_asset_id"]     = c.mesh_asset_id_.value();
         n["material_asset_id"] = c.material_asset_id_.value();
@@ -98,19 +96,17 @@ void save_component(YAML::Node node, const char* key, const entt::registry& regi
 }
 
 template<typename T>
-void load_component(const YAML::Node& node, const char* key, Entity entity, std::uint32_t version) {
+void load_component(const YAML::Node& node, const char* key, Entity entity) {
     if (auto data = node[key]) {
         auto& component = entity.add_component<T>();
-        if constexpr (std::is_same_v<T, MeshRendererComponent>) fields(data, component, true, version);
-        else
-            fields(data, component, true);
+        fields(data, component, true);
     }
 }
 } // namespace
 
 void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::filesystem::path& path) {
     YAML::Node root;
-    root["format_version"] = 2;
+    root["format_version"] = scene_format_version;
     auto entities = root["entities"] = YAML::Node(YAML::NodeType::Sequence);
     const auto& registry             = scene.registry();
     for (const auto entity: registry.view<const IDComponent, const TagComponent, const TransformComponent>()) {
@@ -124,7 +120,7 @@ void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::fi
         save_component<EnvironmentComponent>(node, "environment", registry, entity);
         entities.push_back(node);
     }
-    base::log::debug("SceneSerializer: writing {} (version 2, {} entities)", path.string(), entities.size());
+    base::log::debug("SceneSerializer: writing {} (version {}, {} entities)", path.string(), scene_format_version, entities.size());
     std::ofstream output(path, std::ios::binary);
     output << root;
 }
@@ -134,7 +130,7 @@ std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::fi
     std::ifstream input(path, std::ios::binary);
     const auto root    = YAML::Load(input);
     const auto version = root["format_version"].as<std::uint32_t>();
-    if (version != 1 && version != 2) throw std::runtime_error("Unsupported scene format version");
+    if (version != scene_format_version) throw std::runtime_error("Unsupported scene format version");
     const auto entities = root["entities"];
     auto scene          = std::make_unique<vulcal::scene::Scene>();
     for (const auto& node: entities) {
@@ -142,14 +138,10 @@ std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::fi
         auto entity                             = scene->create_entity(node["name"].as<std::string>());
         entity.get_component<IDComponent>().id_ = base::UUID{ id };
         fields(node["transform"], entity.get_component<TransformComponent>(), true);
-        load_component<MeshRendererComponent>(node, "mesh_renderer", entity, version);
-        load_component<CameraComponent>(node, "camera", entity, version);
-        load_component<LightComponent>(node, "light", entity, version);
-        load_component<EnvironmentComponent>(node, "environment", entity, version);
-    }
-    if (version == 1 && !scene->registry().view<const MeshRendererComponent>().empty()) {
-        base::log::warn("SceneSerializer: legacy renderer handles in {} were ignored; mesh and material assets need reassignment",
-                        path.string());
+        load_component<MeshRendererComponent>(node, "mesh_renderer", entity);
+        load_component<CameraComponent>(node, "camera", entity);
+        load_component<LightComponent>(node, "light", entity);
+        load_component<EnvironmentComponent>(node, "environment", entity);
     }
     base::log::debug("SceneSerializer: read {} (version {}, {} entities)", path.string(), version, entities.size());
     return scene;

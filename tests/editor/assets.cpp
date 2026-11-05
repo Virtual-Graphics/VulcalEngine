@@ -5,6 +5,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace {
@@ -13,7 +14,7 @@ class TemporaryDirectory {
 public:
     TemporaryDirectory() {
         const auto suffix = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
-        path_ = std::filesystem::temp_directory_path() / ("vulcal_asset_test_" + suffix);
+        path_             = std::filesystem::temp_directory_path() / ("vulcal_asset_test_" + suffix);
         std::filesystem::create_directories(path_);
     }
 
@@ -28,14 +29,14 @@ private:
 TEST(SceneSerializer, PersistsStableAssetIds) {
     TemporaryDirectory directory;
     vulcal::scene::Scene scene;
-    auto entity = scene.create_entity("Mesh");
-    auto& mesh = entity.add_component<vulcal::scene::MeshRendererComponent>();
-    mesh.mesh_asset_id_ = base::UUID{ 1311768467463790320ull };
+    auto entity             = scene.create_entity("Mesh");
+    auto& mesh              = entity.add_component<vulcal::scene::MeshRendererComponent>();
+    mesh.mesh_asset_id_     = base::UUID{ 1311768467463790320ull };
     mesh.material_asset_id_ = base::UUID{ 1147797409030816545ull };
 
-    const auto path = directory.path() / "scene.vscene";
+    const auto path         = directory.path() / "scene.vscene";
     editor::SceneSerializer::serialize(scene, path);
-    auto loaded = editor::SceneSerializer::deserialize(path);
+    auto loaded      = editor::SceneSerializer::deserialize(path);
     auto loaded_mesh = loaded->registry().view<vulcal::scene::MeshRendererComponent>();
     ASSERT_EQ(loaded_mesh.size(), 1u);
     const auto& component = loaded_mesh.get<vulcal::scene::MeshRendererComponent>(loaded_mesh.front());
@@ -44,7 +45,7 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
     EXPECT_EQ(component.material_asset_id_, base::UUID{ 1147797409030816545ull });
 }
 
-TEST(SceneSerializer, LegacyRuntimeHandlesAreNotTreatedAsAssetIds) {
+TEST(SceneSerializer, RejectsLegacySceneSchema) {
     TemporaryDirectory directory;
     const auto path = directory.path() / "legacy.vscene";
     {
@@ -63,12 +64,19 @@ TEST(SceneSerializer, LegacyRuntimeHandlesAreNotTreatedAsAssetIds) {
                   "      visible: true\n";
     }
 
-    auto loaded = editor::SceneSerializer::deserialize(path);
-    const auto view = loaded->registry().view<const vulcal::scene::MeshRendererComponent>();
-    ASSERT_EQ(view.size(), 1u);
-    const auto& component = view.get<const vulcal::scene::MeshRendererComponent>(view.front());
-    EXPECT_TRUE(component.mesh_asset_id_.is_nil());
-    EXPECT_TRUE(component.material_asset_id_.is_nil());
+    EXPECT_THROW(editor::SceneSerializer::deserialize(path), std::runtime_error);
+}
+
+TEST(SceneSerializer, RejectsUnsupportedFormatVersion) {
+    TemporaryDirectory directory;
+    const auto path = directory.path() / "future.vscene";
+    {
+        std::ofstream output(path);
+        output << "format_version: 2\n"
+                  "entities: []\n";
+    }
+
+    EXPECT_THROW(editor::SceneSerializer::deserialize(path), std::runtime_error);
 }
 
 } // namespace
