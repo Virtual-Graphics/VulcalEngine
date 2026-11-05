@@ -39,6 +39,7 @@ public:
     void save_scene();
     void save_scene_as();
     void import_obj();
+    void import_material();
 
 private:
     void reset_project_resources();

@@ -51,7 +51,7 @@ public:
         material.shininess_                = 8.0f;
         const auto model_material_asset_id = assets_.add_material(material);
 
-        vulcal::MeshData ground_data;
+        vulcal::render::MeshData ground_data;
         const float half      = 20.0f;
         const float y         = -1.05f;
         ground_data.vertices_ = {

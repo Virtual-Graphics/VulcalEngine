@@ -15,8 +15,8 @@
 
 namespace {
 
-vulcal::MeshData triangle() {
-    vulcal::MeshData mesh;
+vulcal::render::MeshData triangle() {
+    vulcal::render::MeshData mesh;
     mesh.vertices_ = {
         { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
         {  { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f } },

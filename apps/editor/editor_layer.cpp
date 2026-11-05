@@ -81,6 +81,9 @@ void EditorLayer::draw_file_menu() {
     }
 
     if (ImGui::MenuItem("Import OBJ...", nullptr, false, context_.has_project())) run_operation([this] { actions_->import_obj(); });
+    if (ImGui::MenuItem("Import Material...", nullptr, false, context_.has_project())) {
+        run_operation([this] { actions_->import_material(); });
+    }
 
     ImGui::Separator();
 

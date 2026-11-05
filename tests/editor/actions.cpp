@@ -1,6 +1,6 @@
 #include "asset/asset_manager.h"
+#include "asset/mesh_asset.h"
 #include "asset/render_asset_cache.h"
-#include "asset/runtime_mesh_asset.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_actions.h"
 #include "editor/editor_context.h"
@@ -17,7 +17,7 @@
 
 namespace {
 
-vulcal::MeshData triangle() {
+vulcal::render::MeshData triangle() {
     return { .vertices_ = {
                  { { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
                  { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
@@ -59,6 +59,12 @@ protected:
     void draw(vulcal::render::MeshHandle mesh) {
         vulcal::render::RenderData data;
         data.items_.push_back({ mesh, cache_->resolve_material({}), glm::mat4{ 1.0f } });
+        renderer_->render(data);
+    }
+
+    void draw(vulcal::render::MeshHandle mesh, vulcal::render::MaterialHandle material) {
+        vulcal::render::RenderData data;
+        data.items_.push_back({ mesh, material, glm::mat4{ 1.0f } });
         renderer_->render(data);
     }
 
@@ -123,7 +129,7 @@ TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     std::filesystem::create_directories(directory_ / "other");
     other.create_project(directory_ / "other", "Other");
     const vulcal::asset::AssetID new_id{ 12 };
-    vulcal::asset::RuntimeMeshAsset::write(other.library_directory() / "12.vmesh", triangle());
+    vulcal::asset::MeshAsset::write(other.library_directory() / "12.vmesh", triangle());
     open_path_ = directory_ / "other" / "Other.vproj";
 
     actions_->open_project();
@@ -182,6 +188,40 @@ TEST_F(EditorActionsTest, ReimportAssignsSelectedEntityAndRefreshesCpuAndGpuData
     EXPECT_THROW(draw(gpu), std::invalid_argument);
     EXPECT_NE(cache_->resolve_mesh(id), gpu);
     EXPECT_EQ(cache_->resolve_material({}), material);
+}
+
+TEST_F(EditorActionsTest, ImportMaterialAssignsSelectionAndRefreshesMaterialCache) {
+    const auto selected = context_.create_entity();
+    open_path_          = context_.assets_directory() / "surface.vmat";
+    {
+        std::ofstream output(*open_path_);
+        output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 16\n";
+    }
+
+    actions_->import_material();
+    ASSERT_TRUE(selected.has_component<vulcal::scene::MeshRendererComponent>());
+    const auto id  = selected.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_;
+    const auto cpu = assets_.load_material(id);
+    ASSERT_TRUE(cpu);
+    EXPECT_FLOAT_EQ(cpu->shininess_, 16.0f);
+    const auto mesh = cache_->resolve_mesh(assets_.add_mesh(triangle()));
+    const auto gpu  = cache_->resolve_material(id);
+    EXPECT_NO_THROW(draw(mesh, gpu));
+
+    {
+        std::ofstream output(*open_path_);
+        output << "format_version: 1\ndiffuse: [0.8, 0.7, 0.6]\nspecular: [0.05, 0.06, 0.07]\nshininess: 32\n";
+    }
+    actions_->import_material();
+    EXPECT_EQ(selected.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_, id);
+    const auto reloaded = assets_.load_material(id);
+    ASSERT_TRUE(reloaded);
+    EXPECT_NE(reloaded, cpu);
+    EXPECT_FLOAT_EQ(reloaded->shininess_, 32.0f);
+    EXPECT_THROW(draw(mesh, gpu), std::invalid_argument);
+    const auto replacement = cache_->resolve_material(id);
+    EXPECT_NE(replacement, gpu);
+    EXPECT_NO_THROW(draw(mesh, replacement));
 }
 
 TEST_F(EditorActionsTest, ImportWithoutSelectionDoesNotCreateAnEntity) {

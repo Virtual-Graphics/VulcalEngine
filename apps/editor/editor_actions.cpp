@@ -2,6 +2,7 @@
 
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
+#include "asset_import/material_asset_importer.h"
 #include "asset_import/obj_asset_importer.h"
 #include "base/logger.h"
 #include "common/nfd/file_dialog.h"
@@ -16,6 +17,7 @@ namespace {
 const apps::nfd::FileFilter project_filter{ "Vulcal Project", "vproj" };
 const apps::nfd::FileFilter scene_filter{ "Vulcal Scene", "vscene" };
 const apps::nfd::FileFilter obj_filter{ "Wavefront OBJ", "obj" };
+const apps::nfd::FileFilter material_filter{ "Vulcal Material", "vmat" };
 
 } // namespace
 
@@ -76,6 +78,34 @@ void EditorActions::import_obj() {
                              selected.get_component<vulcal::scene::TagComponent>().name_,
                              selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
         }
+        render_assets_.invalidate(id);
+        assets_.invalidate(id);
+    }
+}
+
+void EditorActions::import_material() {
+    if (!context_.has_project()) {
+        throw std::logic_error("Open a project before importing assets");
+    }
+
+    if (auto path = dialogs_.open_file(material_filter, context_.assets_directory())) {
+        const auto id = apps::asset_import::MaterialAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        const auto selected = context_.selected_entity();
+
+        // clang-format off
+        if (selected) {
+            vulcal::scene::MeshRendererComponent& component = selected.has_component<vulcal::scene::MeshRendererComponent>()
+                                                            ? selected.get_component<vulcal::scene::MeshRendererComponent>()
+                                                            : selected.add_component<vulcal::scene::MeshRendererComponent>();
+            component.material_asset_id_ = id;
+
+            base::log::debug("Editor: assigned material asset {} to entity '{}' ({})",
+                             id.to_string(),
+                             selected.get_component<vulcal::scene::TagComponent>().name_,
+                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
+        }
+        // clang-format on
+
         render_assets_.invalidate(id);
         assets_.invalidate(id);
     }
