@@ -1,4 +1,6 @@
-#include "asset/runtime_asset_library.h"
+#include "asset/asset_library.h"
+#include "asset_import/asset_importer.h"
+#include "asset_import/material_asset_importer.h"
 #include "asset_import/meta_data.h"
 #include "asset_import/obj_asset_importer.h"
 
@@ -26,7 +28,7 @@ private:
     std::filesystem::path path_;
 };
 
-TEST(ObjAssetImporter, ReimportKeepsIdAndRuntimeLibraryLoadsCookedMesh) {
+TEST(ObjAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMesh) {
     TemporaryDirectory directory;
     const auto assets  = directory.path() / "Assets";
     const auto library = directory.path() / ".vulcal_engine";
@@ -45,14 +47,133 @@ TEST(ObjAssetImporter, ReimportKeepsIdAndRuntimeLibraryLoadsCookedMesh) {
     EXPECT_EQ(metadata.id, first_id);
     EXPECT_EQ(metadata.format_version, apps::asset_import::metadata_format_version);
 
-    const auto mesh = vulcal::asset::RuntimeAssetLibrary{ library }.load_mesh(first_id);
+    const auto mesh = vulcal::asset::AssetLibrary{ library }.load_mesh(first_id);
     ASSERT_EQ(mesh.vertices_.size(), 3u);
     ASSERT_EQ(mesh.indices_.size(), 3u);
     EXPECT_FLOAT_EQ(mesh.vertices_[1].position.x, 1.0f);
     EXPECT_FLOAT_EQ(mesh.vertices_[2].position.y, 1.0f);
+    EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Mesh);
 }
 
-TEST(RuntimeAssetLibrary, RejectsCorruptCookedMesh) {
+TEST(AssetImporter, DispatchesObjAndVmatSourcesByExtension) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+
+    const auto mesh_source = assets / "triangle.OBJ";
+    {
+        std::ofstream output(mesh_source);
+        output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
+    }
+
+    const auto material_source = assets / "material.vmat";
+    {
+        std::ofstream output(material_source);
+        output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 8\n";
+    }
+
+    const auto mesh_id = apps::asset_import::AssetImporter::import(mesh_source, assets, library);
+    const auto material_id = apps::asset_import::AssetImporter::import(material_source, assets, library);
+
+    EXPECT_TRUE(std::filesystem::exists(library / (mesh_id.to_string() + ".vmesh")));
+    EXPECT_TRUE(std::filesystem::exists(library / (material_id.to_string() + ".vmatc")));
+    EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(mesh_source)).type,
+              vulcal::asset::AssetType::Mesh);
+    EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(material_source)).type,
+              vulcal::asset::AssetType::Material);
+}
+
+TEST(AssetImporter, RejectsSourcesOutsideAssetsAndUnsupportedExtensions) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+
+    const auto outside_source = directory.path() / "outside.obj";
+    {
+        std::ofstream output(outside_source);
+        output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
+    }
+    const auto unsupported_source = assets / "notes.txt";
+    {
+        std::ofstream output(unsupported_source);
+        output << "not an importable asset\n";
+    }
+
+    EXPECT_THROW(apps::asset_import::AssetImporter::import(outside_source, assets, library), std::invalid_argument);
+    EXPECT_THROW(apps::asset_import::AssetImporter::import(unsupported_source, assets, library), std::invalid_argument);
+}
+
+TEST(MaterialAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMaterial) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+    const auto source = assets / "Materials" / "test.vmat";
+    std::filesystem::create_directories(source.parent_path());
+
+    auto write_source = [&](float diffuse, float shininess) {
+        std::ofstream output(source);
+        output << "format_version: 1\n"
+                  "diffuse: ["
+               << diffuse
+               << ", 0.3, 0.4]\n"
+                  "specular: [0.05, 0.06, 0.07]\n"
+                  "shininess: "
+               << shininess << "\n";
+    };
+
+    write_source(0.2f, 8.0f);
+    const auto first_id = apps::asset_import::MaterialAssetImporter::import(source, assets, library);
+    write_source(0.7f, 32.0f);
+    const auto second_id = apps::asset_import::MaterialAssetImporter::import(source, assets, library);
+    ASSERT_EQ(first_id, second_id);
+
+    const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
+    EXPECT_EQ(metadata.id, first_id);
+    EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Material);
+    EXPECT_TRUE(std::filesystem::exists(library / (first_id.to_string() + ".vmatc")));
+
+    const auto material = vulcal::asset::AssetLibrary{ library }.load_material(first_id);
+    EXPECT_FLOAT_EQ(material.diffuse_.x, 0.7f);
+    EXPECT_FLOAT_EQ(material.diffuse_.y, 0.3f);
+    EXPECT_FLOAT_EQ(material.diffuse_.z, 0.4f);
+    EXPECT_FLOAT_EQ(material.specular_.x, 0.05f);
+    EXPECT_FLOAT_EQ(material.shininess_, 32.0f);
+}
+
+TEST(MaterialAssetImporter, RejectsSourceWhoseMetadataDeclaresAnotherType) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+    const auto source = assets / "mismatch.vmat";
+    {
+        std::ofstream output(source);
+        output << "format_version: 1\ndiffuse: [0.9, 0.9, 0.9]\nspecular: [0.08, 0.08, 0.08]\nshininess: 8\n";
+    }
+    apps::asset_import::write_metadata(apps::asset_import::metadata_path(source),
+                                       { .id = vulcal::asset::AssetID{ 99 }, .type = vulcal::asset::AssetType::Mesh });
+
+    EXPECT_THROW(apps::asset_import::MaterialAssetImporter::import(source, assets, library), std::invalid_argument);
+    EXPECT_FALSE(std::filesystem::exists(library / "99.vmatc"));
+}
+
+TEST(AssetMetadata, ReadsLegacyMetadataAsMesh) {
+    TemporaryDirectory directory;
+    const auto path = directory.path() / "legacy.obj.meta";
+    {
+        std::ofstream output(path);
+        output << "format_version: 1\nid: 7\n";
+    }
+
+    const auto metadata = apps::asset_import::read_metadata(path);
+    EXPECT_EQ(metadata.id, vulcal::asset::AssetID{ 7 });
+    EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Mesh);
+}
+
+TEST(AssetLibrary, RejectsCorruptCookedMesh) {
     TemporaryDirectory directory;
     const base::UUID id{ 1311768467463790320ull };
     const auto path = directory.path() / (id.to_string() + ".vmesh");
@@ -61,7 +182,7 @@ TEST(RuntimeAssetLibrary, RejectsCorruptCookedMesh) {
         output << "invalid";
     }
 
-    EXPECT_THROW(vulcal::asset::RuntimeAssetLibrary{ directory.path() }.load_mesh(id), std::runtime_error);
+    EXPECT_THROW(vulcal::asset::AssetLibrary{ directory.path() }.load_mesh(id), std::runtime_error);
 }
 
 } // namespace
