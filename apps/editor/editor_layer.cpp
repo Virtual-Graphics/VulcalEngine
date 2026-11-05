@@ -80,11 +80,6 @@ void EditorLayer::draw_file_menu() {
         run_operation([this] { actions_->open_project(); });
     }
 
-    if (ImGui::MenuItem("Import OBJ...", nullptr, false, context_.has_project())) run_operation([this] { actions_->import_obj(); });
-    if (ImGui::MenuItem("Import Material...", nullptr, false, context_.has_project())) {
-        run_operation([this] { actions_->import_material(); });
-    }
-
     ImGui::Separator();
 
     if (ImGui::MenuItem("New Scene", "Ctrl+N")) run_operation([this] { actions_->new_scene(); });
@@ -233,7 +228,16 @@ void EditorLayer::on_update(base::Timestep dt) {
     imgui_->begin_frame();
     draw_workspace();
     hierarchy_.draw(context_, hierarchy_open_);
-    inspector_.draw(context_, inspector_open_);
+    inspector_.draw(
+            context_, inspector_open_,
+            InspectorPanel::AssetImportCallbacks{
+                .import_mesh =
+                        [this](vulcal::scene::Entity entity) { run_operation([this, entity] { actions_->import_mesh_asset(entity); }); },
+                .import_material =
+                        [this](vulcal::scene::Entity entity) {
+                            run_operation([this, entity] { actions_->import_material_asset(entity); });
+                        },
+            });
     viewport_.draw(viewport_open_, application().get_graphics_context().limits());
     draw_new_project_dialog();
     draw_error_dialog();

@@ -5,6 +5,8 @@
 #include <optional>
 #include <string>
 
+#include "scene/entity.h"
+
 namespace apps::nfd {
 struct FileFilter;
 }
@@ -38,8 +40,8 @@ public:
     void open_scene();
     void save_scene();
     void save_scene_as();
-    void import_obj();
-    void import_material();
+    void import_mesh_asset(vulcal::scene::Entity target);
+    void import_material_asset(vulcal::scene::Entity target);
 
 private:
     void reset_project_resources();

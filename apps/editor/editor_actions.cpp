@@ -2,8 +2,7 @@
 
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
-#include "asset_import/material_asset_importer.h"
-#include "asset_import/obj_asset_importer.h"
+#include "asset_import/asset_importer.h"
 #include "base/logger.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_context.h"
@@ -64,48 +63,35 @@ void EditorActions::save_scene_as() {
     }
 }
 
-void EditorActions::import_obj() {
+void EditorActions::import_mesh_asset(vulcal::scene::Entity target) {
     if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
+    if (!context_.has_scene() || !target.valid() || &target.scene() != &context_.scene() ||
+        !target.has_component<vulcal::scene::MeshRendererComponent>())
+        throw std::invalid_argument("Mesh import target must have a Mesh Renderer in the current scene");
+
     if (auto path = dialogs_.open_file(obj_filter, context_.assets_directory())) {
-        const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
-        const auto selected = context_.selected_entity();
-        if (selected) {
-            auto& component          = selected.has_component<vulcal::scene::MeshRendererComponent>()
-                                               ? selected.get_component<vulcal::scene::MeshRendererComponent>()
-                                               : selected.add_component<vulcal::scene::MeshRendererComponent>();
-            component.mesh_asset_id_ = id;
-            base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
-                             selected.get_component<vulcal::scene::TagComponent>().name_,
-                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        }
+        const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
+        base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
+                         target.get_component<vulcal::scene::TagComponent>().name_,
+                         target.get_component<vulcal::scene::IDComponent>().id_.to_string());
         render_assets_.invalidate(id);
         assets_.invalidate(id);
     }
 }
 
-void EditorActions::import_material() {
-    if (!context_.has_project()) {
-        throw std::logic_error("Open a project before importing assets");
-    }
+void EditorActions::import_material_asset(vulcal::scene::Entity target) {
+    if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
+    if (!context_.has_scene() || !target.valid() || &target.scene() != &context_.scene() ||
+        !target.has_component<vulcal::scene::MeshRendererComponent>())
+        throw std::invalid_argument("Material import target must have a Mesh Renderer in the current scene");
 
     if (auto path = dialogs_.open_file(material_filter, context_.assets_directory())) {
-        const auto id = apps::asset_import::MaterialAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
-        const auto selected = context_.selected_entity();
-
-        // clang-format off
-        if (selected) {
-            vulcal::scene::MeshRendererComponent& component = selected.has_component<vulcal::scene::MeshRendererComponent>()
-                                                            ? selected.get_component<vulcal::scene::MeshRendererComponent>()
-                                                            : selected.add_component<vulcal::scene::MeshRendererComponent>();
-            component.material_asset_id_ = id;
-
-            base::log::debug("Editor: assigned material asset {} to entity '{}' ({})",
-                             id.to_string(),
-                             selected.get_component<vulcal::scene::TagComponent>().name_,
-                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        }
-        // clang-format on
-
+        const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
+        base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
+                         target.get_component<vulcal::scene::TagComponent>().name_,
+                         target.get_component<vulcal::scene::IDComponent>().id_.to_string());
         render_assets_.invalidate(id);
         assets_.invalidate(id);
     }

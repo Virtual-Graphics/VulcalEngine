@@ -126,9 +126,32 @@ void draw_light(vulcal::scene::LightComponent& light) {
     ImGui::EndDisabled();
 }
 
+void draw_mesh_renderer(vulcal::scene::Entity entity, vulcal::scene::MeshRendererComponent& mesh, EditorContext& context,
+                        const InspectorPanel::AssetImportCallbacks& callbacks) {
+    ImGui::Checkbox("Visible", &mesh.visible_);
+    const auto mesh_id     = mesh.mesh_asset_id_.to_string();
+    const auto material_id = mesh.material_asset_id_.to_string();
+    ImGui::Text("Mesh Asset: %s", mesh.mesh_asset_id_.is_nil() ? "None" : mesh_id.c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!context.has_project() || !callbacks.import_mesh);
+    if (ImGui::Button("...##ImportMesh")) callbacks.import_mesh(entity);
+    ImGui::EndDisabled();
+    ImGui::Text("Material Asset: %s", mesh.material_asset_id_.is_nil() ? "None" : material_id.c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!context.has_project() || !callbacks.import_material);
+    if (ImGui::Button("...##ImportMaterial")) callbacks.import_material(entity);
+    ImGui::EndDisabled();
+    if (mesh.mesh_asset_id_.is_nil()) ImGui::TextDisabled("Assign a mesh asset to render this entity.");
+}
+
+void draw_environment(vulcal::scene::EnvironmentComponent& environment) {
+    ImGui::ColorEdit3("Ambient", &environment.ambient_color_.x);
+    ImGui::ColorEdit3("Background", &environment.clear_color_.x);
+}
+
 } // namespace
 
-void InspectorPanel::draw(EditorContext& context, bool& open) const {
+void InspectorPanel::draw(EditorContext& context, bool& open, const AssetImportCallbacks& callbacks) const {
     if (!open) return;
     if (ImGui::Begin("Inspector", &open)) {
         const auto entity = context.selected_entity();
@@ -145,20 +168,11 @@ void InspectorPanel::draw(EditorContext& context, bool& open) const {
             }
             if (entity.has_component<vulcal::scene::TransformComponent>())
                 draw_transform(entity.get_component<vulcal::scene::TransformComponent>());
-            draw_component<vulcal::scene::MeshRendererComponent>(entity, "Mesh Renderer", [](auto& mesh) {
-                ImGui::Checkbox("Visible", &mesh.visible_);
-                const auto mesh_id     = mesh.mesh_asset_id_.to_string();
-                const auto material_id = mesh.material_asset_id_.to_string();
-                ImGui::Text("Mesh Asset: %s", mesh.mesh_asset_id_.is_nil() ? "None" : mesh_id.c_str());
-                ImGui::Text("Material Asset: %s", mesh.material_asset_id_.is_nil() ? "None" : material_id.c_str());
-                if (mesh.mesh_asset_id_.is_nil()) ImGui::TextDisabled("Assign a mesh asset to render this entity.");
-            });
+            draw_component<vulcal::scene::MeshRendererComponent>(entity, "Mesh Renderer",
+                                                                 [&](auto& mesh) { draw_mesh_renderer(entity, mesh, context, callbacks); });
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
-            draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", [](auto& environment) {
-                ImGui::ColorEdit3("Ambient", &environment.ambient_color_.x);
-                ImGui::ColorEdit3("Background", &environment.clear_color_.x);
-            });
+            draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", draw_environment);
             ImGui::TextDisabled("Right-click optional component headers to remove.");
             if (ImGui::Button("Add Component")) ImGui::OpenPopup("AddComponentMenu");
             if (ImGui::BeginPopup("AddComponentMenu")) {
