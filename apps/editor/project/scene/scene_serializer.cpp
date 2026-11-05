@@ -1,6 +1,7 @@
 #include "editor/project/scene/scene_serializer.h"
 
 #include "base/logger.h"
+#include "base/yaml.h"
 
 #include <fstream>
 #include <type_traits>
@@ -20,7 +21,7 @@ void field(YAML::Node node, const char* key, T& value, bool loading) {
 template<glm::length_t N>
 void field(YAML::Node node, const char* key, glm::vec<N, float>& value, bool loading) {
     if (loading) {
-        for (glm::length_t i = 0; i < N; ++i) value[i] = node[key][i].as<float>();
+        value = base::yaml::read_vec<N>(node, key);
     } else {
         YAML::Node data(YAML::NodeType::Sequence);
         data.SetStyle(YAML::EmitterStyle::Flow);

@@ -3,8 +3,8 @@
 #include "asset/material_asset.h"
 #include "asset_import/meta_data.h"
 #include "base/logger.h"
+#include "base/yaml.h"
 
-#include <glm/glm.hpp>
 #include <stdexcept>
 #include <string>
 #include <yaml-cpp/yaml.h>
@@ -14,14 +14,6 @@ namespace {
 
 constexpr std::uint32_t source_format_version = 1;
 
-glm::vec3 read_vec3(const YAML::Node& node, const char* key) {
-    const auto values = node[key];
-    if (!values.IsSequence() || values.size() != 3) {
-        throw std::runtime_error(std::string("Material field must contain three values: ") + key);
-    }
-    return { values[0].as<float>(), values[1].as<float>(), values[2].as<float>() };
-}
-
 vulcal::render::Material read_source(const std::filesystem::path& path) {
     try {
         const auto root = YAML::LoadFile(path.string());
@@ -29,8 +21,8 @@ vulcal::render::Material read_source(const std::filesystem::path& path) {
             throw std::runtime_error("Unsupported material source file: " + path.string());
         }
         vulcal::render::Material material;
-        material.diffuse_   = read_vec3(root, "diffuse");
-        material.specular_  = read_vec3(root, "specular");
+        material.diffuse_   = base::yaml::read_vec<3>(root, "diffuse");
+        material.specular_  = base::yaml::read_vec<3>(root, "specular");
         material.shininess_ = root["shininess"].as<float>();
         return material;
     } catch (const YAML::Exception& error) {
