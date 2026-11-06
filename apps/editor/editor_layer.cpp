@@ -27,7 +27,23 @@ std::string to_utf8(const std::filesystem::path& path) {
 EditorLayer::EditorLayer()
         : engine::Layer("EditorLayer") {}
 
-EditorLayer::~EditorLayer() = default;
+EditorLayer::~EditorLayer() { stop(); }
+
+void EditorLayer::play() {
+    if (context_.playing()) return;
+    context_.begin_play();
+    try {
+        script_runtime_.start(context_.scene(), context_.project_directory(), context_.assets_directory());
+    } catch (...) {
+        stop();
+        throw;
+    }
+}
+
+void EditorLayer::stop() {
+    script_runtime_.stop();
+    context_.end_play();
+}
 
 void EditorLayer::on_attach() {
     imgui_   = std::make_unique<apps::ImGuiIntegration>(application().get_window());
@@ -47,6 +63,7 @@ void EditorLayer::on_attach() {
 }
 
 void EditorLayer::on_detach() {
+    stop();
     viewport_.release_resources();
     actions_.reset();
     imgui_.reset();
@@ -58,6 +75,8 @@ void EditorLayer::on_detach() {
 
 void EditorLayer::draw_file_menu() {
     if (!ImGui::BeginMenu("File")) return;
+
+    ImGui::BeginDisabled(context_.playing());
 
     if (ImGui::MenuItem("New Project...")) {
         viewport_.release_camera();
@@ -78,11 +97,13 @@ void EditorLayer::draw_file_menu() {
     if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) actions_->run_guarded([this] { actions_->save_scene_as(); });
     ImGui::EndDisabled();
 
+    ImGui::EndDisabled();
+
     ImGui::EndMenu();
 }
 
 void EditorLayer::handle_shortcuts() {
-    if (viewport_.controlling_camera() || ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive() ||
+    if (context_.playing() || viewport_.controlling_camera() || ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive() ||
         ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
         return;
 
@@ -133,7 +154,7 @@ void EditorLayer::draw_new_project_dialog() {
         ImGui::PopTextWrapPos();
     }
 
-    const bool can_create = !new_project_name_.empty() && !new_project_directory_.empty();
+    const bool can_create = !context_.playing() && !new_project_name_.empty() && !new_project_directory_.empty();
     ImGui::BeginDisabled(!can_create);
     if (ImGui::Button("Create")) {
         try {
@@ -184,6 +205,13 @@ void EditorLayer::draw_error_dialog() {
 void EditorLayer::draw_workspace() {
     if (ImGui::BeginMainMenuBar()) {
         draw_file_menu();
+        if (ImGui::BeginMenu("Scene")) {
+            if (ImGui::MenuItem("Play", nullptr, false, context_.has_scene() && !context_.playing()))
+                actions_->run_guarded([this] { play(); });
+            if (ImGui::MenuItem("Stop", nullptr, false, context_.playing()))
+                actions_->run_guarded([this] { stop(); });
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Hierarchy", nullptr, &hierarchy_open_);
             ImGui::MenuItem("Inspector", nullptr, &inspector_open_);
@@ -220,6 +248,7 @@ void EditorLayer::draw_workspace() {
 }
 
 void EditorLayer::on_update(base::Timestep dt) {
+    if (context_.playing()) script_runtime_.update(dt.get_seconds());
     imgui_->begin_frame();
     draw_workspace();
     hierarchy_.draw(context_, hierarchy_open_);

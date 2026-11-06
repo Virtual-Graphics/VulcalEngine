@@ -1,13 +1,52 @@
 #include "editor/editor_layer.h"
 #include "engine/application.h"
+#include "script/script_component.h"
 
 #include <SDL3/SDL.h>
 #include <gtest/gtest.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <memory>
+#include <fstream>
+#include <sstream>
+#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/spdlog.h>
 
 namespace {
+
+class RuntimeSceneObserver {
+public:
+    RuntimeSceneObserver() {
+        sink_ = std::make_shared<spdlog::sinks::ostream_sink_mt>(output_);
+        spdlog::default_logger()->sinks().push_back(sink_);
+    }
+    ~RuntimeSceneObserver() { std::erase(spdlog::default_logger()->sinks(), sink_); }
+    std::string output() const { return output_.str(); }
+private:
+    std::ostringstream output_;
+    std::shared_ptr<spdlog::sinks::ostream_sink_mt> sink_;
+};
+
+class ScriptProject {
+public:
+    ScriptProject() {
+        directory = std::filesystem::temp_directory_path() / ("vulcal_play_" + base::UUID::generate().to_string());
+        std::filesystem::create_directories(directory);
+    }
+    ~ScriptProject() { std::filesystem::remove_all(directory); }
+    vulcal::scene::Entity prepare(editor::EditorLayer& layer) {
+        layer.context().create_project(directory, "Play");
+        layer.context().set_scene(std::make_unique<vulcal::scene::Scene>());
+        const auto entity = layer.context().create_entity();
+        entity.add_component<vulcal::script::ScriptComponent>().script_path_ = "assets/lifecycle.lua";
+        std::ofstream script(directory / "assets/lifecycle.lua");
+        script << "function on_create() entity:set_translation(10, 0, 0) end\n"
+                  "function on_update(dt) local x,y,z = entity:get_translation(); entity:set_translation(x + dt, y, z) end\n"
+                  "function on_destroy() entity:set_translation(999, 0, 0); Log.info('Destroyed ' .. entity.name .. ' at ' .. entity:get_translation()) end\n";
+        return entity;
+    }
+    std::filesystem::path directory;
+};
 
 class EditorLayerTest : public testing::Test {
 protected:
@@ -112,6 +151,67 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWhileProjectDialogIsOpen) {
     new_scene_shortcut();
     EXPECT_FLOAT_EQ(hierarchy_height(), height);
     EXPECT_TRUE(dialog->Active);
+}
+
+TEST_F(EditorLayerTest, PlayDrivesLuaAndStopDestroysScriptsBeforeDiscardingScene) {
+    ScriptProject project;
+    const auto edit = project.prepare(*layer_);
+    layer_->play();
+    ASSERT_TRUE(layer_->context().playing());
+    const auto runtime = layer_->context().selected_entity();
+    EXPECT_FLOAT_EQ(runtime.get_component<vulcal::scene::TransformComponent>().translation_.x, 10.0f);
+    RuntimeSceneObserver observer;
+    frame();
+    EXPECT_NEAR(runtime.get_component<vulcal::scene::TransformComponent>().translation_.x, 10.0f + 1.0f / 60.0f, 1e-5f);
+    new_scene_shortcut();
+    EXPECT_TRUE(layer_->context().playing());
+    layer_->stop();
+    EXPECT_FALSE(layer_->context().playing());
+    EXPECT_NE(observer.output().find("Destroyed Entity at 999"), std::string::npos);
+    EXPECT_EQ(layer_->context().selected_entity(), edit);
+    EXPECT_FLOAT_EQ(edit.get_component<vulcal::scene::TransformComponent>().translation_.x, 0.0f);
+    const auto output = observer.output();
+    layer_->stop();
+    EXPECT_EQ(observer.output(), output);
+}
+
+TEST_F(EditorLayerTest, DetachStopsPlayBeforeRuntimeSceneDisposal) {
+    ScriptProject project;
+    project.prepare(*layer_);
+    layer_->play();
+    RuntimeSceneObserver observer;
+    layer_->on_detach();
+    EXPECT_FALSE(layer_->context().playing());
+    EXPECT_NE(observer.output().find("Destroyed Entity at 999"), std::string::npos);
+}
+
+TEST(EditorPlayLifecycle, LayerDestructionStopsScriptsWhileRuntimeEntitiesAreAlive) {
+    ScriptProject project;
+    RuntimeSceneObserver observer;
+    {
+        editor::EditorLayer layer;
+        project.prepare(layer);
+        layer.play();
+    }
+    EXPECT_NE(observer.output().find("Destroyed Entity at 999"), std::string::npos);
+}
+
+TEST_F(EditorLayerTest, SceneMenuStartsAndStopsPlay) {
+    click({ 60.0f, ImGui::GetFontSize() * 0.5f });
+    frame();
+    ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);
+    const auto* menu = ImGui::GetCurrentContext()->OpenPopupStack[0].Window;
+    ASSERT_NE(menu, nullptr);
+    click({ menu->DC.CursorStartPos.x + 30.0f, menu->DC.CursorStartPos.y + ImGui::GetFontSize() * 0.5f });
+    EXPECT_TRUE(layer_->context().playing());
+    click({ 60.0f, ImGui::GetFontSize() * 0.5f });
+    frame();
+    ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);
+    menu = ImGui::GetCurrentContext()->OpenPopupStack[0].Window;
+    ASSERT_NE(menu, nullptr);
+    click({ menu->DC.CursorStartPos.x + 30.0f,
+            menu->DC.CursorStartPos.y + ImGui::GetFontSize() * 0.5f + ImGui::GetTextLineHeightWithSpacing() });
+    EXPECT_FALSE(layer_->context().playing());
 }
 
 } // namespace

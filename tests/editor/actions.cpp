@@ -111,6 +111,30 @@ TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
     EXPECT_TRUE(found);
 }
 
+TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCaches) {
+    const auto entity = context_.create_entity();
+    entity.add_component<vulcal::scene::MeshRendererComponent>();
+    entity.add_component<vulcal::script::ScriptComponent>();
+    const auto id = assets_.add_mesh(triangle());
+    const auto cpu = assets_.load_mesh(id);
+    const auto gpu = cache_->resolve_mesh(id);
+    context_.begin_play();
+    EXPECT_THROW(actions_->open_project(), std::logic_error);
+    EXPECT_THROW(actions_->open_scene(), std::logic_error);
+    EXPECT_THROW(actions_->save_scene_as(), std::logic_error);
+    EXPECT_THROW(actions_->save_scene(), std::logic_error);
+    EXPECT_THROW(actions_->new_scene(), std::logic_error);
+    EXPECT_THROW(actions_->create_project(directory_ / "blocked", "Blocked"), std::logic_error);
+    EXPECT_THROW(actions_->assign_script(), std::logic_error);
+    EXPECT_THROW(actions_->import_mesh_asset(), std::logic_error);
+    EXPECT_THROW(actions_->import_material_asset(), std::logic_error);
+    EXPECT_TRUE(last_filter_.empty());
+    EXPECT_EQ(assets_.load_mesh(id), cpu);
+    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_FALSE(std::filesystem::exists(directory_ / "blocked"));
+    context_.end_play();
+}
+
 TEST_F(EditorActionsTest, CancelledSaveLeavesSceneUnnamedAndSelectionUnchanged) {
     const auto selected = context_.create_entity();
     actions_->save_scene();

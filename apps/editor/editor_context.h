@@ -20,6 +20,13 @@ public:
 
     bool has_scene() const { return project_manager_.has_scene(); }
 
+    bool playing() const { return runtime_scene_ != nullptr; }
+    // Switch the active scene and rebind the current selection by UUID.
+    void begin_play();
+    // The owner must stop scripts before releasing their referenced scene.
+    void end_play();
+    void require_edit_mode() const;
+
     vulcal::scene::Scene& scene();
     const vulcal::scene::Scene& scene() const;
 
@@ -46,6 +53,7 @@ public:
 
 private:
     ProjectManager project_manager_;
+    std::unique_ptr<vulcal::scene::Scene> runtime_scene_;
     vulcal::scene::Entity selected_;
 };
 

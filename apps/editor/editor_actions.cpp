@@ -44,6 +44,7 @@ void EditorActions::create_project(const std::filesystem::path& directory, const
 }
 
 void EditorActions::open_project() {
+    context_.require_edit_mode();
     if (auto path = dialogs_.open_file(project_filter, {})) {
         context_.open_project(*path);
         reset_project_resources();
@@ -53,6 +54,7 @@ void EditorActions::open_project() {
 void EditorActions::new_scene() { context_.new_scene(); }
 
 void EditorActions::open_scene() {
+    context_.require_edit_mode();
     if (auto path = dialogs_.open_file(scene_filter, context_.scene_dialog_directory())) context_.open_scene(*path);
 }
 
@@ -61,12 +63,14 @@ void EditorActions::save_scene() {
 }
 
 void EditorActions::save_scene_as() {
+    context_.require_edit_mode();
     if (auto path = dialogs_.save_file(scene_filter, context_.scene_dialog_directory(), context_.suggested_scene_name())) {
         context_.save_scene_as(*path);
     }
 }
 
 vulcal::scene::Entity EditorActions::require_selected_mesh_renderer(const char* asset_name) const {
+    context_.require_edit_mode();
     if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
     const auto target = context_.selected_entity();
     if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::MeshRendererComponent>()) {
@@ -76,6 +80,7 @@ vulcal::scene::Entity EditorActions::require_selected_mesh_renderer(const char* 
 }
 
 vulcal::scene::Entity EditorActions::require_selected_script() const {
+    context_.require_edit_mode();
     if (!context_.has_project()) throw std::logic_error("Open a project before assigning a script");
     const auto target = context_.selected_entity();
     if (!context_.has_scene() || !target || !target.has_component<vulcal::script::ScriptComponent>()) {

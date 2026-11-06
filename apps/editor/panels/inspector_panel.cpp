@@ -165,6 +165,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
     if (ImGui::Begin("Inspector", &open)) {
         const auto entity = context.selected_entity();
         if (entity) {
+            ImGui::BeginDisabled(context.playing());
             // Selection is resolved each frame; no component pointer survives a scene change.
             const auto entity_id = entity.get_component<vulcal::scene::IDComponent>().id_.to_string();
             ImGui::PushID(entity_id.c_str());
@@ -194,6 +195,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
                 ImGui::EndPopup();
             }
             ImGui::PopID();
+            ImGui::EndDisabled();
         } else {
             ImGui::TextDisabled("Select an entity in Hierarchy.");
         }

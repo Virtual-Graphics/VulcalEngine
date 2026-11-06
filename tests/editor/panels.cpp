@@ -197,4 +197,69 @@ TEST_F(EditorPanels, InspectorDisablesSecondSceneLight) {
     EXPECT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);
 }
 
+TEST_F(EditorPanels, PlayingHierarchyAllowsSelectionButDisablesCreateAndDelete) {
+    context_.create_entity();
+    context_.begin_play();
+    context_.select({});
+    frame();
+    frame();
+    click(first_row());
+    ASSERT_TRUE(context_.selected_entity());
+    const auto selected = context_.selected_entity();
+    click(first_row(), ImGuiMouseButton_Right);
+    choose_popup_action();
+    EXPECT_TRUE(context_.scene().contains(selected));
+    EXPECT_EQ(context_.selected_entity(), selected);
+    // Close the disabled menu and try the blank-window Create command.
+    click({ 100.0f, 400.0f });
+    click({ 100.0f, 300.0f }, ImGuiMouseButton_Right);
+    choose_popup_action();
+    EXPECT_EQ(context_.scene().registry().view<vulcal::scene::TagComponent>().size(), 1u);
+}
+
+TEST_F(EditorPanels, PlayingInspectorDisablesNameAndAddComponent) {
+    context_.create_entity();
+    context_.begin_play();
+    const auto runtime = context_.selected_entity();
+    frame();
+    frame();
+    const auto* window = ImGui::FindWindowByName("Inspector");
+    click({ window->DC.CursorStartPos.x + 40.0f, window->DC.CursorStartPos.y + ImGui::GetFrameHeight() * 0.5f });
+    ImGui::GetIO().AddInputCharactersUTF8("Unexpected edit");
+    frame();
+    EXPECT_EQ(runtime.get_component<vulcal::scene::TagComponent>().name_, "Entity");
+    EXPECT_FALSE(ImGui::GetIO().WantTextInput);
+    open_add_component();
+    EXPECT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 0);
+    EXPECT_FALSE(runtime.has_component<vulcal::script::ScriptComponent>());
+}
+
+TEST_F(EditorPanels, PlayingInspectorDisablesTransformAndComponentRemoval) {
+    auto edit = context_.create_entity();
+    edit.add_component<vulcal::script::ScriptComponent>().script_path_ = "assets/test.lua";
+    context_.begin_play();
+    const auto runtime = context_.selected_entity();
+    frame();
+    frame();
+    const auto* window = ImGui::FindWindowByName("Inspector");
+    const auto start = window->DC.CursorStartPos;
+    const float y = start.y + ImGui::GetFrameHeightWithSpacing() * 4.0f + ImGui::GetTextLineHeightWithSpacing();
+    auto& io = ImGui::GetIO();
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    click({ start.x + 30.0f, y + ImGui::GetFrameHeight() * 0.5f });
+    io.AddInputCharactersUTF8("25");
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    frame();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    frame();
+    EXPECT_FLOAT_EQ(runtime.get_component<vulcal::scene::TransformComponent>().scale_.x, 1.0f);
+    // The Script header follows Transform's three rows.
+    const float header_y = start.y + ImGui::GetFrameHeightWithSpacing() * 5.0f + ImGui::GetTextLineHeightWithSpacing();
+    click({ start.x + 40.0f, header_y + ImGui::GetFrameHeight() * 0.5f }, ImGuiMouseButton_Right);
+    if (ImGui::GetCurrentContext()->OpenPopupStack.Size != 0) choose_popup_action();
+    EXPECT_TRUE(runtime.has_component<vulcal::script::ScriptComponent>());
+    EXPECT_EQ(runtime.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/test.lua");
+}
+
 } // namespace
