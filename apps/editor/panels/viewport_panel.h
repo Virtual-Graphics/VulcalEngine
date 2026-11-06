@@ -15,6 +15,7 @@ public:
     void release_camera();
     // Call before destroying the window, ImGui or graphics context.
     void release_resources();
+    float aspect() const;
     vulcal::render::CameraData camera_data() const;
     bool visible() const { return visible_; }
     bool controlling_camera() const { return captured_window_ != nullptr; }

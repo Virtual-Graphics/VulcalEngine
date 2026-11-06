@@ -115,7 +115,6 @@ public:
         camera.perspective_near_      = 0.1f;
         camera.perspective_far_       = 100.0f;
 
-        update_camera_aspect();
         imgui_ = std::make_unique<apps::ImGuiIntegration>(application().get_window());
         base::log::info("ModelViewer: ready to render {} ({} vertices, {} triangles)", model_path_.string(), vertex_count_,
                         triangle_count_);
@@ -132,8 +131,6 @@ public:
 
         auto& model_transform       = model_entity_.get_component<vulcal::scene::TransformComponent>();
         model_transform.rotation_.y = glm::radians(angle_);
-
-        update_camera_aspect();
     }
 
     void on_detach() override {
@@ -147,7 +144,10 @@ public:
     }
 
     void on_render() override {
-        renderer_->render(extractor_->extract(*scene_));
+        const auto& window = application().get_window();
+        vulcal::scene::SceneExtractor::Options options;
+        options.aspect_ = static_cast<float>(window.width()) / static_cast<float>(window.height());
+        renderer_->render(extractor_->extract(*scene_, options));
         imgui_->render();
     }
 
@@ -206,12 +206,6 @@ private:
             }
         }
         ImGui::End();
-    }
-
-    void update_camera_aspect() {
-        auto& window = application().get_window();
-        auto& camera = camera_entity_.get_component<vulcal::scene::CameraComponent>();
-        camera.set_aspect(static_cast<float>(window.width()) / static_cast<float>(window.height()));
     }
 
     std::filesystem::path model_path_;

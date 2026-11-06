@@ -97,9 +97,11 @@ void ViewportPanel::release_resources() {
     visible_ = focused_ = camera_requested_ = false;
 }
 
-vulcal::render::CameraData ViewportPanel::camera_data() const {
+float ViewportPanel::aspect() const {
     if (!target_) throw std::logic_error("Viewport has no render target");
-    return camera_.data(static_cast<float>(target_->width()) / static_cast<float>(target_->height()));
+    return static_cast<float>(target_->width()) / static_cast<float>(target_->height());
 }
+
+vulcal::render::CameraData ViewportPanel::camera_data() const { return camera_.data(aspect()); }
 
 } // namespace editor

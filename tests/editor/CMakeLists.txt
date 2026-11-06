@@ -1,5 +1,6 @@
 add_executable(editor_state_test
     main.cpp
+    play.cpp
     assets.cpp
     ../../apps/editor/editor_context.cpp
     ../../apps/editor/editor_camera.cpp

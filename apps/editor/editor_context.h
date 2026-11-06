@@ -20,6 +20,14 @@ public:
 
     bool has_scene() const { return project_manager_.has_scene(); }
 
+    bool playing() const { return runtime_scene_ != nullptr; }
+    bool uses_primary_camera() const;
+    // Switch the active scene and rebind the current selection by UUID.
+    void begin_play();
+    // The owner must stop scripts before releasing their referenced scene.
+    void end_play();
+    void require_edit_mode() const;
+
     vulcal::scene::Scene& scene();
     const vulcal::scene::Scene& scene() const;
 
@@ -32,6 +40,7 @@ public:
     void create_project(const std::filesystem::path& directory, const std::string& name);
     void open_project(const std::filesystem::path& project_file);
     bool has_project() const { return project_manager_.has_project(); }
+    std::filesystem::path project_directory() const;
     std::filesystem::path assets_directory() const;
     std::filesystem::path library_directory() const;
 
@@ -45,6 +54,7 @@ public:
 
 private:
     ProjectManager project_manager_;
+    std::unique_ptr<vulcal::scene::Scene> runtime_scene_;
     vulcal::scene::Entity selected_;
 };
 

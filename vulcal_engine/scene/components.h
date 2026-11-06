@@ -38,7 +38,6 @@ struct CameraComponent {
     bool primary_ = true;
 
     float perspective_fov_y_ = glm::radians(45.0f);
-    float perspective_aspect_ = 1.0f;
     float perspective_near_ = 0.1f;
     float perspective_far_ = 100.0f;
 
@@ -48,8 +47,6 @@ struct CameraComponent {
     float orthographic_top_ = 1.0f;
     float orthographic_near_ = 0.1f;
     float orthographic_far_ = 100.0f;
-
-    void set_aspect(float aspect);
 };
 
 enum class LightType { Directional };
@@ -72,6 +69,10 @@ struct LightComponent {
 struct EnvironmentComponent {
     glm::vec3 ambient_color_{ 0.1f };
     glm::vec4 clear_color_{ 0.1f, 0.1f, 0.1f, 1.0f };
+};
+
+struct ScriptComponent {
+    std::string script_path_;
 };
 
 } // namespace vulcal::scene

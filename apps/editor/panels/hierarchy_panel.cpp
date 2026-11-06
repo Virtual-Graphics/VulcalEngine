@@ -23,13 +23,13 @@ void HierarchyPanel::draw(EditorContext& context, bool& open) const {
                     ImGui::GetColorU32(ImGuiCol_Text), tag.name_.c_str());
             over_entity |= ImGui::IsItemHovered();
             if (ImGui::BeginPopupContextItem("EntityMenu")) {
-                if (ImGui::MenuItem("Delete Entity")) pending_delete = entity;
+                if (ImGui::MenuItem("Delete Entity", nullptr, false, !context.playing())) pending_delete = entity;
                 ImGui::EndPopup();
             }
             ImGui::PopID();
         });
         if (ImGui::BeginPopupContextWindow("CreateEntityMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
-            create = ImGui::MenuItem("Create Entity");
+            create = ImGui::MenuItem("Create Entity", nullptr, false, !context.playing());
             ImGui::EndPopup();
         }
         if (!over_entity && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) context.select({});

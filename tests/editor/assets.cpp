@@ -1,4 +1,5 @@
 #include "editor/project/scene/scene_serializer.h"
+#include "scene/components.h"
 
 #include <chrono>
 #include <filesystem>
@@ -43,6 +44,20 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
 
     EXPECT_EQ(component.mesh_asset_id_, base::UUID{ 1311768467463790320ull });
     EXPECT_EQ(component.material_asset_id_, base::UUID{ 1147797409030816545ull });
+}
+
+TEST(SceneSerializer, PersistsScriptComponentPath) {
+    TemporaryDirectory directory;
+    vulcal::scene::Scene scene;
+    auto entity                                                          = scene.create_entity("Scripted");
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/Scripts/player.lua";
+
+    const auto path                                                      = directory.path() / "scene.vscene";
+    editor::SceneSerializer::serialize(scene, path);
+    auto loaded     = editor::SceneSerializer::deserialize(path);
+    const auto view = loaded->registry().view<vulcal::scene::ScriptComponent>();
+    ASSERT_EQ(view.size(), 1u);
+    EXPECT_EQ(view.get<vulcal::scene::ScriptComponent>(view.front()).script_path_, "Assets/Scripts/player.lua");
 }
 
 TEST(SceneSerializer, RejectsLegacySceneSchema) {

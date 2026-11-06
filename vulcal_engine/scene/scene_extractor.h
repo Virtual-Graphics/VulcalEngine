@@ -4,7 +4,9 @@
 #include "scene/components.h"
 
 #include <glm/gtc/quaternion.hpp>
+#include <cmath>
 #include <optional>
+#include <stdexcept>
 
 namespace vulcal::asset {
 class RenderAssetCache;
@@ -25,9 +27,11 @@ public:
     struct Options {
         CameraPolicy camera_policy_ = CameraPolicy::Primary;
         std::optional<render::CameraData> camera_override_;
+        // Aspect ratio of the render target. Required when extracting a scene camera.
+        float aspect_ = 0.0f;
     };
 
-    render::RenderData extract(const Scene& scene) const;
+    render::RenderData extract(const Scene& scene, float aspect) const;
     render::RenderData extract(const Scene& scene, const Options& options) const;
 
 private:
@@ -59,22 +63,33 @@ private:
         };
     }
 
-    static render::CameraData make_camera_data(const CameraComponent& camera, const glm::mat4& world_transform) {
+    static render::CameraData make_camera_data(const CameraComponent& camera, const glm::mat4& world_transform, float aspect) {
         if (camera.projection_type_ == CameraComponent::ProjectionType::Perspective) {
             const render::PerspectiveCamera::Spec spec{
                 .fov_y_  = camera.perspective_fov_y_,
-                .aspect_ = camera.perspective_aspect_,
+                .aspect_ = aspect,
                 .near_   = camera.perspective_near_,
                 .far_    = camera.perspective_far_,
             };
             return render::PerspectiveCamera{ spec }.data(world_transform);
         }
 
+        const float height = camera.orthographic_top_ - camera.orthographic_bottom_;
+        if (!std::isfinite(height) || height <= 0.0f) {
+            throw std::invalid_argument("SceneExtractor: orthographic camera must have a positive finite height");
+        }
+        const float center = (camera.orthographic_left_ + camera.orthographic_right_) * 0.5f;
+        const float width  = height * aspect;
+        const float left   = center - width * 0.5f;
+        const float right  = center + width * 0.5f;
+        const float bottom = camera.orthographic_bottom_;
+        const float top    = camera.orthographic_top_;
+
         const render::OrthographicCamera::Spec spec{
-            .left_   = camera.orthographic_left_,
-            .right_  = camera.orthographic_right_,
-            .bottom_ = camera.orthographic_bottom_,
-            .top_    = camera.orthographic_top_,
+            .left_   = left,
+            .right_  = right,
+            .bottom_ = bottom,
+            .top_    = top,
             .near_   = camera.orthographic_near_,
             .far_    = camera.orthographic_far_,
         };

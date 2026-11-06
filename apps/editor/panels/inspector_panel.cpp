@@ -3,6 +3,7 @@
 #include "base/logger.h"
 #include "editor/editor_actions.h"
 #include "editor/editor_context.h"
+#include "scene/components.h"
 
 #include <algorithm>
 #include <cmath>
@@ -83,7 +84,7 @@ void draw_camera(vulcal::scene::CameraComponent& camera) {
         if (ImGui::SliderFloat("FOV (deg)", &fov, 1.0f, 179.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp) && std::isfinite(fov)) {
             camera.perspective_fov_y_ = glm::radians(fov);
         }
-        bounded_drag("Aspect", camera.perspective_aspect_, 0.01f, 100.0f);
+        ImGui::TextDisabled("Aspect: from render target");
         bounded_drag("Near", camera.perspective_near_, 0.001f, camera.perspective_far_ - 0.01f);
         bounded_drag("Far", camera.perspective_far_, camera.perspective_near_ + 0.01f);
     } else {
@@ -149,6 +150,14 @@ void draw_environment(vulcal::scene::EnvironmentComponent& environment) {
     ImGui::ColorEdit3("Background", &environment.clear_color_.x);
 }
 
+void draw_script(vulcal::scene::ScriptComponent& script, EditorContext& context, EditorActions* actions) {
+    ImGui::Text("Script: %s", script.script_path_.empty() ? "None" : script.script_path_.c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!context.has_project() || actions == nullptr);
+    if (ImGui::Button("...##AssignScript")) actions->run_guarded([actions] { actions->assign_script(); });
+    ImGui::EndDisabled();
+}
+
 } // namespace
 
 void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* actions) const {
@@ -156,6 +165,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
     if (ImGui::Begin("Inspector", &open)) {
         const auto entity = context.selected_entity();
         if (entity) {
+            ImGui::BeginDisabled(context.playing());
             // Selection is resolved each frame; no component pointer survives a scene change.
             const auto entity_id = entity.get_component<vulcal::scene::IDComponent>().id_.to_string();
             ImGui::PushID(entity_id.c_str());
@@ -173,6 +183,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
             draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", draw_environment);
+            draw_component<vulcal::scene::ScriptComponent>(entity, "Script", [&](auto& script) { draw_script(script, context, actions); });
             ImGui::TextDisabled("Right-click optional component headers to remove.");
             if (ImGui::Button("Add Component")) ImGui::OpenPopup("AddComponentMenu");
             if (ImGui::BeginPopup("AddComponentMenu")) {
@@ -180,9 +191,11 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
                 add_component_item<vulcal::scene::CameraComponent>(context, entity, "Camera");
                 add_component_item<vulcal::scene::LightComponent>(context, entity, "Light", true);
                 add_component_item<vulcal::scene::EnvironmentComponent>(context, entity, "Environment", true);
+                add_component_item<vulcal::scene::ScriptComponent>(context, entity, "Script");
                 ImGui::EndPopup();
             }
             ImGui::PopID();
+            ImGui::EndDisabled();
         } else {
             ImGui::TextDisabled("Select an entity in Hierarchy.");
         }

@@ -11,6 +11,4 @@ glm::mat4 TransformComponent::matrix() const {
     return glm::scale(transform, scale_);
 }
 
-void CameraComponent::set_aspect(float aspect) { perspective_aspect_ = aspect; }
-
 } // namespace vulcal::scene

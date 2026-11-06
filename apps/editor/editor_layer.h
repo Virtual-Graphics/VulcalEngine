@@ -7,6 +7,7 @@
 #include "editor/panels/viewport_panel.h"
 #include "engine/layer.h"
 #include "scene/scene_extractor.h"
+#include "script/script_runtime.h"
 
 #include <filesystem>
 #include <memory>
@@ -37,6 +38,11 @@ public:
     void on_update(base::Timestep dt) override;
     void on_render() override;
 
+    EditorContext& context() { return context_; }
+    const EditorContext& context() const { return context_; }
+    void play();
+    void stop();
+
 private:
     void draw_workspace();
     void draw_file_menu();
@@ -54,6 +60,8 @@ private:
     std::unique_ptr<vulcal::scene::SceneExtractor> extractor_;
 
     EditorContext context_;
+    // Declared after context so scripts always die before their scene.
+    vulcal::script::ScriptRuntime script_runtime_;
     std::unique_ptr<EditorActions> actions_;
 
     HierarchyPanel hierarchy_;

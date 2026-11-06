@@ -5,6 +5,7 @@
 #include "scene/components.h"
 #include "scene/scene.h"
 
+#include <cmath>
 #include <stdexcept>
 
 namespace vulcal::scene {
@@ -40,7 +41,11 @@ CameraSelection find_camera(const Scene& scene, SceneExtractor::CameraPolicy pol
 
 SceneExtractor::SceneExtractor(asset::RenderAssetCache& resources) : resources_(&resources) {}
 
-render::RenderData SceneExtractor::extract(const Scene& scene) const { return extract(scene, Options{}); }
+render::RenderData SceneExtractor::extract(const Scene& scene, float aspect) const {
+    Options options;
+    options.aspect_ = aspect;
+    return extract(scene, options);
+}
 
 render::RenderData SceneExtractor::extract(const Scene& scene, const Options& options) const {
     render::RenderData data;
@@ -48,12 +53,15 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
     if (options.camera_override_) {
         data.camera_ = *options.camera_override_;
     } else {
+        if (!std::isfinite(options.aspect_) || options.aspect_ <= 0.0f) {
+            throw std::invalid_argument("SceneExtractor: camera aspect must be positive and finite");
+        }
         const auto camera = find_camera(scene, options.camera_policy_);
         if (camera.camera_ == nullptr) {
             base::log::error("SceneExtractor: scene has no camera");
             throw std::runtime_error("SceneExtractor: scene has no camera");
         }
-        data.camera_ = make_camera_data(*camera.camera_, camera.world_transform_);
+        data.camera_ = make_camera_data(*camera.camera_, camera.world_transform_, options.aspect_);
     }
 
     const auto environment_view = scene.registry().view<const EnvironmentComponent>();
