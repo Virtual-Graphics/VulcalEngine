@@ -59,6 +59,8 @@ void EditorContext::open_project(const std::filesystem::path& project_file) {
     new_scene();
 }
 
+std::filesystem::path EditorContext::project_directory() const { return project_manager_.current_project_dir(); }
+
 std::filesystem::path EditorContext::assets_directory() const { return project_manager_.current_assets_dir(); }
 
 std::filesystem::path EditorContext::library_directory() const { return project_manager_.current_library_dir(); }

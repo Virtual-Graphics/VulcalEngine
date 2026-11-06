@@ -7,6 +7,7 @@
 #include "editor/project/scene/scene_serializer.h"
 #include "gfx/context.h"
 #include "render/renderer.h"
+#include "script/script_component.h"
 
 #include <SDL3/SDL.h>
 #include <filesystem>
@@ -236,6 +237,45 @@ TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     const auto replacement = cache_->resolve_material(id);
     EXPECT_NE(replacement, gpu);
     EXPECT_NO_THROW(draw(mesh, replacement));
+}
+
+TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromAssetsPicker) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::script::ScriptComponent>();
+    open_path_ = context_.assets_directory() / "Scripts" / "player.lua";
+    std::filesystem::create_directories(open_path_->parent_path());
+    std::ofstream(*open_path_) << "return {}\n";
+
+    actions_->assign_script();
+
+    EXPECT_EQ(last_filter_, "lua");
+    EXPECT_EQ(last_directory_, context_.assets_directory());
+    EXPECT_EQ(target.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/Scripts/player.lua");
+}
+
+TEST_F(EditorActionsTest, RejectsScriptSelectionOutsideAssets) {
+    const auto target                                                    = context_.create_entity();
+    target.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/Scripts/old.lua";
+    open_path_                                                           = directory_ / "outside.lua";
+    std::ofstream(*open_path_) << "return {}\n";
+
+    EXPECT_THROW(actions_->assign_script(), std::invalid_argument);
+    EXPECT_EQ(target.get_component<vulcal::script::ScriptComponent>().script_path_, "Assets/Scripts/old.lua");
+}
+
+TEST_F(EditorActionsTest, RejectsScriptSymlinkThatResolvesOutsideAssets) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::script::ScriptComponent>();
+    const auto outside = directory_ / "outside.lua";
+    std::ofstream(outside) << "return {}\n";
+    const auto alias = context_.assets_directory() / "escape.lua";
+    std::error_code error;
+    std::filesystem::create_symlink(outside, alias, error);
+    if (error) GTEST_SKIP() << "symlink creation unavailable: " << error.message();
+    open_path_ = alias;
+
+    EXPECT_THROW(actions_->assign_script(), std::invalid_argument);
+    EXPECT_TRUE(target.get_component<vulcal::script::ScriptComponent>().script_path_.empty());
 }
 
 TEST_F(EditorActionsTest, ImportRequiresSelectedMeshRenderer) {

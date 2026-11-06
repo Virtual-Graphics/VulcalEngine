@@ -2,6 +2,7 @@
 
 #include "base/logger.h"
 #include "base/yaml.h"
+#include "script/script_component.h"
 
 #include <cstdint>
 #include <fstream>
@@ -118,6 +119,9 @@ void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::fi
         save_component<CameraComponent>(node, "camera", registry, entity);
         save_component<LightComponent>(node, "light", registry, entity);
         save_component<EnvironmentComponent>(node, "environment", registry, entity);
+        if (const auto* script = registry.try_get<vulcal::script::ScriptComponent>(entity)) {
+            node["script"]["path"] = script->script_path_;
+        }
         entities.push_back(node);
     }
     base::log::debug("SceneSerializer: writing {} (version {}, {} entities)", path.string(), scene_format_version, entities.size());
@@ -142,6 +146,9 @@ std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::fi
         load_component<CameraComponent>(node, "camera", entity);
         load_component<LightComponent>(node, "light", entity);
         load_component<EnvironmentComponent>(node, "environment", entity);
+        if (const auto script = node["script"]) {
+            entity.add_component<vulcal::script::ScriptComponent>().script_path_ = script["path"].as<std::string>();
+        }
     }
     base::log::debug("SceneSerializer: read {} (version {}, {} entities)", path.string(), version, entities.size());
     return scene;

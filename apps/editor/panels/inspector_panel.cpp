@@ -3,6 +3,7 @@
 #include "base/logger.h"
 #include "editor/editor_actions.h"
 #include "editor/editor_context.h"
+#include "script/script_component.h"
 
 #include <algorithm>
 #include <cmath>
@@ -149,6 +150,14 @@ void draw_environment(vulcal::scene::EnvironmentComponent& environment) {
     ImGui::ColorEdit3("Background", &environment.clear_color_.x);
 }
 
+void draw_script(vulcal::script::ScriptComponent& script, EditorContext& context, EditorActions* actions) {
+    ImGui::Text("Script: %s", script.script_path_.empty() ? "None" : script.script_path_.c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!context.has_project() || actions == nullptr);
+    if (ImGui::Button("...##AssignScript")) actions->run_guarded([actions] { actions->assign_script(); });
+    ImGui::EndDisabled();
+}
+
 } // namespace
 
 void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* actions) const {
@@ -173,6 +182,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
             draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", draw_environment);
+            draw_component<vulcal::script::ScriptComponent>(entity, "Script", [&](auto& script) { draw_script(script, context, actions); });
             ImGui::TextDisabled("Right-click optional component headers to remove.");
             if (ImGui::Button("Add Component")) ImGui::OpenPopup("AddComponentMenu");
             if (ImGui::BeginPopup("AddComponentMenu")) {
@@ -180,6 +190,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
                 add_component_item<vulcal::scene::CameraComponent>(context, entity, "Camera");
                 add_component_item<vulcal::scene::LightComponent>(context, entity, "Light", true);
                 add_component_item<vulcal::scene::EnvironmentComponent>(context, entity, "Environment", true);
+                add_component_item<vulcal::script::ScriptComponent>(context, entity, "Script");
                 ImGui::EndPopup();
             }
             ImGui::PopID();

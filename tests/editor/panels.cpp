@@ -1,6 +1,7 @@
 #include "editor/editor_context.h"
 #include "editor/panels/hierarchy_panel.h"
 #include "editor/panels/inspector_panel.h"
+#include "script/script_component.h"
 
 #include <gtest/gtest.h>
 #include <imgui.h>
@@ -174,6 +175,15 @@ TEST_F(EditorPanels, InspectorAddsAndRemovesOptionalComponentThroughMenus) {
     choose_popup_action();
     EXPECT_FALSE(entity.has_component<vulcal::scene::MeshRendererComponent>());
     EXPECT_TRUE(entity.has_component<vulcal::scene::TransformComponent>());
+}
+
+TEST_F(EditorPanels, InspectorAddsScriptComponentThroughMenu) {
+    auto entity = context_.create_entity();
+    frame();
+    frame();
+    open_add_component();
+    choose_popup_action(4);
+    EXPECT_TRUE(entity.has_component<vulcal::script::ScriptComponent>());
 }
 
 TEST_F(EditorPanels, InspectorDisablesSecondSceneLight) {
