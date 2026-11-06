@@ -1,4 +1,5 @@
 #include "scene/scene.h"
+#include "script/script_component.h"
 
 #include "base/logger.h"
 
@@ -26,6 +27,7 @@ Scene::Scene(const Scene& other) {
         copy_component<CameraComponent>(registry_, other.registry_, copy);
         copy_component<LightComponent>(registry_, other.registry_, copy);
         copy_component<EnvironmentComponent>(registry_, other.registry_, copy);
+        copy_component<script::ScriptComponent>(registry_, other.registry_, copy);
     }
 }
 
