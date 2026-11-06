@@ -84,7 +84,7 @@ void draw_camera(vulcal::scene::CameraComponent& camera) {
         if (ImGui::SliderFloat("FOV (deg)", &fov, 1.0f, 179.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp) && std::isfinite(fov)) {
             camera.perspective_fov_y_ = glm::radians(fov);
         }
-        bounded_drag("Aspect", camera.perspective_aspect_, 0.01f, 100.0f);
+        ImGui::TextDisabled("Aspect: from render target");
         bounded_drag("Near", camera.perspective_near_, 0.001f, camera.perspective_far_ - 0.01f);
         bounded_drag("Far", camera.perspective_far_, camera.perspective_near_ + 0.01f);
     } else {

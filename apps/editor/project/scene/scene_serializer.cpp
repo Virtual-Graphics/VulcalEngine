@@ -57,7 +57,6 @@ void fields(YAML::Node n, CameraComponent& c, bool load) {
         c.projection_type_ = CameraComponent::ProjectionType::Orthographic;
     field(n, "primary", c.primary_, load);
     field(n, "perspective_fov_y", c.perspective_fov_y_, load);
-    field(n, "perspective_aspect", c.perspective_aspect_, load);
     field(n, "perspective_near", c.perspective_near_, load);
     field(n, "perspective_far", c.perspective_far_, load);
     field(n, "orthographic_left", c.orthographic_left_, load);

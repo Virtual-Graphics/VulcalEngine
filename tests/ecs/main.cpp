@@ -184,14 +184,6 @@ TEST(TransformAndCamera, TransformMatrixAppliesTranslationAndScale) {
             glm::vec3{ 3.0f, 2.0f, 3.0f });
 }
 
-TEST(TransformAndCamera, SetAspectUpdatesPerspectiveAspect) {
-    vulcal::scene::CameraComponent camera;
-    camera.perspective_aspect_ = 1.5f;
-
-    camera.set_aspect(2.0f);
-    EXPECT_FLOAT_EQ(camera.perspective_aspect_, 2.0f);
-}
-
 TEST(TransformAndCamera, TransformRoundTripsCameraOrientation) {
     const glm::mat4 camera_world =
             glm::inverse(glm::lookAt(glm::vec3{ 0.0f, 4.0f, 8.0f }, glm::vec3{ 0.0f, -0.5f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }));
@@ -481,12 +473,11 @@ protected:
     void SetUp() override {
         camera_entity_                                                                 = scene_.create_entity("Camera");
         camera_entity_.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 0.0f, 0.0f, 5.0f };
-        camera_                      = &camera_entity_.add_component<vulcal::scene::CameraComponent>();
-        camera_->primary_            = true;
-        camera_->perspective_fov_y_  = glm::radians(45.0f);
-        camera_->perspective_aspect_ = 2.0f;
-        camera_->perspective_near_   = 0.1f;
-        camera_->perspective_far_    = 100.0f;
+        camera_                     = &camera_entity_.add_component<vulcal::scene::CameraComponent>();
+        camera_->primary_           = true;
+        camera_->perspective_fov_y_ = glm::radians(45.0f);
+        camera_->perspective_near_  = 0.1f;
+        camera_->perspective_far_   = 100.0f;
 
         auto environment_entity      = scene_.create_entity("Environment");
         auto& environment            = environment_entity.add_component<vulcal::scene::EnvironmentComponent>();
@@ -527,41 +518,45 @@ protected:
 };
 
 TEST_F(SceneExtractorTest, UsesPrimaryCamera) {
-    const auto data = extractor_.extract(scene_);
+    const auto data = extractor_.extract(scene_, 2.0f);
 
     expect_near(data.camera_.position_, glm::vec3{ 0.0f, 0.0f, 5.0f });
     expect_near(glm::vec3{ data.camera_.view_[3] }, glm::vec3{ 0.0f, 0.0f, -5.0f });
 
-    const float expected_projection_00 = 1.0f / (camera_->perspective_aspect_ * std::tan(camera_->perspective_fov_y_ * 0.5f));
+    const float expected_projection_00 = 1.0f / (2.0f * std::tan(camera_->perspective_fov_y_ * 0.5f));
     EXPECT_NEAR(data.camera_.projection_[0][0], expected_projection_00, 1e-4f);
 }
 
-TEST_F(SceneExtractorTest, PerspectiveProjectionUsesViewportAspectOverride) {
+TEST_F(SceneExtractorTest, PerspectiveProjectionUsesViewportAspect) {
     vulcal::scene::SceneExtractor::Options options;
-    options.aspect_override_ = 1.25f;
+    options.aspect_ = 1.25f;
 
     const auto data = extractor_.extract(scene_, options);
     const float expected_projection_00 = 1.0f / (1.25f * std::tan(camera_->perspective_fov_y_ * 0.5f));
     EXPECT_NEAR(data.camera_.projection_[0][0], expected_projection_00, 1e-4f);
-    EXPECT_FLOAT_EQ(camera_->perspective_aspect_, 2.0f);
+}
+
+TEST_F(SceneExtractorTest, RejectsInvalidViewportAspect) {
+    EXPECT_THROW(extractor_.extract(scene_, 0.0f), std::invalid_argument);
+    EXPECT_THROW(extractor_.extract(scene_, -1.0f), std::invalid_argument);
 }
 
 TEST_F(SceneExtractorTest, ExtractsCameraAndLightsWithoutRenderResources) {
-    const auto data = extractor_.extract(scene_);
+    const auto data = extractor_.extract(scene_, 2.0f);
     EXPECT_TRUE(data.items_.empty());
     EXPECT_TRUE(data.directional_light_);
     expect_near(data.camera_.position_, { 0.0f, 0.0f, 5.0f });
 }
 
 TEST_F(SceneExtractorTest, ExtractsEnvironment) {
-    const auto data = extractor_.extract(scene_);
+    const auto data = extractor_.extract(scene_, 2.0f);
 
     expect_near(data.environment_.ambient_color_, glm::vec3{ 0.1f, 0.2f, 0.3f });
     expect_near(glm::vec3{ data.environment_.clear_color_ }, glm::vec3{ 0.4f, 0.5f, 0.6f });
 }
 
 TEST_F(SceneExtractorTest, ExtractsDirectionalLightAndShadow) {
-    const auto data = extractor_.extract(scene_);
+    const auto data = extractor_.extract(scene_, 2.0f);
 
     ASSERT_TRUE(data.directional_light_.has_value());
     expect_near(glm::vec3{ data.directional_light_->direction_ }, glm::vec3{ -1.0f, 0.0f, 0.0f });
@@ -586,7 +581,7 @@ TEST_F(SceneExtractorTest, BuildsOrthographicProjection) {
     camera_->orthographic_near_   = 0.1f;
     camera_->orthographic_far_    = 100.0f;
 
-    const auto data               = extractor_.extract(scene_);
+    const auto data               = extractor_.extract(scene_, 2.0f);
     EXPECT_NEAR(data.camera_.projection_[0][0], 0.5f, 1e-4f);
 }
 
@@ -598,8 +593,8 @@ TEST_F(SceneExtractorTest, OrthographicProjectionFitsViewportAspectWithoutChangi
     camera_->orthographic_top_    = 1.0f;
 
     vulcal::scene::SceneExtractor::Options options;
-    options.aspect_override_ = 2.5f;
-    const auto data          = extractor_.extract(scene_, options);
+    options.aspect_ = 2.5f;
+    const auto data = extractor_.extract(scene_, options);
 
     EXPECT_NEAR(data.camera_.projection_[0][0], 0.4f, 1e-4f);
     EXPECT_NEAR(data.camera_.projection_[1][1] / data.camera_.projection_[0][0], 2.5f, 1e-4f);
@@ -627,13 +622,13 @@ TEST_F(SceneExtractorTest, CameraOverrideTakesPrecedence) {
 TEST_F(SceneExtractorTest, FallsBackToFirstCameraWhenNoneIsPrimary) {
     camera_->primary_ = false;
 
-    const auto data   = extractor_.extract(scene_);
+    const auto data   = extractor_.extract(scene_, 2.0f);
     expect_near(data.camera_.position_, glm::vec3{ 0.0f, 0.0f, 5.0f });
 }
 
 TEST_F(SceneExtractorTest, ThrowsWhenSceneHasNoCamera) {
     vulcal::scene::Scene empty;
-    EXPECT_THROW(extractor_.extract(empty), std::runtime_error);
+    EXPECT_THROW(extractor_.extract(empty, 1.0f), std::runtime_error);
 }
 
 TEST(SceneLight, DirectionUsesRotationWithoutTranslationOrScale) {

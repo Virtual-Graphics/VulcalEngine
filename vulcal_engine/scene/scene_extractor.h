@@ -27,10 +27,11 @@ public:
     struct Options {
         CameraPolicy camera_policy_ = CameraPolicy::Primary;
         std::optional<render::CameraData> camera_override_;
-        std::optional<float> aspect_override_;
+        // Aspect ratio of the render target. Required when extracting a scene camera.
+        float aspect_ = 0.0f;
     };
 
-    render::RenderData extract(const Scene& scene) const;
+    render::RenderData extract(const Scene& scene, float aspect) const;
     render::RenderData extract(const Scene& scene, const Options& options) const;
 
 private:
@@ -62,32 +63,27 @@ private:
         };
     }
 
-    static render::CameraData make_camera_data(const CameraComponent& camera, const glm::mat4& world_transform,
-                                               std::optional<float> aspect_override) {
+    static render::CameraData make_camera_data(const CameraComponent& camera, const glm::mat4& world_transform, float aspect) {
         if (camera.projection_type_ == CameraComponent::ProjectionType::Perspective) {
             const render::PerspectiveCamera::Spec spec{
                 .fov_y_  = camera.perspective_fov_y_,
-                .aspect_ = aspect_override.value_or(camera.perspective_aspect_),
+                .aspect_ = aspect,
                 .near_   = camera.perspective_near_,
                 .far_    = camera.perspective_far_,
             };
             return render::PerspectiveCamera{ spec }.data(world_transform);
         }
 
-        float left          = camera.orthographic_left_;
-        float right         = camera.orthographic_right_;
-        const float bottom  = camera.orthographic_bottom_;
-        const float top     = camera.orthographic_top_;
-        if (aspect_override) {
-            const float height = top - bottom;
-            if (!std::isfinite(height) || height <= 0.0f) {
-                throw std::invalid_argument("SceneExtractor: orthographic camera must have a positive finite height");
-            }
-            const float center = (left + right) * 0.5f;
-            const float width  = height * *aspect_override;
-            left               = center - width * 0.5f;
-            right              = center + width * 0.5f;
+        const float height = camera.orthographic_top_ - camera.orthographic_bottom_;
+        if (!std::isfinite(height) || height <= 0.0f) {
+            throw std::invalid_argument("SceneExtractor: orthographic camera must have a positive finite height");
         }
+        const float center = (camera.orthographic_left_ + camera.orthographic_right_) * 0.5f;
+        const float width  = height * aspect;
+        const float left   = center - width * 0.5f;
+        const float right  = center + width * 0.5f;
+        const float bottom = camera.orthographic_bottom_;
+        const float top    = camera.orthographic_top_;
 
         const render::OrthographicCamera::Spec spec{
             .left_   = left,

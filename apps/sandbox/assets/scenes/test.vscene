@@ -39,7 +39,6 @@ entities:
       projection: perspective
       primary: true
       perspective_fov_y: 0.785398185
-      perspective_aspect: 1
       perspective_near: 0.100000001
       perspective_far: 100
       orthographic_left: -1

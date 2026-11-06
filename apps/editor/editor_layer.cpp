@@ -271,10 +271,9 @@ void EditorLayer::on_render() {
     if (viewport_.visible()) {
         auto& target = viewport_.target();
         vulcal::scene::SceneExtractor::Options options;
+        options.aspect_ = viewport_.aspect();
         if (!context_.uses_primary_camera()) {
             options.camera_override_ = viewport_.camera_data();
-        } else {
-            options.aspect_override_ = static_cast<float>(target.width()) / static_cast<float>(target.height());
         }
         renderer_->render(extractor_->extract(context_.scene(), options), &target);
     }
