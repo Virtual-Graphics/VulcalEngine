@@ -26,6 +26,15 @@ void EditorContext::require_edit_mode() const {
     if (playing()) throw std::logic_error("Stop playing before editing or replacing the scene or project");
 }
 
+bool EditorContext::uses_primary_camera() const {
+    if (!playing()) return false;
+    const auto cameras = scene().registry().view<const vulcal::scene::CameraComponent>();
+    for (const auto entity: cameras) {
+        if (cameras.get<const vulcal::scene::CameraComponent>(entity).primary_) return true;
+    }
+    return false;
+}
+
 void EditorContext::begin_play() {
     if (playing()) return;
     const auto id = selection_id(selected_entity());

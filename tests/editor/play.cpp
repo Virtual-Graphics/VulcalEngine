@@ -78,6 +78,24 @@ TEST(EditorPlay, DeletedRuntimeSelectionClearsOnStopAndTransitionsAreIdempotent)
     EXPECT_TRUE(edit);
 }
 
+TEST(EditorPlay, UsesPrimaryCameraOnlyWhilePlayingAndOnlyWhenPresent) {
+    editor::EditorContext context;
+    context.new_scene();
+    auto camera_entity = context.scene().create_entity("Camera");
+    auto& camera       = camera_entity.add_component<vulcal::scene::CameraComponent>();
+    camera.primary_    = false;
+
+    EXPECT_FALSE(context.uses_primary_camera());
+    camera.primary_ = true;
+    EXPECT_FALSE(context.uses_primary_camera());
+
+    context.begin_play();
+    EXPECT_TRUE(context.uses_primary_camera());
+    context.scene().each<vulcal::scene::CameraComponent>([](auto, auto& runtime_camera) { runtime_camera.primary_ = false; });
+    EXPECT_FALSE(context.uses_primary_camera());
+    context.end_play();
+}
+
 TEST(EditorPlay, RejectsDocumentProjectAndStructuralEditsWhilePlaying) {
     editor::EditorContext context;
     context.new_scene();

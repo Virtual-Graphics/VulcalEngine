@@ -31,7 +31,11 @@ EditorLayer::~EditorLayer() { stop(); }
 
 void EditorLayer::play() {
     if (context_.playing()) return;
+    viewport_.release_camera();
     context_.begin_play();
+    if (!context_.uses_primary_camera()) {
+        base::log::warn("Editor: scene has no primary camera; using the editor camera while playing");
+    }
     try {
         script_runtime_.start(context_.scene(), context_.project_directory(), context_.assets_directory());
     } catch (...) {
@@ -255,7 +259,9 @@ void EditorLayer::on_update(base::Timestep dt) {
     inspector_.draw(context_, inspector_open_, actions_.get());
     viewport_.draw(viewport_open_, application().get_graphics_context().limits());
     draw_new_project_dialog();
-    viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
+    if (!context_.playing()) {
+        viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
+    }
     handle_shortcuts();
     draw_error_dialog();
     imgui_->end_frame();
@@ -265,7 +271,11 @@ void EditorLayer::on_render() {
     if (viewport_.visible()) {
         auto& target = viewport_.target();
         vulcal::scene::SceneExtractor::Options options;
-        options.camera_override_ = viewport_.camera_data();
+        if (!context_.uses_primary_camera()) {
+            options.camera_override_ = viewport_.camera_data();
+        } else {
+            options.aspect_override_ = static_cast<float>(target.width()) / static_cast<float>(target.height());
+        }
         renderer_->render(extractor_->extract(context_.scene(), options), &target);
     }
     vulcal::gfx::RenderTarget::unbind();

@@ -21,6 +21,7 @@ public:
     bool has_scene() const { return project_manager_.has_scene(); }
 
     bool playing() const { return runtime_scene_ != nullptr; }
+    bool uses_primary_camera() const;
     // Switch the active scene and rebind the current selection by UUID.
     void begin_play();
     // The owner must stop scripts before releasing their referenced scene.

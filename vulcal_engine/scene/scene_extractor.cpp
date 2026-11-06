@@ -5,6 +5,7 @@
 #include "scene/components.h"
 #include "scene/scene.h"
 
+#include <cmath>
 #include <stdexcept>
 
 namespace vulcal::scene {
@@ -45,6 +46,10 @@ render::RenderData SceneExtractor::extract(const Scene& scene) const { return ex
 render::RenderData SceneExtractor::extract(const Scene& scene, const Options& options) const {
     render::RenderData data;
 
+    if (options.aspect_override_ && (!std::isfinite(*options.aspect_override_) || *options.aspect_override_ <= 0.0f)) {
+        throw std::invalid_argument("SceneExtractor: camera aspect override must be positive and finite");
+    }
+
     if (options.camera_override_) {
         data.camera_ = *options.camera_override_;
     } else {
@@ -53,7 +58,7 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
             base::log::error("SceneExtractor: scene has no camera");
             throw std::runtime_error("SceneExtractor: scene has no camera");
         }
-        data.camera_ = make_camera_data(*camera.camera_, camera.world_transform_);
+        data.camera_ = make_camera_data(*camera.camera_, camera.world_transform_, options.aspect_override_);
     }
 
     const auto environment_view = scene.registry().view<const EnvironmentComponent>();

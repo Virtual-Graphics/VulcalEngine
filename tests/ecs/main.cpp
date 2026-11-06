@@ -536,6 +536,16 @@ TEST_F(SceneExtractorTest, UsesPrimaryCamera) {
     EXPECT_NEAR(data.camera_.projection_[0][0], expected_projection_00, 1e-4f);
 }
 
+TEST_F(SceneExtractorTest, PerspectiveProjectionUsesViewportAspectOverride) {
+    vulcal::scene::SceneExtractor::Options options;
+    options.aspect_override_ = 1.25f;
+
+    const auto data = extractor_.extract(scene_, options);
+    const float expected_projection_00 = 1.0f / (1.25f * std::tan(camera_->perspective_fov_y_ * 0.5f));
+    EXPECT_NEAR(data.camera_.projection_[0][0], expected_projection_00, 1e-4f);
+    EXPECT_FLOAT_EQ(camera_->perspective_aspect_, 2.0f);
+}
+
 TEST_F(SceneExtractorTest, ExtractsCameraAndLightsWithoutRenderResources) {
     const auto data = extractor_.extract(scene_);
     EXPECT_TRUE(data.items_.empty());
@@ -578,6 +588,25 @@ TEST_F(SceneExtractorTest, BuildsOrthographicProjection) {
 
     const auto data               = extractor_.extract(scene_);
     EXPECT_NEAR(data.camera_.projection_[0][0], 0.5f, 1e-4f);
+}
+
+TEST_F(SceneExtractorTest, OrthographicProjectionFitsViewportAspectWithoutChangingCameraBounds) {
+    camera_->projection_type_     = vulcal::scene::CameraComponent::ProjectionType::Orthographic;
+    camera_->orthographic_left_   = -2.0f;
+    camera_->orthographic_right_  = 2.0f;
+    camera_->orthographic_bottom_ = -1.0f;
+    camera_->orthographic_top_    = 1.0f;
+
+    vulcal::scene::SceneExtractor::Options options;
+    options.aspect_override_ = 2.5f;
+    const auto data          = extractor_.extract(scene_, options);
+
+    EXPECT_NEAR(data.camera_.projection_[0][0], 0.4f, 1e-4f);
+    EXPECT_NEAR(data.camera_.projection_[1][1] / data.camera_.projection_[0][0], 2.5f, 1e-4f);
+    EXPECT_FLOAT_EQ(camera_->orthographic_left_, -2.0f);
+    EXPECT_FLOAT_EQ(camera_->orthographic_right_, 2.0f);
+    EXPECT_FLOAT_EQ(camera_->orthographic_bottom_, -1.0f);
+    EXPECT_FLOAT_EQ(camera_->orthographic_top_, 1.0f);
 }
 
 TEST_F(SceneExtractorTest, CameraOverrideTakesPrecedence) {
