@@ -1,5 +1,5 @@
 #include "editor/editor_context.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -9,7 +9,7 @@ TEST(EditorPlay, ClonesSceneAndRoutesSelectionWithoutChangingEditData) {
     editor::EditorContext context;
     context.new_scene();
     auto edit = context.create_entity();
-    edit.add_component<vulcal::script::ScriptComponent>().script_path_ = "assets/move.lua";
+    edit.add_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/move.lua";
     auto* edit_scene = &context.scene();
     const auto id = edit.get_component<vulcal::scene::IDComponent>().id_;
     context.begin_play();
@@ -21,16 +21,16 @@ TEST(EditorPlay, ClonesSceneAndRoutesSelectionWithoutChangingEditData) {
     ASSERT_TRUE(runtime);
     EXPECT_NE(runtime, edit);
     EXPECT_EQ(runtime.get_component<vulcal::scene::IDComponent>().id_, id);
-    EXPECT_EQ(runtime.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/move.lua");
+    EXPECT_EQ(runtime.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/move.lua");
     runtime.get_component<vulcal::scene::TransformComponent>().translation_.x = 42.0f;
-    runtime.get_component<vulcal::script::ScriptComponent>().script_path_ = "assets/other.lua";
+    runtime.get_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/other.lua";
     EXPECT_THROW(context.select(edit), std::invalid_argument);
     context.end_play();
     EXPECT_FALSE(context.playing());
     EXPECT_EQ(&context.scene(), edit_scene);
     EXPECT_EQ(context.selected_entity(), edit);
     EXPECT_FLOAT_EQ(edit.get_component<vulcal::scene::TransformComponent>().translation_.x, 0.0f);
-    EXPECT_EQ(edit.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/move.lua");
+    EXPECT_EQ(edit.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/move.lua");
 }
 
 TEST(EditorPlay, RestoresCurrentRuntimeSelectionByUuidRatherThanEntityHandle) {

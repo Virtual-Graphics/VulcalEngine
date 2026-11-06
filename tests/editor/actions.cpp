@@ -7,7 +7,7 @@
 #include "editor/project/scene/scene_serializer.h"
 #include "gfx/context.h"
 #include "render/renderer.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <SDL3/SDL.h>
 #include <filesystem>
@@ -114,7 +114,7 @@ TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
 TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCaches) {
     const auto entity = context_.create_entity();
     entity.add_component<vulcal::scene::MeshRendererComponent>();
-    entity.add_component<vulcal::script::ScriptComponent>();
+    entity.add_component<vulcal::scene::ScriptComponent>();
     const auto id = assets_.add_mesh(triangle());
     const auto cpu = assets_.load_mesh(id);
     const auto gpu = cache_->resolve_mesh(id);
@@ -265,7 +265,7 @@ TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
 
 TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromAssetsPicker) {
     const auto target = context_.create_entity();
-    target.add_component<vulcal::script::ScriptComponent>();
+    target.add_component<vulcal::scene::ScriptComponent>();
     open_path_ = context_.assets_directory() / "Scripts" / "player.lua";
     std::filesystem::create_directories(open_path_->parent_path());
     std::ofstream(*open_path_) << "return {}\n";
@@ -274,22 +274,22 @@ TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromAssetsPicker) {
 
     EXPECT_EQ(last_filter_, "lua");
     EXPECT_EQ(last_directory_, context_.assets_directory());
-    EXPECT_EQ(target.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/Scripts/player.lua");
+    EXPECT_EQ(target.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/Scripts/player.lua");
 }
 
 TEST_F(EditorActionsTest, RejectsScriptSelectionOutsideAssets) {
     const auto target                                                    = context_.create_entity();
-    target.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/Scripts/old.lua";
+    target.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/Scripts/old.lua";
     open_path_                                                           = directory_ / "outside.lua";
     std::ofstream(*open_path_) << "return {}\n";
 
     EXPECT_THROW(actions_->assign_script(), std::invalid_argument);
-    EXPECT_EQ(target.get_component<vulcal::script::ScriptComponent>().script_path_, "Assets/Scripts/old.lua");
+    EXPECT_EQ(target.get_component<vulcal::scene::ScriptComponent>().script_path_, "Assets/Scripts/old.lua");
 }
 
 TEST_F(EditorActionsTest, RejectsScriptSymlinkThatResolvesOutsideAssets) {
     const auto target = context_.create_entity();
-    target.add_component<vulcal::script::ScriptComponent>();
+    target.add_component<vulcal::scene::ScriptComponent>();
     const auto outside = directory_ / "outside.lua";
     std::ofstream(outside) << "return {}\n";
     const auto alias = context_.assets_directory() / "escape.lua";
@@ -299,7 +299,7 @@ TEST_F(EditorActionsTest, RejectsScriptSymlinkThatResolvesOutsideAssets) {
     open_path_ = alias;
 
     EXPECT_THROW(actions_->assign_script(), std::invalid_argument);
-    EXPECT_TRUE(target.get_component<vulcal::script::ScriptComponent>().script_path_.empty());
+    EXPECT_TRUE(target.get_component<vulcal::scene::ScriptComponent>().script_path_.empty());
 }
 
 TEST_F(EditorActionsTest, ImportRequiresSelectedMeshRenderer) {

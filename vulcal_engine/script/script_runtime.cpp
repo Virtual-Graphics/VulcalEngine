@@ -3,7 +3,6 @@
 #include "base/logger.h"
 #include "scene/components.h"
 #include "script/lua_script_backend.h"
-#include "script/script_component.h"
 
 #include <algorithm>
 #include <cctype>
@@ -59,7 +58,7 @@ void ScriptRuntime::register_backend(std::unique_ptr<ScriptBackend> backend) {
 void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& project_root, const std::filesystem::path& assets_root) {
     stop();
     scene_ = &scene;
-    scene.each<ScriptComponent>([&](scene::Entity entity, ScriptComponent& component) {
+    scene.each<scene::ScriptComponent>([&](scene::Entity entity, scene::ScriptComponent& component) {
         const auto entity_id      = entity.get_component<scene::IDComponent>().id_.to_string();
         const auto requested_path = component.script_path_;
         try {
@@ -89,7 +88,7 @@ void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& proj
 void ScriptRuntime::update(float delta_time) {
     auto entry = entries_.begin();
     while (entry != entries_.end()) {
-        if (!entry->entity.valid() || !entry->entity.has_component<ScriptComponent>()) {
+        if (!entry->entity.valid() || !entry->entity.has_component<scene::ScriptComponent>()) {
             try {
                 entry->instance->on_destroy();
             } catch (const std::exception& error) {

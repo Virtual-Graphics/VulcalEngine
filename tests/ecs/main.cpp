@@ -2,7 +2,6 @@
 #include "scene/components.h"
 #include "scene/scene.h"
 #include "scene/scene_extractor.h"
-#include "script/script_component.h"
 #include "script/script_runtime.h"
 
 #include <cmath>
@@ -275,14 +274,14 @@ TEST(SceneCopy, CopiesAreIndependent) {
 TEST(SceneCopy, PreservesScriptComponent) {
     vulcal::scene::Scene scene;
     auto source                                                          = scene.create_entity("Scripted");
-    source.add_component<vulcal::script::ScriptComponent>().script_path_ = "Scripts/player.lua";
+    source.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Scripts/player.lua";
 
     vulcal::scene::Scene copy                                            = scene;
     auto copied_source = find_entity_by_id(copy, source.get_component<vulcal::scene::IDComponent>().id_);
 
     ASSERT_TRUE(copied_source.valid());
-    ASSERT_TRUE(copied_source.has_component<vulcal::script::ScriptComponent>());
-    EXPECT_EQ(copied_source.get_component<vulcal::script::ScriptComponent>().script_path_, "Scripts/player.lua");
+    ASSERT_TRUE(copied_source.has_component<vulcal::scene::ScriptComponent>());
+    EXPECT_EQ(copied_source.get_component<vulcal::scene::ScriptComponent>().script_path_, "Scripts/player.lua");
 }
 
 TEST(ScriptRuntime, LuaCallbacksUseBindingsAndIsolatedEnvironments) {
@@ -307,8 +306,8 @@ TEST(ScriptRuntime, LuaCallbacksUseBindingsAndIsolatedEnvironments) {
     vulcal::scene::Scene scene;
     auto first                                                           = scene.create_entity("First");
     auto second                                                          = scene.create_entity("Second");
-    first.add_component<vulcal::script::ScriptComponent>().script_path_  = "Assets/counter.lua";
-    second.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/counter.lua";
+    first.add_component<vulcal::scene::ScriptComponent>().script_path_  = "Assets/counter.lua";
+    second.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/counter.lua";
     vulcal::script::ScriptRuntime runtime;
 
     runtime.start(scene, root, assets);
@@ -336,7 +335,7 @@ TEST(ScriptRuntime, LuaExposesRotationAndScaleGettersAndSetters) {
                "entity:set_rotation(x + dt, y, z); entity:set_scale(sx + dt, sy, sz) end\n";
     vulcal::scene::Scene scene;
     auto entity                                                          = scene.create_entity("TransformScript");
-    entity.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/transform.lua";
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/transform.lua";
     vulcal::script::ScriptRuntime runtime;
 
     runtime.start(scene, root, assets);
@@ -361,10 +360,10 @@ TEST(ScriptRuntime, RejectsPathsOutsideAssetsAndUnsupportedExtensions) {
     auto unsupported                                                          = scene.create_entity("Unsupported");
     auto absolute                                                             = scene.create_entity("Absolute");
     auto missing                                                              = scene.create_entity("Missing");
-    outside.add_component<vulcal::script::ScriptComponent>().script_path_     = "outside.lua";
-    unsupported.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/unsupported.txt";
-    absolute.add_component<vulcal::script::ScriptComponent>().script_path_    = (assets / "valid.lua").string();
-    missing.add_component<vulcal::script::ScriptComponent>().script_path_     = "Assets/missing.lua";
+    outside.add_component<vulcal::scene::ScriptComponent>().script_path_     = "outside.lua";
+    unsupported.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/unsupported.txt";
+    absolute.add_component<vulcal::scene::ScriptComponent>().script_path_    = (assets / "valid.lua").string();
+    missing.add_component<vulcal::scene::ScriptComponent>().script_path_     = "Assets/missing.lua";
     vulcal::script::ScriptRuntime runtime;
 
     EXPECT_NO_THROW(runtime.start(scene, root, assets));
@@ -429,8 +428,8 @@ TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFail
     vulcal::scene::Scene scene;
     auto failing                                                          = scene.create_entity("Fails");
     auto healthy                                                          = scene.create_entity("Healthy");
-    failing.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/fake.lua";
-    healthy.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/fake.lua";
+    failing.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/fake.lua";
+    healthy.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/fake.lua";
     vulcal::script::ScriptRuntime runtime;
     runtime.register_backend(std::make_unique<FakeBackend>(state));
 

@@ -6,7 +6,7 @@
 #include "base/logger.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_context.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <stdexcept>
 #include <string>
@@ -83,7 +83,7 @@ vulcal::scene::Entity EditorActions::require_selected_script() const {
     context_.require_edit_mode();
     if (!context_.has_project()) throw std::logic_error("Open a project before assigning a script");
     const auto target = context_.selected_entity();
-    if (!context_.has_scene() || !target || !target.has_component<vulcal::script::ScriptComponent>()) {
+    if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::ScriptComponent>()) {
         throw std::invalid_argument("Select an entity with a Script component before assigning a script");
     }
     return target;
@@ -112,7 +112,7 @@ void EditorActions::assign_script() {
         if (error || relative.empty() || relative.is_absolute() || *relative.begin() == "..") {
             throw std::invalid_argument("The selected script is outside the project directory");
         }
-        target.get_component<vulcal::script::ScriptComponent>().script_path_ = relative.generic_string();
+        target.get_component<vulcal::scene::ScriptComponent>().script_path_ = relative.generic_string();
     }
 }
 

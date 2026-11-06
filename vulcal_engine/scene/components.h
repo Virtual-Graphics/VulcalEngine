@@ -71,4 +71,8 @@ struct EnvironmentComponent {
     glm::vec4 clear_color_{ 0.1f, 0.1f, 0.1f, 1.0f };
 };
 
+struct ScriptComponent {
+    std::string script_path_;
+};
+
 } // namespace vulcal::scene

@@ -1,5 +1,5 @@
 #include "editor/project/scene/scene_serializer.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <chrono>
 #include <filesystem>
@@ -50,14 +50,14 @@ TEST(SceneSerializer, PersistsScriptComponentPath) {
     TemporaryDirectory directory;
     vulcal::scene::Scene scene;
     auto entity                                                          = scene.create_entity("Scripted");
-    entity.add_component<vulcal::script::ScriptComponent>().script_path_ = "Assets/Scripts/player.lua";
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/Scripts/player.lua";
 
     const auto path                                                      = directory.path() / "scene.vscene";
     editor::SceneSerializer::serialize(scene, path);
     auto loaded     = editor::SceneSerializer::deserialize(path);
-    const auto view = loaded->registry().view<vulcal::script::ScriptComponent>();
+    const auto view = loaded->registry().view<vulcal::scene::ScriptComponent>();
     ASSERT_EQ(view.size(), 1u);
-    EXPECT_EQ(view.get<vulcal::script::ScriptComponent>(view.front()).script_path_, "Assets/Scripts/player.lua");
+    EXPECT_EQ(view.get<vulcal::scene::ScriptComponent>(view.front()).script_path_, "Assets/Scripts/player.lua");
 }
 
 TEST(SceneSerializer, RejectsLegacySceneSchema) {

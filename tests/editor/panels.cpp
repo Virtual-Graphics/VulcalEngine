@@ -1,7 +1,7 @@
 #include "editor/editor_context.h"
 #include "editor/panels/hierarchy_panel.h"
 #include "editor/panels/inspector_panel.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <gtest/gtest.h>
 #include <imgui.h>
@@ -183,7 +183,7 @@ TEST_F(EditorPanels, InspectorAddsScriptComponentThroughMenu) {
     frame();
     open_add_component();
     choose_popup_action(4);
-    EXPECT_TRUE(entity.has_component<vulcal::script::ScriptComponent>());
+    EXPECT_TRUE(entity.has_component<vulcal::scene::ScriptComponent>());
 }
 
 TEST_F(EditorPanels, InspectorDisablesSecondSceneLight) {
@@ -231,12 +231,12 @@ TEST_F(EditorPanels, PlayingInspectorDisablesNameAndAddComponent) {
     EXPECT_FALSE(ImGui::GetIO().WantTextInput);
     open_add_component();
     EXPECT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 0);
-    EXPECT_FALSE(runtime.has_component<vulcal::script::ScriptComponent>());
+    EXPECT_FALSE(runtime.has_component<vulcal::scene::ScriptComponent>());
 }
 
 TEST_F(EditorPanels, PlayingInspectorDisablesTransformAndComponentRemoval) {
     auto edit = context_.create_entity();
-    edit.add_component<vulcal::script::ScriptComponent>().script_path_ = "assets/test.lua";
+    edit.add_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/test.lua";
     context_.begin_play();
     const auto runtime = context_.selected_entity();
     frame();
@@ -258,8 +258,8 @@ TEST_F(EditorPanels, PlayingInspectorDisablesTransformAndComponentRemoval) {
     const float header_y = start.y + ImGui::GetFrameHeightWithSpacing() * 5.0f + ImGui::GetTextLineHeightWithSpacing();
     click({ start.x + 40.0f, header_y + ImGui::GetFrameHeight() * 0.5f }, ImGuiMouseButton_Right);
     if (ImGui::GetCurrentContext()->OpenPopupStack.Size != 0) choose_popup_action();
-    EXPECT_TRUE(runtime.has_component<vulcal::script::ScriptComponent>());
-    EXPECT_EQ(runtime.get_component<vulcal::script::ScriptComponent>().script_path_, "assets/test.lua");
+    EXPECT_TRUE(runtime.has_component<vulcal::scene::ScriptComponent>());
+    EXPECT_EQ(runtime.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/test.lua");
 }
 
 } // namespace

@@ -1,6 +1,6 @@
 #include "editor/editor_layer.h"
 #include "engine/application.h"
-#include "script/script_component.h"
+#include "scene/components.h"
 
 #include <SDL3/SDL.h>
 #include <gtest/gtest.h>
@@ -38,7 +38,7 @@ public:
         layer.context().create_project(directory, "Play");
         layer.context().set_scene(std::make_unique<vulcal::scene::Scene>());
         const auto entity = layer.context().create_entity();
-        entity.add_component<vulcal::script::ScriptComponent>().script_path_ = "assets/lifecycle.lua";
+        entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/lifecycle.lua";
         std::ofstream script(directory / "assets/lifecycle.lua");
         script << "function on_create() entity:set_translation(10, 0, 0) end\n"
                   "function on_update(dt) local x,y,z = entity:get_translation(); entity:set_translation(x + dt, y, z) end\n"
