@@ -388,9 +388,11 @@ TEST(ScriptRuntime, RejectsPathsOutsideAssetsAndUnsupportedExtensions) {
 
 TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFailures) {
     struct State {
-        int creates  = 0;
-        int updates  = 0;
-        int destroys = 0;
+        int creates         = 0;
+        int updates         = 0;
+        int failing_updates = 0;
+        int healthy_updates = 0;
+        int destroys        = 0;
     } state;
     class FakeInstance final : public vulcal::script::ScriptInstance {
     public:
@@ -402,7 +404,11 @@ TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFail
         void on_create() override {}
         void on_update(float) override {
             ++state_.updates;
-            if (fail_) throw std::runtime_error("script failure");
+            if (fail_) {
+                ++state_.failing_updates;
+                throw std::runtime_error("script failure");
+            }
+            ++state_.healthy_updates;
         }
         void on_destroy() override { ++state_.destroys; }
 
@@ -440,9 +446,14 @@ TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFail
     EXPECT_EQ(state.creates, 2);
     runtime.update(1.0f);
     EXPECT_EQ(state.updates, 2);
-    scene.destroy_entity(failing);
+    EXPECT_EQ(state.failing_updates, 1);
+    EXPECT_EQ(state.healthy_updates, 1);
     runtime.update(1.0f);
     EXPECT_EQ(state.updates, 3);
+    EXPECT_EQ(state.failing_updates, 1);
+    EXPECT_EQ(state.healthy_updates, 2);
+    scene.destroy_entity(failing);
+    runtime.update(1.0f);
     EXPECT_EQ(state.destroys, 1);
     runtime.stop();
     EXPECT_EQ(state.destroys, 2);
