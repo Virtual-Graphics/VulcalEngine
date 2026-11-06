@@ -35,7 +35,7 @@ public:
 
 private:
     struct MeshEntry {
-        std::shared_ptr<const MeshData> source_;
+        std::shared_ptr<const render::MeshData> source_;
         render::MeshHandle handle_;
     };
     struct MaterialEntry {

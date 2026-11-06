@@ -17,4 +17,8 @@ target_link_libraries(vulcal_engine PUBLIC
     spdlog::spdlog
     glm::glm
     EnTT::EnTT
+    yaml-cpp::yaml-cpp
+    PRIVATE
+    Lua::Lua
+    sol2::sol2
 )

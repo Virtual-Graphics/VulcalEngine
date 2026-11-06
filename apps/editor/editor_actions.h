@@ -1,9 +1,12 @@
 #pragma once
 
+#include <exception>
 #include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
+
+#include "scene/entity.h"
 
 namespace apps::nfd {
 struct FileFilter;
@@ -38,15 +41,35 @@ public:
     void open_scene();
     void save_scene();
     void save_scene_as();
-    void import_obj();
+    void import_mesh_asset();
+    void import_material_asset();
+
+    template<typename Operation>
+    void run_guarded(Operation&& operation) noexcept {
+        try {
+            operation();
+        } catch (const std::exception& error) {
+            error_ = error.what();
+        } catch (...) {
+            error_ = "Unknown editor operation error";
+        }
+    }
+
+    std::optional<std::string> take_error() {
+        auto error = error_;
+        error_.reset();
+        return error;
+    }
 
 private:
+    vulcal::scene::Entity require_selected_mesh_renderer(const char* asset_name) const;
     void reset_project_resources();
 
     EditorContext& context_;
     vulcal::asset::AssetManager& assets_;
     vulcal::asset::RenderAssetCache& render_assets_;
     Dialogs dialogs_;
+    std::optional<std::string> error_;
 };
 
 } // namespace editor

@@ -8,6 +8,16 @@
 
 namespace {
 
+void write_material_file(const std::filesystem::path& path, const vulcal::render::Material& material) {
+    std::ofstream output(path, std::ios::binary);
+    output.write("VULMATC\0", 8);
+    base::binary::write_u32_le(output, 1);
+    for (float value: { material.diffuse_.x, material.diffuse_.y, material.diffuse_.z, material.specular_.x, material.specular_.y,
+                        material.specular_.z, material.shininess_ }) {
+        base::binary::write_float_le(output, value);
+    }
+}
+
 class AssetManagerTest : public testing::Test {
 protected:
     void SetUp() override {
@@ -63,27 +73,40 @@ TEST_F(AssetManagerTest, MissingMeshCanBeRetriedAfterInvalidation) {
 }
 
 TEST_F(AssetManagerTest, ChangingDirectoryDropsCachedDataAndFailures) {
-    const vulcal::asset::AssetID loaded{ 1 }, missing{ 2 };
+    const vulcal::asset::AssetID loaded{ 1 }, missing{ 2 }, loaded_material{ 3 };
     const auto other = directory_ / "other";
     write_mesh(directory_, loaded, 1.0f);
     write_mesh(other, loaded, 2.0f);
     write_mesh(other, missing, 3.0f);
+    vulcal::render::Material first_material;
+    first_material.shininess_ = 12.0f;
+    write_material_file(directory_ / (loaded_material.to_string() + ".vmatc"), first_material);
+    vulcal::render::Material second_material;
+    second_material.shininess_ = 24.0f;
+    write_material_file(other / (loaded_material.to_string() + ".vmatc"), second_material);
     vulcal::asset::AssetManager assets(directory_);
     const auto old = assets.load_mesh(loaded);
     ASSERT_TRUE(old);
     EXPECT_FALSE(assets.load_mesh(missing));
+    const auto old_material = assets.load_material(loaded_material);
+    ASSERT_TRUE(old_material);
+    EXPECT_FLOAT_EQ(old_material->shininess_, 12.0f);
 
     assets.set_directory(other);
     const auto replacement = assets.load_mesh(loaded);
     ASSERT_TRUE(replacement);
     EXPECT_FLOAT_EQ(replacement->vertices_[0].position.x, 2.0f);
     EXPECT_TRUE(assets.load_mesh(missing));
+    const auto replacement_material = assets.load_material(loaded_material);
+    ASSERT_TRUE(replacement_material);
+    EXPECT_FLOAT_EQ(replacement_material->shininess_, 24.0f);
     EXPECT_FLOAT_EQ(old->vertices_[0].position.x, 1.0f);
+    EXPECT_FLOAT_EQ(old_material->shininess_, 12.0f);
 }
 
 TEST(AssetManager, RegistersProceduralDataWithoutRenderer) {
     vulcal::asset::AssetManager assets;
-    vulcal::MeshData mesh;
+    vulcal::render::MeshData mesh;
     mesh.vertices_.push_back({
         { 4.0f, 0.0f, 0.0f },
         { 0.0f, 1.0f, 0.0f }
@@ -111,6 +134,46 @@ TEST(AssetManager, SharesDefaultMaterialOnlyForNilId) {
     EXPECT_EQ(assets.load_material({}), first);
     EXPECT_FALSE(assets.load_material(vulcal::asset::AssetID{ 123 }));
     EXPECT_FALSE(assets.load_mesh({}));
+}
+
+TEST_F(AssetManagerTest, LoadsCompiledMaterialCachesUntilInvalidated) {
+    const vulcal::asset::AssetID id{ 31 };
+    const auto path = directory_ / (id.to_string() + ".vmatc");
+
+    vulcal::render::Material material;
+    material.diffuse_ = { 0.2f, 0.3f, 0.4f };
+    write_material_file(path, material);
+
+    vulcal::asset::AssetManager assets(directory_);
+    const auto first = assets.load_material(id);
+    ASSERT_TRUE(first);
+    EXPECT_EQ(first->diffuse_, material.diffuse_);
+
+    material.diffuse_ = { 0.7f, 0.6f, 0.5f };
+    write_material_file(path, material);
+    EXPECT_EQ(assets.load_material(id), first);
+
+    assets.invalidate(id);
+    const auto second = assets.load_material(id);
+    ASSERT_TRUE(second);
+    EXPECT_NE(second, first);
+    EXPECT_EQ(second->diffuse_, material.diffuse_);
+}
+
+TEST_F(AssetManagerTest, MissingMaterialCanBeRetriedAfterInvalidation) {
+    const vulcal::asset::AssetID id{ 32 };
+    vulcal::asset::AssetManager assets(directory_);
+
+    EXPECT_FALSE(assets.load_material(id));
+    vulcal::render::Material material;
+    material.shininess_ = 24.0f;
+    write_material_file(directory_ / (id.to_string() + ".vmatc"), material);
+    EXPECT_FALSE(assets.load_material(id));
+
+    assets.invalidate(id);
+    const auto loaded = assets.load_material(id);
+    ASSERT_TRUE(loaded);
+    EXPECT_FLOAT_EQ(loaded->shininess_, 24.0f);
 }
 
 TEST(AssetManager, InvalidatingOneAssetKeepsOthersAndClearReleasesRegisteredData) {

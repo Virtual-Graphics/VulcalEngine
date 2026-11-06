@@ -1,6 +1,6 @@
 #include "asset/asset_manager.h"
+#include "asset/mesh_asset.h"
 #include "asset/render_asset_cache.h"
-#include "asset/runtime_mesh_asset.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_actions.h"
 #include "editor/editor_context.h"
@@ -14,10 +14,11 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 
 namespace {
 
-vulcal::MeshData triangle() {
+vulcal::render::MeshData triangle() {
     return { .vertices_ = {
                  { { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
                  { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
@@ -40,7 +41,12 @@ protected:
         actions_  = std::make_unique<editor::EditorActions>(
                 context_, assets_, *cache_,
                 editor::EditorActions::Dialogs{
-                    .open_file = [this](const auto&, const auto&) { return open_path_; },
+                    .open_file =
+                            [this](const auto& filter, const auto& directory) {
+                                last_filter_    = filter.extension;
+                                last_directory_ = directory;
+                                return open_path_;
+                            },
                     .save_file = [this](const auto&, const auto&, const auto&) { return save_path_; },
                 });
         actions_->create_project(directory_ / "project", "Test");
@@ -62,6 +68,12 @@ protected:
         renderer_->render(data);
     }
 
+    void draw(vulcal::render::MeshHandle mesh, vulcal::render::MaterialHandle material) {
+        vulcal::render::RenderData data;
+        data.items_.push_back({ mesh, material, glm::mat4{ 1.0f } });
+        renderer_->render(data);
+    }
+
     void write_obj(float x) {
         std::ofstream output(*open_path_);
         output << "v " << x << " 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
@@ -77,6 +89,8 @@ protected:
     std::unique_ptr<editor::EditorActions> actions_;
     std::optional<std::filesystem::path> open_path_;
     std::optional<std::filesystem::path> save_path_;
+    std::string last_filter_;
+    std::filesystem::path last_directory_;
 };
 
 TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
@@ -123,7 +137,7 @@ TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     std::filesystem::create_directories(directory_ / "other");
     other.create_project(directory_ / "other", "Other");
     const vulcal::asset::AssetID new_id{ 12 };
-    vulcal::asset::RuntimeMeshAsset::write(other.library_directory() / "12.vmesh", triangle());
+    vulcal::asset::MeshAsset::write(other.library_directory() / "12.vmesh", triangle());
     open_path_ = directory_ / "other" / "Other.vproj";
 
     actions_->open_project();
@@ -160,21 +174,24 @@ TEST_F(EditorActionsTest, SceneOpenClearsSelectionWithoutResettingAssets) {
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
 }
 
-TEST_F(EditorActionsTest, ReimportAssignsSelectedEntityAndRefreshesCpuAndGpuData) {
-    const auto selected = context_.create_entity();
-    open_path_          = context_.assets_directory() / "triangle.obj";
+TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::MeshRendererComponent>();
+    open_path_ = context_.assets_directory() / "triangle.obj";
     write_obj(-1.0f);
-    actions_->import_obj();
-    ASSERT_TRUE(selected.has_component<vulcal::scene::MeshRendererComponent>());
-    const auto id  = selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_;
+    actions_->import_mesh_asset();
+    const auto id = target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_;
+    EXPECT_EQ(last_filter_, "obj");
+    EXPECT_EQ(last_directory_, context_.assets_directory());
+    EXPECT_EQ(context_.selected_entity(), target);
     const auto cpu = assets_.load_mesh(id);
     ASSERT_TRUE(cpu);
     const auto gpu      = cache_->resolve_mesh(id);
     const auto material = cache_->resolve_material({});
 
     write_obj(-2.0f);
-    actions_->import_obj();
-    EXPECT_EQ(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
+    actions_->import_mesh_asset();
+    EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     const auto reloaded = assets_.load_mesh(id);
     ASSERT_TRUE(reloaded);
     EXPECT_NE(reloaded, cpu);
@@ -184,43 +201,95 @@ TEST_F(EditorActionsTest, ReimportAssignsSelectedEntityAndRefreshesCpuAndGpuData
     EXPECT_EQ(cache_->resolve_material({}), material);
 }
 
-TEST_F(EditorActionsTest, ImportWithoutSelectionDoesNotCreateAnEntity) {
-    const auto count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
-    open_path_       = context_.assets_directory() / "triangle.obj";
-    write_obj(-1.0f);
-    actions_->import_obj();
-    EXPECT_FALSE(context_.selected_entity());
-    EXPECT_EQ(context_.scene().registry().view<vulcal::scene::TagComponent>().size(), count);
-    EXPECT_TRUE(std::filesystem::exists(open_path_->string() + ".meta"));
+TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::MeshRendererComponent>();
+    open_path_ = context_.assets_directory() / "surface.vmat";
+    {
+        std::ofstream output(*open_path_);
+        output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 16\n";
+    }
+
+    actions_->import_material_asset();
+    const auto id = target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_;
+    EXPECT_EQ(last_filter_, "vmat");
+    EXPECT_EQ(last_directory_, context_.assets_directory());
+    EXPECT_EQ(context_.selected_entity(), target);
+    const auto cpu = assets_.load_material(id);
+    ASSERT_TRUE(cpu);
+    EXPECT_FLOAT_EQ(cpu->shininess_, 16.0f);
+    const auto mesh = cache_->resolve_mesh(assets_.add_mesh(triangle()));
+    const auto gpu  = cache_->resolve_material(id);
+    EXPECT_NO_THROW(draw(mesh, gpu));
+
+    {
+        std::ofstream output(*open_path_);
+        output << "format_version: 1\ndiffuse: [0.8, 0.7, 0.6]\nspecular: [0.05, 0.06, 0.07]\nshininess: 32\n";
+    }
+    actions_->import_material_asset();
+    EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_, id);
+    const auto reloaded = assets_.load_material(id);
+    ASSERT_TRUE(reloaded);
+    EXPECT_NE(reloaded, cpu);
+    EXPECT_FLOAT_EQ(reloaded->shininess_, 32.0f);
+    EXPECT_THROW(draw(mesh, gpu), std::invalid_argument);
+    const auto replacement = cache_->resolve_material(id);
+    EXPECT_NE(replacement, gpu);
+    EXPECT_NO_THROW(draw(mesh, replacement));
+}
+
+TEST_F(EditorActionsTest, ImportRequiresSelectedMeshRenderer) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::MeshRendererComponent>();
+    context_.create_entity();
+
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
+    EXPECT_TRUE(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
+
+    context_.select(vulcal::scene::Entity{});
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
 }
 
 TEST_F(EditorActionsTest, CancelledImportPreservesSelectedMeshAndCaches) {
-    const auto selected                                                           = context_.create_entity();
-    const auto id                                                                 = assets_.add_mesh(triangle());
-    selected.add_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
-    const auto cpu                                                                = assets_.load_mesh(id);
-    const auto gpu                                                                = cache_->resolve_mesh(id);
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::MeshRendererComponent>();
+    const auto id                                                               = assets_.add_mesh(triangle());
+    target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
+    const auto cpu                                                              = assets_.load_mesh(id);
+    const auto gpu                                                              = cache_->resolve_mesh(id);
 
-    actions_->import_obj();
-    EXPECT_EQ(context_.selected_entity(), selected);
-    EXPECT_EQ(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
+    actions_->import_mesh_asset();
+    EXPECT_EQ(context_.selected_entity(), target);
+    EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
 }
 
 TEST_F(EditorActionsTest, FailedImportPreservesSelectedMeshAndCaches) {
-    const auto selected                                                           = context_.create_entity();
-    const auto id                                                                 = assets_.add_mesh(triangle());
-    selected.add_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
-    const auto cpu                                                                = assets_.load_mesh(id);
-    const auto gpu                                                                = cache_->resolve_mesh(id);
-    open_path_                                                                    = context_.assets_directory() / "missing.obj";
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::MeshRendererComponent>();
+    const auto id                                                               = assets_.add_mesh(triangle());
+    target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
+    const auto cpu                                                              = assets_.load_mesh(id);
+    const auto gpu                                                              = cache_->resolve_mesh(id);
+    open_path_                                                                  = context_.assets_directory() / "missing.obj";
 
-    EXPECT_THROW(actions_->import_obj(), std::invalid_argument);
-    EXPECT_EQ(context_.selected_entity(), selected);
-    EXPECT_EQ(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_EQ(context_.selected_entity(), target);
+    EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+}
+
+TEST_F(EditorActionsTest, GuardedOperationRecordsTheLatestError) {
+    actions_->run_guarded([] { throw std::runtime_error("first"); });
+    actions_->run_guarded([] { throw std::runtime_error("second"); });
+    const auto error = actions_->take_error();
+    ASSERT_TRUE(error);
+    EXPECT_EQ(*error, "second");
+    EXPECT_FALSE(actions_->take_error());
 }
 
 } // namespace

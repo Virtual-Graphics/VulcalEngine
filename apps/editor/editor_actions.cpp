@@ -2,12 +2,13 @@
 
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
-#include "asset_import/obj_asset_importer.h"
+#include "asset_import/asset_importer.h"
 #include "base/logger.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_context.h"
 
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace editor {
@@ -16,6 +17,7 @@ namespace {
 const apps::nfd::FileFilter project_filter{ "Vulcal Project", "vproj" };
 const apps::nfd::FileFilter scene_filter{ "Vulcal Scene", "vscene" };
 const apps::nfd::FileFilter obj_filter{ "Wavefront OBJ", "obj" };
+const apps::nfd::FileFilter material_filter{ "Vulcal Material", "vmat" };
 
 } // namespace
 
@@ -62,20 +64,38 @@ void EditorActions::save_scene_as() {
     }
 }
 
-void EditorActions::import_obj() {
+vulcal::scene::Entity EditorActions::require_selected_mesh_renderer(const char* asset_name) const {
     if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
+    const auto target = context_.selected_entity();
+    if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::MeshRendererComponent>()) {
+        throw std::invalid_argument(std::string("Select an entity with a Mesh Renderer before importing a ") + asset_name);
+    }
+    return target;
+}
+
+void EditorActions::import_mesh_asset() {
+    const auto target = require_selected_mesh_renderer("mesh");
     if (auto path = dialogs_.open_file(obj_filter, context_.assets_directory())) {
-        const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
-        const auto selected = context_.selected_entity();
-        if (selected) {
-            auto& component          = selected.has_component<vulcal::scene::MeshRendererComponent>()
-                                               ? selected.get_component<vulcal::scene::MeshRendererComponent>()
-                                               : selected.add_component<vulcal::scene::MeshRendererComponent>();
-            component.mesh_asset_id_ = id;
-            base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
-                             selected.get_component<vulcal::scene::TagComponent>().name_,
-                             selected.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        }
+        if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during mesh import");
+        const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
+        base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
+                         target.get_component<vulcal::scene::TagComponent>().name_,
+                         target.get_component<vulcal::scene::IDComponent>().id_.to_string());
+        render_assets_.invalidate(id);
+        assets_.invalidate(id);
+    }
+}
+
+void EditorActions::import_material_asset() {
+    const auto target = require_selected_mesh_renderer("material");
+    if (auto path = dialogs_.open_file(material_filter, context_.assets_directory())) {
+        if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during material import");
+        const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
+        base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
+                         target.get_component<vulcal::scene::TagComponent>().name_,
+                         target.get_component<vulcal::scene::IDComponent>().id_.to_string());
         render_assets_.invalidate(id);
         assets_.invalidate(id);
     }

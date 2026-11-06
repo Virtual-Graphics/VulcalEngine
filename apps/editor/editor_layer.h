@@ -9,7 +9,6 @@
 #include "scene/scene_extractor.h"
 
 #include <filesystem>
-#include <functional>
 #include <memory>
 #include <string>
 
@@ -45,7 +44,6 @@ private:
     void draw_error_dialog();
 
     void handle_shortcuts();
-    void run_operation(const std::function<void()>& operation);
 
     std::unique_ptr<apps::ImGuiIntegration> imgui_;
 

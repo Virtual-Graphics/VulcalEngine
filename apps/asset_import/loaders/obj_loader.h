@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <string>
 namespace apps::asset_import {
-using vulcal::MeshData;
+using vulcal::render::MeshData;
 
 class OBJImporter {
 public:

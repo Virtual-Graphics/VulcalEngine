@@ -1,11 +1,25 @@
-format_version: 2
+format_version: 1
 entities:
+  - id: 1838377709232359917
+    name: Entity
+    transform:
+      translation: [0.0500000007, 0.449999988, 0.300000012]
+      rotation: [0, 0.0261799395, 0]
+      scale: [1, 1, 1]
+    mesh_renderer:
+      mesh_asset_id: 11559153236028480115
+      material_asset_id: 11102779953852357662
+      visible: true
   - id: 8912122927174721280
     name: Entity
     transform:
       translation: [0, 0, 0]
       rotation: [0, 0, 0]
       scale: [4, 4, 4]
+    mesh_renderer:
+      mesh_asset_id: 11559153236028480115
+      material_asset_id: 0
+      visible: true
   - id: 3950411888081444643
     name: Environment
     transform:
