@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 
 namespace {
 
@@ -173,26 +174,23 @@ TEST_F(EditorActionsTest, SceneOpenClearsSelectionWithoutResettingAssets) {
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
 }
 
-TEST_F(EditorActionsTest, ReimportAssignsTargetEntityAndRefreshesCpuAndGpuData) {
+TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
-    const auto selected = context_.create_entity();
-    selected.add_component<vulcal::scene::MeshRendererComponent>();
-    context_.select(selected);
     open_path_ = context_.assets_directory() / "triangle.obj";
     write_obj(-1.0f);
-    actions_->import_mesh_asset(target);
+    actions_->import_mesh_asset();
     const auto id = target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_;
     EXPECT_EQ(last_filter_, "obj");
     EXPECT_EQ(last_directory_, context_.assets_directory());
-    EXPECT_TRUE(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
+    EXPECT_EQ(context_.selected_entity(), target);
     const auto cpu = assets_.load_mesh(id);
     ASSERT_TRUE(cpu);
     const auto gpu      = cache_->resolve_mesh(id);
     const auto material = cache_->resolve_material({});
 
     write_obj(-2.0f);
-    actions_->import_mesh_asset(target);
+    actions_->import_mesh_asset();
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     const auto reloaded = assets_.load_mesh(id);
     ASSERT_TRUE(reloaded);
@@ -203,23 +201,20 @@ TEST_F(EditorActionsTest, ReimportAssignsTargetEntityAndRefreshesCpuAndGpuData) 
     EXPECT_EQ(cache_->resolve_material({}), material);
 }
 
-TEST_F(EditorActionsTest, ImportMaterialAssignsTargetAndRefreshesMaterialCache) {
+TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
-    const auto selected = context_.create_entity();
-    selected.add_component<vulcal::scene::MeshRendererComponent>();
-    context_.select(selected);
     open_path_ = context_.assets_directory() / "surface.vmat";
     {
         std::ofstream output(*open_path_);
         output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 16\n";
     }
 
-    actions_->import_material_asset(target);
+    actions_->import_material_asset();
     const auto id = target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_;
     EXPECT_EQ(last_filter_, "vmat");
     EXPECT_EQ(last_directory_, context_.assets_directory());
-    EXPECT_TRUE(selected.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_.is_nil());
+    EXPECT_EQ(context_.selected_entity(), target);
     const auto cpu = assets_.load_material(id);
     ASSERT_TRUE(cpu);
     EXPECT_FLOAT_EQ(cpu->shininess_, 16.0f);
@@ -231,7 +226,7 @@ TEST_F(EditorActionsTest, ImportMaterialAssignsTargetAndRefreshesMaterialCache) 
         std::ofstream output(*open_path_);
         output << "format_version: 1\ndiffuse: [0.8, 0.7, 0.6]\nspecular: [0.05, 0.06, 0.07]\nshininess: 32\n";
     }
-    actions_->import_material_asset(target);
+    actions_->import_material_asset();
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_, id);
     const auto reloaded = assets_.load_material(id);
     ASSERT_TRUE(reloaded);
@@ -243,36 +238,31 @@ TEST_F(EditorActionsTest, ImportMaterialAssignsTargetAndRefreshesMaterialCache) 
     EXPECT_NO_THROW(draw(mesh, replacement));
 }
 
-TEST_F(EditorActionsTest, ImportTargetsExistingComponentWithoutChangingSelection) {
+TEST_F(EditorActionsTest, ImportRequiresSelectedMeshRenderer) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
-    const auto selected = context_.create_entity();
-    selected.add_component<vulcal::scene::MeshRendererComponent>();
-    context_.select(selected);
-    open_path_ = context_.assets_directory() / "triangle.obj";
-    write_obj(-1.0f);
-    actions_->import_mesh_asset(target);
-    EXPECT_EQ(context_.selected_entity(), selected);
-    EXPECT_FALSE(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
-    EXPECT_TRUE(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
-    EXPECT_TRUE(std::filesystem::exists(open_path_->string() + ".meta"));
+    context_.create_entity();
+
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
+    EXPECT_TRUE(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
+
+    context_.select(vulcal::scene::Entity{});
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
 }
 
 TEST_F(EditorActionsTest, CancelledImportPreservesSelectedMeshAndCaches) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
-    const auto selected = context_.create_entity();
-    selected.add_component<vulcal::scene::MeshRendererComponent>();
-    context_.select(selected);
     const auto id                                                               = assets_.add_mesh(triangle());
     target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
     const auto cpu                                                              = assets_.load_mesh(id);
     const auto gpu                                                              = cache_->resolve_mesh(id);
 
-    actions_->import_mesh_asset(target);
-    EXPECT_EQ(context_.selected_entity(), selected);
+    actions_->import_mesh_asset();
+    EXPECT_EQ(context_.selected_entity(), target);
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
-    EXPECT_TRUE(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
 }
@@ -280,21 +270,26 @@ TEST_F(EditorActionsTest, CancelledImportPreservesSelectedMeshAndCaches) {
 TEST_F(EditorActionsTest, FailedImportPreservesSelectedMeshAndCaches) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
-    const auto selected = context_.create_entity();
-    selected.add_component<vulcal::scene::MeshRendererComponent>();
-    context_.select(selected);
     const auto id                                                               = assets_.add_mesh(triangle());
     target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
     const auto cpu                                                              = assets_.load_mesh(id);
     const auto gpu                                                              = cache_->resolve_mesh(id);
     open_path_                                                                  = context_.assets_directory() / "missing.obj";
 
-    EXPECT_THROW(actions_->import_mesh_asset(target), std::invalid_argument);
-    EXPECT_EQ(context_.selected_entity(), selected);
+    EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
+    EXPECT_EQ(context_.selected_entity(), target);
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
-    EXPECT_TRUE(selected.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+}
+
+TEST_F(EditorActionsTest, GuardedOperationRecordsTheLatestError) {
+    actions_->run_guarded([] { throw std::runtime_error("first"); });
+    actions_->run_guarded([] { throw std::runtime_error("second"); });
+    const auto error = actions_->take_error();
+    ASSERT_TRUE(error);
+    EXPECT_EQ(*error, "second");
+    EXPECT_FALSE(actions_->take_error());
 }
 
 } // namespace

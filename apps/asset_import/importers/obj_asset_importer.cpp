@@ -1,8 +1,9 @@
-#include "asset_import/obj_asset_importer.h"
+#include "asset_import/importers/obj_asset_importer.h"
 
 #include "asset/mesh_asset.h"
+#include "asset/asset_library.h"
 #include "asset_import/meta_data.h"
-#include "asset_import/obj_loader.h"
+#include "asset_import/loaders/obj_loader.h"
 #include "base/logger.h"
 
 #include <stdexcept>
@@ -29,7 +30,7 @@ vulcal::asset::AssetID ObjAssetImporter::import(const std::filesystem::path& sou
     const auto id           = metadata.id;
 
     std::filesystem::create_directories(library_directory);
-    const auto runtime_file = library_directory / (id.to_string() + ".vmesh");
+    const auto runtime_file = vulcal::asset::AssetLibrary{ library_directory }.mesh_path(id);
     vulcal::asset::MeshAsset::write(runtime_file, mesh);
     if (!has_metadata) {
         write_metadata(meta, metadata);

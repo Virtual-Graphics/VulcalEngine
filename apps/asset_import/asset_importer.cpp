@@ -1,7 +1,7 @@
-#include "asset_importer.h"
+#include "asset_import/asset_importer.h"
 
-#include "material_asset_importer.h"
-#include "obj_asset_importer.h"
+#include "asset_import/importers/material_asset_importer.h"
+#include "asset_import/importers/obj_asset_importer.h"
 
 #include <algorithm>
 #include <cctype>

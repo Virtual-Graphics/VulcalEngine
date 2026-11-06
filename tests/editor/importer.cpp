@@ -1,8 +1,8 @@
 #include "asset/asset_library.h"
 #include "asset_import/asset_importer.h"
-#include "asset_import/material_asset_importer.h"
+#include "asset_import/importers/material_asset_importer.h"
 #include "asset_import/meta_data.h"
-#include "asset_import/obj_asset_importer.h"
+#include "asset_import/importers/obj_asset_importer.h"
 
 #include <chrono>
 #include <filesystem>

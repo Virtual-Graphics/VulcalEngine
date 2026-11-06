@@ -1,6 +1,7 @@
 #include "editor/panels/inspector_panel.h"
 
 #include "base/logger.h"
+#include "editor/editor_actions.h"
 #include "editor/editor_context.h"
 
 #include <algorithm>
@@ -126,20 +127,19 @@ void draw_light(vulcal::scene::LightComponent& light) {
     ImGui::EndDisabled();
 }
 
-void draw_mesh_renderer(vulcal::scene::Entity entity, vulcal::scene::MeshRendererComponent& mesh, EditorContext& context,
-                        const InspectorPanel::AssetImportCallbacks& callbacks) {
+void draw_mesh_renderer(vulcal::scene::MeshRendererComponent& mesh, EditorContext& context, EditorActions* actions) {
     ImGui::Checkbox("Visible", &mesh.visible_);
     const auto mesh_id     = mesh.mesh_asset_id_.to_string();
     const auto material_id = mesh.material_asset_id_.to_string();
     ImGui::Text("Mesh Asset: %s", mesh.mesh_asset_id_.is_nil() ? "None" : mesh_id.c_str());
     ImGui::SameLine();
-    ImGui::BeginDisabled(!context.has_project() || !callbacks.import_mesh);
-    if (ImGui::Button("...##ImportMesh")) callbacks.import_mesh(entity);
+    ImGui::BeginDisabled(!context.has_project() || actions == nullptr);
+    if (ImGui::Button("...##ImportMesh")) actions->run_guarded([actions] { actions->import_mesh_asset(); });
     ImGui::EndDisabled();
     ImGui::Text("Material Asset: %s", mesh.material_asset_id_.is_nil() ? "None" : material_id.c_str());
     ImGui::SameLine();
-    ImGui::BeginDisabled(!context.has_project() || !callbacks.import_material);
-    if (ImGui::Button("...##ImportMaterial")) callbacks.import_material(entity);
+    ImGui::BeginDisabled(!context.has_project() || actions == nullptr);
+    if (ImGui::Button("...##ImportMaterial")) actions->run_guarded([actions] { actions->import_material_asset(); });
     ImGui::EndDisabled();
     if (mesh.mesh_asset_id_.is_nil()) ImGui::TextDisabled("Assign a mesh asset to render this entity.");
 }
@@ -151,7 +151,7 @@ void draw_environment(vulcal::scene::EnvironmentComponent& environment) {
 
 } // namespace
 
-void InspectorPanel::draw(EditorContext& context, bool& open, const AssetImportCallbacks& callbacks) const {
+void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* actions) const {
     if (!open) return;
     if (ImGui::Begin("Inspector", &open)) {
         const auto entity = context.selected_entity();
@@ -169,7 +169,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, const AssetImportC
             if (entity.has_component<vulcal::scene::TransformComponent>())
                 draw_transform(entity.get_component<vulcal::scene::TransformComponent>());
             draw_component<vulcal::scene::MeshRendererComponent>(entity, "Mesh Renderer",
-                                                                 [&](auto& mesh) { draw_mesh_renderer(entity, mesh, context, callbacks); });
+                                                                 [&](auto& mesh) { draw_mesh_renderer(mesh, context, actions); });
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
             draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", draw_environment);

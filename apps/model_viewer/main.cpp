@@ -1,6 +1,6 @@
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
-#include "asset_import/obj_loader.h"
+#include "asset_import/loaders/obj_loader.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
 #include "engine/application.h"

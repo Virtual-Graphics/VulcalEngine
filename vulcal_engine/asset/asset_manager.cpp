@@ -1,6 +1,5 @@
 #include "asset/asset_manager.h"
 
-#include "asset/asset_library.h"
 #include "base/logger.h"
 
 #include <exception>
@@ -33,19 +32,19 @@ std::shared_ptr<const T> load_runtime_asset(AssetCache<T>& cache, const std::fil
 } // namespace
 
 AssetManager::AssetManager(std::filesystem::path directory)
-        : directory_(std::move(directory)),
+        : library_(std::move(directory)),
           default_material_(std::make_shared<const render::Material>()) {
-    if (!directory_.empty()) base::log::info("AssetManager: runtime directory is {}", directory_.string());
+    if (!library_.directory().empty()) base::log::info("AssetManager: runtime directory is {}", library_.directory().string());
 }
 
 std::shared_ptr<const render::MeshData> AssetManager::load_mesh(AssetID id) {
-    return load_runtime_asset<render::MeshData>(meshes_, directory_, id, "mesh", [&] { return AssetLibrary{ directory_ }.load_mesh(id); });
+    return load_runtime_asset<render::MeshData>(meshes_, library_.directory(), id, "mesh", [&] { return library_.load_mesh(id); });
 }
 
 std::shared_ptr<const render::Material> AssetManager::load_material(AssetID id) {
     if (id.is_nil()) return default_material_;
-    return load_runtime_asset<render::Material>(materials_, directory_, id, "material",
-                                                [&] { return AssetLibrary{ directory_ }.load_material(id); });
+    return load_runtime_asset<render::Material>(materials_, library_.directory(), id, "material",
+                                                [&] { return library_.load_material(id); });
 }
 
 AssetID AssetManager::add_mesh(render::MeshData mesh) {
@@ -81,8 +80,9 @@ void AssetManager::clear() {
 
 void AssetManager::set_directory(std::filesystem::path directory) {
     clear();
-    directory_ = std::move(directory);
-    base::log::info("AssetManager: runtime directory set to {}", directory_.empty() ? "<memory only>" : directory_.string());
+    library_ = AssetLibrary{ std::move(directory) };
+    base::log::info("AssetManager: runtime directory set to {}",
+                    library_.directory().empty() ? "<memory only>" : library_.directory().string());
 }
 
 } // namespace vulcal::asset

@@ -8,6 +8,7 @@
 #include "editor/editor_context.h"
 
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace editor {
@@ -63,13 +64,19 @@ void EditorActions::save_scene_as() {
     }
 }
 
-void EditorActions::import_mesh_asset(vulcal::scene::Entity target) {
+vulcal::scene::Entity EditorActions::require_selected_mesh_renderer(const char* asset_name) const {
     if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
-    if (!context_.has_scene() || !target.valid() || &target.scene() != &context_.scene() ||
-        !target.has_component<vulcal::scene::MeshRendererComponent>())
-        throw std::invalid_argument("Mesh import target must have a Mesh Renderer in the current scene");
+    const auto target = context_.selected_entity();
+    if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::MeshRendererComponent>()) {
+        throw std::invalid_argument(std::string("Select an entity with a Mesh Renderer before importing a ") + asset_name);
+    }
+    return target;
+}
 
+void EditorActions::import_mesh_asset() {
+    const auto target = require_selected_mesh_renderer("mesh");
     if (auto path = dialogs_.open_file(obj_filter, context_.assets_directory())) {
+        if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during mesh import");
         const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
         target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
         base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
@@ -80,13 +87,10 @@ void EditorActions::import_mesh_asset(vulcal::scene::Entity target) {
     }
 }
 
-void EditorActions::import_material_asset(vulcal::scene::Entity target) {
-    if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
-    if (!context_.has_scene() || !target.valid() || &target.scene() != &context_.scene() ||
-        !target.has_component<vulcal::scene::MeshRendererComponent>())
-        throw std::invalid_argument("Material import target must have a Mesh Renderer in the current scene");
-
+void EditorActions::import_material_asset() {
+    const auto target = require_selected_mesh_renderer("material");
     if (auto path = dialogs_.open_file(material_filter, context_.assets_directory())) {
+        if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during material import");
         const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
         target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
         base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),

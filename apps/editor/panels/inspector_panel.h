@@ -1,21 +1,13 @@
 #pragma once
 
-#include "scene/entity.h"
-
-#include <functional>
-
 namespace editor {
 
+class EditorActions;
 class EditorContext;
 
 class InspectorPanel {
 public:
-    struct AssetImportCallbacks {
-        std::function<void(vulcal::scene::Entity)> import_mesh;
-        std::function<void(vulcal::scene::Entity)> import_material;
-    };
-
-    void draw(EditorContext& context, bool& open, const AssetImportCallbacks& callbacks = {}) const;
+    void draw(EditorContext& context, bool& open, EditorActions* actions = nullptr) const;
 };
 
 } // namespace editor

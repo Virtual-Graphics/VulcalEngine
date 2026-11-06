@@ -1,6 +1,7 @@
-#include "asset_import/material_asset_importer.h"
+#include "asset_import/importers/material_asset_importer.h"
 
 #include "asset/material_asset.h"
+#include "asset/asset_library.h"
 #include "asset_import/meta_data.h"
 #include "base/logger.h"
 #include "base/yaml.h"
@@ -46,7 +47,7 @@ vulcal::asset::AssetID MaterialAssetImporter::import(const std::filesystem::path
 
     const auto id           = metadata.id;
     std::filesystem::create_directories(library_directory);
-    const auto runtime_file = library_directory / (id.to_string() + ".vmatc");
+    const auto runtime_file = vulcal::asset::AssetLibrary{ library_directory }.material_path(id);
     vulcal::asset::MaterialAsset::write(runtime_file, material);
     if (!has_metadata) write_metadata(meta, metadata);
 

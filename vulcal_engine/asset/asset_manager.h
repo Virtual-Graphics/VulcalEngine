@@ -2,6 +2,7 @@
 
 #include "asset/asset_cache.h"
 #include "asset/asset_id.h"
+#include "asset/asset_library.h"
 #include "render/resources/material.h"
 #include "render/resources/mesh_data.h"
 
@@ -30,7 +31,7 @@ public:
     void set_directory(std::filesystem::path directory);
 
 private:
-    std::filesystem::path directory_;
+    AssetLibrary library_;
     AssetCache<render::MeshData> meshes_;
     AssetCache<render::Material> materials_;
     std::shared_ptr<const render::Material> default_material_;

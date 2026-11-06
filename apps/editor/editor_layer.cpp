@@ -12,6 +12,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <utility>
 
 namespace editor {
 namespace {
@@ -55,17 +56,6 @@ void EditorLayer::on_detach() {
     renderer_.reset();
 }
 
-void EditorLayer::run_operation(const std::function<void()>& operation) {
-    viewport_.release_camera();
-    try {
-        operation();
-    } catch (const std::exception& error) {
-        base::log::error("Editor operation failed: {}", error.what());
-        error_message_   = error.what();
-        error_requested_ = true;
-    }
-}
-
 void EditorLayer::draw_file_menu() {
     if (!ImGui::BeginMenu("File")) return;
 
@@ -76,18 +66,16 @@ void EditorLayer::draw_file_menu() {
         new_project_error_.clear();
         new_project_requested_ = true;
     }
-    if (ImGui::MenuItem("Open Project...")) {
-        run_operation([this] { actions_->open_project(); });
-    }
+    if (ImGui::MenuItem("Open Project...")) actions_->run_guarded([this] { actions_->open_project(); });
 
     ImGui::Separator();
 
-    if (ImGui::MenuItem("New Scene", "Ctrl+N")) run_operation([this] { actions_->new_scene(); });
-    if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) run_operation([this] { actions_->open_scene(); });
+    if (ImGui::MenuItem("New Scene", "Ctrl+N")) actions_->run_guarded([this] { actions_->new_scene(); });
+    if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) actions_->run_guarded([this] { actions_->open_scene(); });
 
     ImGui::BeginDisabled(!context_.has_scene());
-    if (ImGui::MenuItem("Save Scene", "Ctrl+S")) run_operation([this] { actions_->save_scene(); });
-    if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) run_operation([this] { actions_->save_scene_as(); });
+    if (ImGui::MenuItem("Save Scene", "Ctrl+S")) actions_->run_guarded([this] { actions_->save_scene(); });
+    if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) actions_->run_guarded([this] { actions_->save_scene_as(); });
     ImGui::EndDisabled();
 
     ImGui::EndMenu();
@@ -103,13 +91,13 @@ void EditorLayer::handle_shortcuts() {
     const bool save_scene_as = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal);
     const bool save_scene    = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal);
     if (new_scene) {
-        run_operation([this] { actions_->new_scene(); });
+        actions_->run_guarded([this] { actions_->new_scene(); });
     } else if (open_scene) {
-        run_operation([this] { actions_->open_scene(); });
+        actions_->run_guarded([this] { actions_->open_scene(); });
     } else if (context_.has_scene() && save_scene_as) {
-        run_operation([this] { actions_->save_scene_as(); });
+        actions_->run_guarded([this] { actions_->save_scene_as(); });
     } else if (context_.has_scene() && save_scene) {
-        run_operation([this] { actions_->save_scene(); });
+        actions_->run_guarded([this] { actions_->save_scene(); });
     }
 }
 
@@ -169,6 +157,13 @@ void EditorLayer::draw_new_project_dialog() {
 }
 
 void EditorLayer::draw_error_dialog() {
+    if (actions_) {
+        if (auto error = actions_->take_error()) {
+            error_message_   = std::move(*error);
+            error_requested_ = true;
+        }
+    }
+
     if (error_requested_) {
         ImGui::OpenPopup("Operation Failed");
         error_requested_ = false;
@@ -228,21 +223,12 @@ void EditorLayer::on_update(base::Timestep dt) {
     imgui_->begin_frame();
     draw_workspace();
     hierarchy_.draw(context_, hierarchy_open_);
-    inspector_.draw(
-            context_, inspector_open_,
-            InspectorPanel::AssetImportCallbacks{
-                .import_mesh =
-                        [this](vulcal::scene::Entity entity) { run_operation([this, entity] { actions_->import_mesh_asset(entity); }); },
-                .import_material =
-                        [this](vulcal::scene::Entity entity) {
-                            run_operation([this, entity] { actions_->import_material_asset(entity); });
-                        },
-            });
+    inspector_.draw(context_, inspector_open_, actions_.get());
     viewport_.draw(viewport_open_, application().get_graphics_context().limits());
     draw_new_project_dialog();
-    draw_error_dialog();
     viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
     handle_shortcuts();
+    draw_error_dialog();
     imgui_->end_frame();
 }
 
