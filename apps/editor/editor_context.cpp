@@ -1,6 +1,7 @@
 #include "editor/editor_context.h"
 
 #include "base/logger.h"
+#include "base/string_utils.h"
 
 #include <stdexcept>
 #include <utility>
@@ -93,7 +94,7 @@ EditorContext::SaveResult EditorContext::save_scene() {
 
 void EditorContext::save_scene_as(std::filesystem::path scene_file) {
     require_edit_mode();
-    if (scene_file.extension() != ".vscene") scene_file.replace_extension(".vscene");
+    if (!base::has_extension(scene_file, ".vscene")) scene_file.replace_extension(".vscene");
     project_manager_.save_as_scene(scene_file);
 }
 

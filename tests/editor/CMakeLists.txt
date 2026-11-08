@@ -7,9 +7,12 @@ add_executable(editor_state_test
     ../../apps/editor/project/project_manager.cpp
     ../../apps/editor/project/scene/default_scene.cpp
     ../../apps/editor/project/scene/scene_serializer.cpp
+    snake.cpp
 )
 target_include_directories(editor_state_test PRIVATE ../../apps)
 target_link_libraries(editor_state_test PRIVATE vulcal_engine yaml-cpp::yaml-cpp GTest::gtest_main)
+file(TO_CMAKE_PATH "${CMAKE_SOURCE_DIR}" VULCAL_TEST_SOURCE_DIR)
+target_compile_definitions(editor_state_test PRIVATE VULCAL_TEST_SOURCE_DIR="${VULCAL_TEST_SOURCE_DIR}")
 
 if (BUILD_APPS)
     target_sources(editor_state_test PRIVATE

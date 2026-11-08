@@ -5,30 +5,19 @@
 #include "asset_import/loaders/image_loader.h"
 #include "asset_import/meta_data.h"
 #include "base/logger.h"
+#include "base/string_utils.h"
 
-#include <algorithm>
-#include <cctype>
 #include <stdexcept>
 #include <string>
 
 namespace apps::asset_import {
-namespace {
-
-std::string lowercase_extension(const std::filesystem::path& path) {
-    auto extension = path.extension().string();
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
-    return extension;
-}
-
-} // namespace
 
 vulcal::asset::AssetID TextureAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& assets_directory,
                                                     const std::filesystem::path& library_directory) {
     base::log::debug("TextureAssetImporter: importing {} (assets: {}, runtime: {})", source_file.string(), assets_directory.string(),
                      library_directory.string());
 
-    const auto extension = lowercase_extension(source_file);
+    const auto extension = base::lowercase_extension(source_file);
     validate_source_file(source_file, assets_directory, extension, "texture");
 
     const auto image = load_image(source_file, 4);

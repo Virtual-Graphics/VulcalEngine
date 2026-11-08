@@ -1,19 +1,17 @@
 #include "script/script_runtime.h"
 
 #include "base/logger.h"
+#include "base/string_utils.h"
 #include "scene/components.h"
-#include "script/lua_script_backend.h"
+#include "script/lua/lua_script_backend.h"
 
-#include <algorithm>
-#include <cctype>
 #include <stdexcept>
 
 namespace vulcal::script {
 namespace {
 
 std::string extension_key(std::string_view extension) {
-    std::string key{ extension };
-    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
+    auto key = base::to_lower(extension);
     if (!key.empty() && key.front() != '.') key.insert(key.begin(), '.');
     return key;
 }
@@ -44,7 +42,7 @@ std::filesystem::path checked_script_path(const std::string& script_path, const 
 
 } // namespace
 
-ScriptRuntime::ScriptRuntime() { register_backend(std::make_unique<LuaScriptBackend>()); }
+ScriptRuntime::ScriptRuntime() { register_backend(std::make_unique<lua::LuaScriptBackend>()); }
 
 ScriptRuntime::~ScriptRuntime() { stop(); }
 
@@ -64,9 +62,15 @@ void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& proj
         try {
             const auto path    = checked_script_path(requested_path, project_root, assets_root);
             const auto backend = backends_.find(extension_key(path.extension().string()));
-            if (backend == backends_.end()) throw std::runtime_error("No backend for script extension");
-            auto instance = backend->second->create(entity, path);
-            if (!instance) throw std::runtime_error("Backend returned an empty script instance");
+            if (backend == backends_.end()) {
+                throw std::runtime_error("No backend for script extension");
+            }
+
+            auto instance = backend->second->create(ScriptContext{ scene, entity }, path);
+            if (!instance) {
+                throw std::runtime_error("Backend returned an empty script instance");
+            }
+
             entries_.push_back(Entry{ entity, std::move(instance), entity_id, path.string(), true });
             try {
                 entries_.back().instance->on_create();

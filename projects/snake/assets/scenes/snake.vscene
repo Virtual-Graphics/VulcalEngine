@@ -1,0 +1,37 @@
+format_version: 1
+entities:
+  - id: 1000000000000000001
+    name: Camera
+    transform:
+      translation: [0, 0, 10]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    camera:
+      projection: orthographic
+      primary: true
+      perspective_fov_y: 0.785398185
+      perspective_near: 0.1
+      perspective_far: 100
+      orthographic_left: -12
+      orthographic_right: 12
+      orthographic_bottom: -12
+      orthographic_top: 12
+      orthographic_near: 0.1
+      orthographic_far: 100
+  - id: 1000000000000000002
+    name: Environment
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    environment:
+      ambient_color: [0.15, 0.15, 0.15]
+      clear_color: [0.05, 0.06, 0.08, 1]
+  - id: 1000000000000000003
+    name: Game
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    script:
+      path: assets/scripts/snake.lua

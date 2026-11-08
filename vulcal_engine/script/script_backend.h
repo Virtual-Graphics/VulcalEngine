@@ -6,7 +6,16 @@
 #include <memory>
 #include <string_view>
 
+namespace vulcal::scene {
+class Scene;
+}
+
 namespace vulcal::script {
+
+struct ScriptContext {
+    scene::Scene& scene;
+    scene::Entity entity;
+};
 
 class ScriptInstance {
 public:
@@ -18,9 +27,10 @@ public:
 
 class ScriptBackend {
 public:
-    virtual ~ScriptBackend()                                                                                       = default;
-    virtual std::string_view extension() const                                                                     = 0;
-    virtual std::unique_ptr<ScriptInstance> create(scene::Entity entity, const std::filesystem::path& script_path) = 0;
+    virtual ~ScriptBackend()                                    = default;
+    virtual std::string_view extension() const                  = 0;
+    virtual std::unique_ptr<ScriptInstance> create(const ScriptContext& context,
+            const std::filesystem::path& script_path) = 0;
 };
 
 } // namespace vulcal::script
