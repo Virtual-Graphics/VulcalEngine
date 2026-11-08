@@ -74,6 +74,8 @@ void ForwardPass::set_light(const RenderData& data) {
 }
 
 void ForwardPass::draw(PassContext& ctx, const DrawItem& item) {
+    if (item.kind_ != RenderItemKind::Mesh) return;
+
     const Material& material = *item.material_;
     program_.set("u_model", item.world_transform_);
     program_.set("u_normal_matrix", glm::transpose(glm::inverse(glm::mat3(item.world_transform_))));

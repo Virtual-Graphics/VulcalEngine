@@ -10,6 +10,7 @@
 #include "scene/components.h"
 
 #include <SDL3/SDL.h>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -80,6 +81,50 @@ protected:
         output << "v " << x << " 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
     }
 
+    void write_bmp(const std::filesystem::path& path, std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
+        constexpr std::int32_t width       = 2;
+        constexpr std::int32_t height      = 2;
+        constexpr std::uint32_t row_stride = 8;
+        constexpr std::uint32_t image_size = row_stride * height;
+
+        std::ofstream output(path, std::ios::binary);
+        auto write_u16 = [&](std::uint16_t value) {
+            const char bytes[2]{ static_cast<char>(value & 0xff), static_cast<char>((value >> 8) & 0xff) };
+            output.write(bytes, 2);
+        };
+        auto write_u32 = [&](std::uint32_t value) {
+            const char bytes[4]{ static_cast<char>(value & 0xff), static_cast<char>((value >> 8) & 0xff),
+                                 static_cast<char>((value >> 16) & 0xff), static_cast<char>((value >> 24) & 0xff) };
+            output.write(bytes, 4);
+        };
+
+        output.write("BM", 2);
+        write_u32(14 + 40 + image_size);
+        write_u16(0);
+        write_u16(0);
+        write_u32(54);
+        write_u32(40);
+        write_u32(static_cast<std::uint32_t>(width));
+        write_u32(static_cast<std::uint32_t>(height));
+        write_u16(1);
+        write_u16(24);
+        write_u32(0);
+        write_u32(image_size);
+        write_u32(2835);
+        write_u32(2835);
+        write_u32(0);
+        write_u32(0);
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                output.put(static_cast<char>(blue));
+                output.put(static_cast<char>(green));
+                output.put(static_cast<char>(red));
+            }
+            output.put('\0');
+            output.put('\0');
+        }
+    }
+
     std::filesystem::path directory_;
     SDL_Window* window_ = nullptr;
     std::unique_ptr<vulcal::gfx::Context> graphics_;
@@ -128,6 +173,7 @@ TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCac
     EXPECT_THROW(actions_->assign_script(), std::logic_error);
     EXPECT_THROW(actions_->import_mesh_asset(), std::logic_error);
     EXPECT_THROW(actions_->import_material_asset(), std::logic_error);
+    EXPECT_THROW(actions_->import_texture_asset(), std::logic_error);
     EXPECT_TRUE(last_filter_.empty());
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(cache_->resolve_mesh(id), gpu);
@@ -226,6 +272,47 @@ TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
     EXPECT_EQ(cache_->resolve_material({}), material);
 }
 
+TEST_F(EditorActionsTest, ImportTextureRefreshesSelectedEntityTextureCache) {
+    const auto target = context_.create_entity();
+    target.add_component<vulcal::scene::SpriteRendererComponent>();
+    open_path_ = context_.assets_directory() / "sprite.bmp";
+    write_bmp(*open_path_, 10, 20, 30);
+
+    actions_->import_texture_asset();
+    const auto id = target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_;
+    EXPECT_EQ(last_filter_, "png,jpg,jpeg,bmp,tga");
+    EXPECT_EQ(last_directory_, context_.assets_directory());
+    EXPECT_EQ(context_.selected_entity(), target);
+    const auto cpu = assets_.load_texture(id);
+    ASSERT_TRUE(cpu);
+    ASSERT_EQ(cpu->pixels_.size(), 16u);
+    EXPECT_EQ(cpu->pixels_[0], 10u);
+    EXPECT_EQ(cpu->pixels_[1], 20u);
+    EXPECT_EQ(cpu->pixels_[2], 30u);
+    const auto gpu = cache_->resolve_texture(id);
+    ASSERT_NE(gpu.value_, 0u);
+
+    write_bmp(*open_path_, 40, 50, 60);
+    actions_->import_texture_asset();
+    EXPECT_EQ(target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, id);
+    const auto reloaded = assets_.load_texture(id);
+    ASSERT_TRUE(reloaded);
+    EXPECT_NE(reloaded, cpu);
+    EXPECT_EQ(reloaded->pixels_[0], 40u);
+    EXPECT_NE(cache_->resolve_texture(id), gpu);
+}
+
+TEST_F(EditorActionsTest, ImportTextureRequiresSelectedSpriteRenderer) {
+    auto target = context_.create_entity();
+    target.add_component<vulcal::scene::SpriteRendererComponent>();
+    context_.create_entity();
+
+    EXPECT_THROW(actions_->import_texture_asset(), std::invalid_argument);
+    context_.select(target);
+    actions_->import_texture_asset();
+    EXPECT_TRUE(target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_.is_nil());
+}
+
 TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::MeshRendererComponent>();
@@ -309,11 +396,13 @@ TEST_F(EditorActionsTest, ImportRequiresSelectedMeshRenderer) {
 
     EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
     EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_texture_asset(), std::invalid_argument);
     EXPECT_TRUE(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_.is_nil());
 
     context_.select(vulcal::scene::Entity{});
     EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
     EXPECT_THROW(actions_->import_material_asset(), std::invalid_argument);
+    EXPECT_THROW(actions_->import_texture_asset(), std::invalid_argument);
 }
 
 TEST_F(EditorActionsTest, CancelledImportPreservesSelectedMeshAndCaches) {

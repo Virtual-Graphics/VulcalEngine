@@ -3,6 +3,7 @@
 #include "asset/asset_id.h"
 #include "render/resources/material.h"
 #include "render/resources/mesh_data.h"
+#include "render/resources/texture_data.h"
 
 #include <filesystem>
 
@@ -16,8 +17,10 @@ public:
 
     render::MeshData load_mesh(AssetID id) const;
     render::Material load_material(AssetID id) const;
+    render::TextureData load_texture(AssetID id) const;
     std::filesystem::path mesh_path(AssetID id) const;
     std::filesystem::path material_path(AssetID id) const;
+    std::filesystem::path texture_path(AssetID id) const;
 
     const std::filesystem::path& directory() const { return directory_; }
 

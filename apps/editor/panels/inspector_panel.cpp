@@ -145,6 +145,22 @@ void draw_mesh_renderer(vulcal::scene::MeshRendererComponent& mesh, EditorContex
     if (mesh.mesh_asset_id_.is_nil()) ImGui::TextDisabled("Assign a mesh asset to render this entity.");
 }
 
+void draw_sprite_renderer(vulcal::scene::SpriteRendererComponent& sprite, EditorContext& context, EditorActions* actions) {
+    ImGui::Checkbox("Visible", &sprite.visible_);
+    const auto texture_id = sprite.texture_asset_id_.to_string();
+    ImGui::Text("Texture Asset: %s", sprite.texture_asset_id_.is_nil() ? "None" : texture_id.c_str());
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!context.has_project() || actions == nullptr);
+    if (ImGui::Button("...##ImportTexture")) actions->run_guarded([actions] { actions->import_texture_asset(); });
+    ImGui::EndDisabled();
+    ImGui::ColorEdit4("Color", &sprite.color_.x);
+    ImGui::DragFloat4("UV Rect", &sprite.uv_rect_.x, 0.01f);
+    ImGui::DragFloat2("Pivot", &sprite.pivot_.x, 0.01f);
+    ImGui::Checkbox("Flip X", &sprite.flip_x_);
+    ImGui::Checkbox("Flip Y", &sprite.flip_y_);
+    ImGui::DragInt("Sorting Order", &sprite.sorting_order_);
+}
+
 void draw_environment(vulcal::scene::EnvironmentComponent& environment) {
     ImGui::ColorEdit3("Ambient", &environment.ambient_color_.x);
     ImGui::ColorEdit3("Background", &environment.clear_color_.x);
@@ -180,6 +196,8 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
                 draw_transform(entity.get_component<vulcal::scene::TransformComponent>());
             draw_component<vulcal::scene::MeshRendererComponent>(entity, "Mesh Renderer",
                                                                  [&](auto& mesh) { draw_mesh_renderer(mesh, context, actions); });
+            draw_component<vulcal::scene::SpriteRendererComponent>(entity, "Sprite Renderer",
+                                                                   [&](auto& sprite) { draw_sprite_renderer(sprite, context, actions); });
             draw_component<vulcal::scene::CameraComponent>(entity, "Camera", draw_camera);
             draw_component<vulcal::scene::LightComponent>(entity, "Light", draw_light);
             draw_component<vulcal::scene::EnvironmentComponent>(entity, "Environment", draw_environment);
@@ -192,6 +210,7 @@ void InspectorPanel::draw(EditorContext& context, bool& open, EditorActions* act
                 add_component_item<vulcal::scene::LightComponent>(context, entity, "Light", true);
                 add_component_item<vulcal::scene::EnvironmentComponent>(context, entity, "Environment", true);
                 add_component_item<vulcal::scene::ScriptComponent>(context, entity, "Script");
+                add_component_item<vulcal::scene::SpriteRendererComponent>(context, entity, "Sprite Renderer");
                 ImGui::EndPopup();
             }
             ImGui::PopID();

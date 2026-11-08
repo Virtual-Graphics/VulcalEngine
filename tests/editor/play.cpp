@@ -33,6 +33,27 @@ TEST(EditorPlay, ClonesSceneAndRoutesSelectionWithoutChangingEditData) {
     EXPECT_EQ(edit.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/move.lua");
 }
 
+TEST(EditorPlay, ClonesSpriteRendererComponent) {
+    editor::EditorContext context;
+    context.new_scene();
+    auto edit    = context.create_entity();
+    auto& sprite = edit.add_component<vulcal::scene::SpriteRendererComponent>();
+    sprite.texture_asset_id_ = base::UUID{ 123 };
+    sprite.sorting_order_    = 7;
+    const auto id            = edit.get_component<vulcal::scene::IDComponent>().id_;
+
+    context.begin_play();
+    vulcal::scene::Entity runtime;
+    context.scene().each<vulcal::scene::IDComponent>([&](auto entity, const auto& component) {
+        if (component.id_ == id) runtime = entity;
+    });
+    ASSERT_TRUE(runtime.valid());
+    ASSERT_TRUE(runtime.has_component<vulcal::scene::SpriteRendererComponent>());
+    EXPECT_EQ(runtime.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, base::UUID{ 123 });
+    EXPECT_EQ(runtime.get_component<vulcal::scene::SpriteRendererComponent>().sorting_order_, 7);
+    context.end_play();
+}
+
 TEST(EditorPlay, RestoresCurrentRuntimeSelectionByUuidRatherThanEntityHandle) {
     editor::EditorContext context;
     context.new_scene();

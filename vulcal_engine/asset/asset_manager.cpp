@@ -47,6 +47,11 @@ std::shared_ptr<const render::Material> AssetManager::load_material(AssetID id) 
                                                 [&] { return library_.load_material(id); });
 }
 
+std::shared_ptr<const render::TextureData> AssetManager::load_texture(AssetID id) {
+    return load_runtime_asset<render::TextureData>(textures_, library_.directory(), id, "texture",
+                                                   [&] { return library_.load_texture(id); });
+}
+
 AssetID AssetManager::add_mesh(render::MeshData mesh) {
     const auto id = AssetID::generate();
     auto data     = std::make_shared<const render::MeshData>(std::move(mesh));
@@ -63,19 +68,32 @@ AssetID AssetManager::add_material(render::Material material) {
     return id;
 }
 
+AssetID AssetManager::add_texture(render::TextureData texture) {
+    const auto id = AssetID::generate();
+    auto data     = std::make_shared<const render::TextureData>(std::move(texture));
+    textures_.store(id, data);
+    base::log::debug("AssetManager: registered procedural texture {} ({}x{})", id.to_string(), data->width_, data->height_);
+    return id;
+}
+
 void AssetManager::invalidate(AssetID id) {
     const bool mesh     = meshes_.erase(id);
     const bool material = materials_.erase(id);
-    if (mesh || material) base::log::debug("AssetManager: invalidated asset {} (mesh {}, material {})", id.to_string(), mesh, material);
+    const bool texture  = textures_.erase(id);
+    if (mesh || material || texture) {
+        base::log::debug("AssetManager: invalidated asset {} (mesh {}, material {}, texture {})", id.to_string(), mesh, material, texture);
+    }
 }
 
 void AssetManager::clear() {
-    if (!meshes_.empty() || !materials_.empty()) {
-        base::log::debug("AssetManager: clearing CPU cache ({} meshes, {} materials, {} cached failures)", meshes_.size(),
-                         materials_.size(), meshes_.failure_count() + materials_.failure_count());
+    if (!meshes_.empty() || !materials_.empty() || !textures_.empty()) {
+        base::log::debug("AssetManager: clearing CPU cache ({} meshes, {} materials, {} textures, {} cached failures)", meshes_.size(),
+                         materials_.size(), textures_.size(),
+                         meshes_.failure_count() + materials_.failure_count() + textures_.failure_count());
     }
     meshes_.clear();
     materials_.clear();
+    textures_.clear();
 }
 
 void AssetManager::set_directory(std::filesystem::path directory) {

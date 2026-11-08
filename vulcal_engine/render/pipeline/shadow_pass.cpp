@@ -82,6 +82,8 @@ void ShadowPass::prepare(PassContext& ctx) {
 }
 
 void ShadowPass::draw(PassContext& ctx, const DrawItem& item) {
+    if (item.kind_ != RenderItemKind::Mesh) return;
+
     program_.set("u_model", item.world_transform_);
     gfx::Command::draw_indexed(item.mesh_->vertex_array());
 }

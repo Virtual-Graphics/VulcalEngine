@@ -18,6 +18,8 @@ const char* type_name(vulcal::asset::AssetType type) {
             return "mesh";
         case vulcal::asset::AssetType::Material:
             return "material";
+        case vulcal::asset::AssetType::Texture:
+            return "texture";
     }
     throw std::invalid_argument("Unsupported asset type");
 }
@@ -25,6 +27,7 @@ const char* type_name(vulcal::asset::AssetType type) {
 vulcal::asset::AssetType parse_type(const std::string& type, const std::filesystem::path& path) {
     if (type == "mesh") return vulcal::asset::AssetType::Mesh;
     if (type == "material") return vulcal::asset::AssetType::Material;
+    if (type == "texture") return vulcal::asset::AssetType::Texture;
     throw std::runtime_error("Unsupported asset type in metadata: " + path.string());
 }
 

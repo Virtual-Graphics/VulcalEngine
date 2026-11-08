@@ -95,6 +95,35 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
         data.items_.push_back(render::RenderItem{ mesh, material, transform.matrix() });
     }
 
+    const auto sprite_view = scene.registry().view<const TransformComponent, const SpriteRendererComponent>();
+    for (const auto entity: sprite_view) {
+        const auto& transform = sprite_view.get<const TransformComponent>(entity);
+        const auto& sprite    = sprite_view.get<const SpriteRendererComponent>(entity);
+        if (!sprite.visible_ || !resources_) {
+            continue;
+        }
+
+        render::TextureHandle texture{};
+        if (!sprite.texture_asset_id_.is_nil()) {
+            texture = resources_->resolve_texture(sprite.texture_asset_id_);
+            if (texture.value_ == 0) continue;
+        }
+
+        data.items_.push_back(render::RenderItem{
+            .world_transform_ = transform.matrix(),
+            .kind_            = render::RenderItemKind::Sprite,
+            .sprite_          = render::SpriteData{
+                .texture_       = texture,
+                .color_         = sprite.color_,
+                .uv_rect_       = sprite.uv_rect_,
+                .pivot_         = sprite.pivot_,
+                .flip_x_        = sprite.flip_x_,
+                .flip_y_        = sprite.flip_y_,
+                .sorting_order_ = sprite.sorting_order_,
+            },
+        });
+    }
+
     return data;
 }
 

@@ -43,6 +43,7 @@ public:
     void save_scene_as();
     void import_mesh_asset();
     void import_material_asset();
+    void import_texture_asset();
     void assign_script();
 
     template<typename Operation>
@@ -64,6 +65,7 @@ public:
 
 private:
     vulcal::scene::Entity require_selected_mesh_renderer(const char* asset_name) const;
+    vulcal::scene::Entity require_selected_sprite_renderer(const char* asset_name) const;
     vulcal::scene::Entity require_selected_script() const;
     void reset_project_resources();
 

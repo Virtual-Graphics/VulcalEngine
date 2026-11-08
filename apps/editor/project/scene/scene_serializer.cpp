@@ -49,6 +49,21 @@ void fields(YAML::Node n, MeshRendererComponent& c, bool load) {
     }
 }
 
+void fields(YAML::Node n, SpriteRendererComponent& c, bool load) {
+    if (load) {
+        c.texture_asset_id_ = base::UUID{ n["texture_asset_id"].as<std::uint64_t>() };
+    } else {
+        n["texture_asset_id"] = c.texture_asset_id_.value();
+    }
+    field(n, "color", c.color_, load);
+    field(n, "uv_rect", c.uv_rect_, load);
+    field(n, "pivot", c.pivot_, load);
+    field(n, "flip_x", c.flip_x_, load);
+    field(n, "flip_y", c.flip_y_, load);
+    field(n, "sorting_order", c.sorting_order_, load);
+    field(n, "visible", c.visible_, load);
+}
+
 void fields(YAML::Node n, CameraComponent& c, bool load) {
     std::string projection = c.projection_type_ == CameraComponent::ProjectionType::Perspective ? "perspective" : "orthographic";
     field(n, "projection", projection, load);
@@ -115,6 +130,7 @@ void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::fi
         node["name"] = registry.get<TagComponent>(entity).name_;
         save_component<TransformComponent>(node, "transform", registry, entity);
         save_component<MeshRendererComponent>(node, "mesh_renderer", registry, entity);
+        save_component<SpriteRendererComponent>(node, "sprite_renderer", registry, entity);
         save_component<CameraComponent>(node, "camera", registry, entity);
         save_component<LightComponent>(node, "light", registry, entity);
         save_component<EnvironmentComponent>(node, "environment", registry, entity);
@@ -142,6 +158,7 @@ std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::fi
         entity.get_component<IDComponent>().id_ = base::UUID{ id };
         fields(node["transform"], entity.get_component<TransformComponent>(), true);
         load_component<MeshRendererComponent>(node, "mesh_renderer", entity);
+        load_component<SpriteRendererComponent>(node, "sprite_renderer", entity);
         load_component<CameraComponent>(node, "camera", entity);
         load_component<LightComponent>(node, "light", entity);
         load_component<EnvironmentComponent>(node, "environment", entity);
