@@ -284,6 +284,35 @@ TEST(SceneCopy, PreservesScriptComponent) {
     EXPECT_EQ(copied_source.get_component<vulcal::scene::ScriptComponent>().script_path_, "Scripts/player.lua");
 }
 
+TEST(SceneCopy, PreservesSpriteRendererComponent) {
+    vulcal::scene::Scene scene;
+    auto source  = scene.create_entity("Sprite");
+    auto& sprite = source.add_component<vulcal::scene::SpriteRendererComponent>();
+    sprite.texture_asset_id_ = base::UUID{ 777 };
+    sprite.color_            = { 0.1f, 0.2f, 0.3f, 0.4f };
+    sprite.uv_rect_          = { 0.05f, 0.1f, 0.95f, 0.9f };
+    sprite.pivot_            = { 0.0f, 0.0f };
+    sprite.flip_x_           = true;
+    sprite.flip_y_           = false;
+    sprite.sorting_order_    = -2;
+    sprite.visible_          = false;
+
+    vulcal::scene::Scene copy = scene;
+    auto copied = find_entity_by_id(copy, source.get_component<vulcal::scene::IDComponent>().id_);
+
+    ASSERT_TRUE(copied.valid());
+    ASSERT_TRUE(copied.has_component<vulcal::scene::SpriteRendererComponent>());
+    const auto& copied_sprite = copied.get_component<vulcal::scene::SpriteRendererComponent>();
+    EXPECT_EQ(copied_sprite.texture_asset_id_, base::UUID{ 777 });
+    EXPECT_EQ(copied_sprite.color_, sprite.color_);
+    EXPECT_EQ(copied_sprite.uv_rect_, sprite.uv_rect_);
+    EXPECT_EQ(copied_sprite.pivot_, sprite.pivot_);
+    EXPECT_TRUE(copied_sprite.flip_x_);
+    EXPECT_FALSE(copied_sprite.flip_y_);
+    EXPECT_EQ(copied_sprite.sorting_order_, -2);
+    EXPECT_FALSE(copied_sprite.visible_);
+}
+
 TEST(ScriptRuntime, LuaCallbacksUseBindingsAndIsolatedEnvironments) {
     const auto root   = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_lua_test_" + base::UUID::generate().to_string());
     const auto assets = root / "Assets";

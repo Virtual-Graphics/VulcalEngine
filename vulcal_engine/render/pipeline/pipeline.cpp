@@ -4,6 +4,7 @@
 #include "gfx/debug.h"
 #include "render/pipeline/forward_pass.h"
 #include "render/pipeline/shadow_pass.h"
+#include "render/pipeline/sprite_pass.h"
 #include "render/render_data.h"
 
 namespace vulcal::render {
@@ -11,6 +12,7 @@ namespace vulcal::render {
 Pipeline::Pipeline() {
     passes_.push_back(std::make_unique<ShadowPass>());
     passes_.push_back(std::make_unique<ForwardPass>());
+    passes_.push_back(std::make_unique<SpritePass>());
 }
 
 void Pipeline::render(const RenderData& data, gfx::RenderTarget* target,

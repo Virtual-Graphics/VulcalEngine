@@ -1,6 +1,7 @@
 #pragma once
 #include "glm/ext/matrix_float4x4.hpp"
 #include "render/camera.h"
+#include "render/render_item_kind.h"
 #include "render/resources/resources_handle.h"
 
 #include <cstdint>
@@ -33,10 +34,23 @@ struct Environment {
     glm::vec4 clear_color_{ 0.1f, 0.1f, 0.1f, 1.0f };
 };
 
+struct SpriteData {
+    TextureHandle texture_;
+    glm::vec4 color_{ 1.0f };
+    glm::vec4 uv_rect_{ 0.0f, 0.0f, 1.0f, 1.0f };
+    glm::vec2 pivot_{ 0.5f, 0.5f };
+    bool flip_x_                = false;
+    bool flip_y_                = false;
+    std::int32_t sorting_order_ = 0;
+};
+
 struct RenderItem {
     MeshHandle mesh_;
     MaterialHandle material_;
     glm::mat4 world_transform_{ 1.0f };
+
+    RenderItemKind kind_ = RenderItemKind::Mesh;
+    SpriteData sprite_;
 };
 
 struct RenderData {

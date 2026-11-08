@@ -39,6 +39,11 @@ protected:
         cache_       = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
         mesh_id_     = assets_.add_mesh(triangle());
         material_id_ = assets_.add_material({});
+        vulcal::render::TextureData texture;
+        texture.width_  = 1;
+        texture.height_ = 1;
+        texture.pixels_ = { 255, 255, 255, 255 };
+        texture_id_     = assets_.add_texture(std::move(texture));
     }
 
     void TearDown() override {
@@ -81,6 +86,7 @@ protected:
     std::unique_ptr<vulcal::asset::RenderAssetCache> cache_;
     vulcal::asset::AssetID mesh_id_;
     vulcal::asset::AssetID material_id_;
+    vulcal::asset::AssetID texture_id_;
 };
 
 TEST_F(RenderAssets, ReusesHandlesAcrossFrames) {
@@ -174,6 +180,101 @@ TEST_F(RenderAssets, ClearAndDestructionReleaseOnlyOwnedHandles) {
     EXPECT_NO_THROW(draw(external_mesh, external_material));
     renderer_->destroy_mesh(external_mesh);
     renderer_->destroy_material(external_material);
+}
+
+TEST_F(RenderAssets, ReusesTextureHandlesAcrossFrames) {
+    const auto texture = cache_->resolve_texture(texture_id_);
+    ASSERT_NE(texture.value_, 0u);
+    EXPECT_EQ(cache_->resolve_texture(texture_id_), texture);
+    EXPECT_EQ(cache_->resolve_texture({}).value_, 0u);
+}
+
+TEST_F(RenderAssets, ExtractorEmitsSpriteItemsWithResolvedTextures) {
+    vulcal::scene::Scene scene;
+    auto textured            = scene.create_entity("Textured");
+    auto& sprite             = textured.add_component<vulcal::scene::SpriteRendererComponent>();
+    sprite.texture_asset_id_ = texture_id_;
+    sprite.color_            = { 0.25f, 0.5f, 0.75f, 0.8f };
+    sprite.uv_rect_          = { 0.1f, 0.2f, 0.9f, 0.8f };
+    sprite.pivot_            = { 0.0f, 0.0f };
+    sprite.flip_x_           = true;
+    sprite.sorting_order_    = 7;
+    textured.get_component<vulcal::scene::TransformComponent>().translation_ = { 1.0f, 2.0f, 3.0f };
+
+    auto hidden                                                              = scene.create_entity("Hidden");
+    auto& hidden_sprite             = hidden.add_component<vulcal::scene::SpriteRendererComponent>();
+    hidden_sprite.texture_asset_id_ = texture_id_;
+    hidden_sprite.visible_          = false;
+
+    auto untextured                 = scene.create_entity("Untextured");
+    untextured.add_component<vulcal::scene::SpriteRendererComponent>();
+
+    auto missing                                                                      = scene.create_entity("Missing");
+    missing.add_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = vulcal::asset::AssetID{ 123 };
+
+    vulcal::scene::SceneExtractor extractor(*cache_);
+    vulcal::scene::SceneExtractor::Options options;
+    options.camera_override_ = vulcal::render::CameraData{};
+    const auto data          = extractor.extract(scene, options);
+
+    ASSERT_EQ(data.items_.size(), 2u);
+    const vulcal::render::RenderItem* textured_item   = nullptr;
+    const vulcal::render::RenderItem* untextured_item = nullptr;
+    for (const auto& item: data.items_) {
+        if (item.sprite_.texture_.value_ != 0) textured_item = &item;
+        else
+            untextured_item = &item;
+    }
+    ASSERT_NE(textured_item, nullptr);
+    ASSERT_NE(untextured_item, nullptr);
+
+    EXPECT_EQ(textured_item->kind_, vulcal::render::RenderItemKind::Sprite);
+    EXPECT_EQ(textured_item->sprite_.texture_, cache_->resolve_texture(texture_id_));
+    EXPECT_EQ(textured_item->sprite_.color_, sprite.color_);
+    EXPECT_EQ(textured_item->sprite_.uv_rect_, sprite.uv_rect_);
+    EXPECT_EQ(textured_item->sprite_.pivot_, sprite.pivot_);
+    EXPECT_TRUE(textured_item->sprite_.flip_x_);
+    EXPECT_FALSE(textured_item->sprite_.flip_y_);
+    EXPECT_EQ(textured_item->sprite_.sorting_order_, 7);
+    EXPECT_EQ(glm::vec3(textured_item->world_transform_[3]), (glm::vec3{ 1.0f, 2.0f, 3.0f }));
+
+    EXPECT_EQ(untextured_item->kind_, vulcal::render::RenderItemKind::Sprite);
+    EXPECT_EQ(untextured_item->sprite_.texture_.value_, 0u);
+}
+
+TEST_F(RenderAssets, RendersSpritesWithTexturesAndWhiteFallback) {
+    const auto texture = cache_->resolve_texture(texture_id_);
+
+    vulcal::render::RenderData data;
+    data.items_.push_back(vulcal::render::RenderItem{
+        .world_transform_ = glm::mat4{ 1.0f },
+        .kind_            = vulcal::render::RenderItemKind::Sprite,
+        .sprite_ =
+                vulcal::render::SpriteData{
+                                      .texture_       = texture,
+                                      .color_         = { 1.0f, 0.5f, 0.25f, 0.75f },
+                                      .uv_rect_       = { 0.0f, 0.0f, 1.0f, 1.0f },
+                                      .pivot_         = { 0.5f, 0.5f },
+                                      .sorting_order_ = 1,
+                                      },
+    });
+    data.items_.push_back(vulcal::render::RenderItem{
+        .world_transform_ = glm::mat4{ 1.0f },
+        .kind_            = vulcal::render::RenderItemKind::Sprite,
+        .sprite_          = vulcal::render::SpriteData{ .texture_ = {}, .sorting_order_ = 2 },
+    });
+
+    EXPECT_NO_THROW(renderer_->render(data));
+}
+
+TEST_F(RenderAssets, RejectsInvalidSpriteTextureHandle) {
+    vulcal::render::RenderData data;
+    data.items_.push_back(vulcal::render::RenderItem{
+        .kind_   = vulcal::render::RenderItemKind::Sprite,
+        .sprite_ = vulcal::render::SpriteData{ .texture_ = vulcal::render::TextureHandle{ 999 } },
+    });
+
+    EXPECT_THROW(renderer_->render(data), std::invalid_argument);
 }
 
 TEST_F(RenderAssets, ExtractorUsesBoundCacheAndSkipsMissingOrInvisibleAssets) {

@@ -2,6 +2,8 @@
 
 #include "base/logger.h"
 
+#include <tuple>
+
 namespace vulcal::scene {
 namespace {
 
@@ -12,6 +14,22 @@ void copy_component(entt::registry& destination, const entt::registry& source, e
     }
 }
 
+using SceneComponentTypes = std::tuple<
+    IDComponent,
+    TagComponent,
+    TransformComponent,
+    MeshRendererComponent,
+    SpriteRendererComponent,
+    CameraComponent,
+    LightComponent,
+    EnvironmentComponent,
+    ScriptComponent>;
+
+template<typename... Components>
+void copy_components(entt::registry& destination, const entt::registry& source, entt::entity entity, std::tuple<Components...>) {
+    (copy_component<Components>(destination, source, entity), ...);
+}
+
 } // namespace
 
 Scene::Scene(const Scene& other) {
@@ -19,14 +37,7 @@ Scene::Scene(const Scene& other) {
 
     for (auto [entity]: entities.each()) {
         const auto copy = registry_.create(entity);
-        copy_component<IDComponent>(registry_, other.registry_, copy);
-        copy_component<TagComponent>(registry_, other.registry_, copy);
-        copy_component<TransformComponent>(registry_, other.registry_, copy);
-        copy_component<MeshRendererComponent>(registry_, other.registry_, copy);
-        copy_component<CameraComponent>(registry_, other.registry_, copy);
-        copy_component<LightComponent>(registry_, other.registry_, copy);
-        copy_component<EnvironmentComponent>(registry_, other.registry_, copy);
-        copy_component<ScriptComponent>(registry_, other.registry_, copy);
+        copy_components(registry_, other.registry_, copy, SceneComponentTypes{});
     }
 }
 

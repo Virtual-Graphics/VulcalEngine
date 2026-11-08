@@ -2,6 +2,7 @@
 
 #include "asset/material_asset.h"
 #include "asset/mesh_asset.h"
+#include "asset/texture_asset.h"
 #include "base/logger.h"
 
 #include <stdexcept>
@@ -14,6 +15,7 @@ AssetLibrary::AssetLibrary(std::filesystem::path directory)
 
 std::filesystem::path AssetLibrary::mesh_path(AssetID id) const { return directory_ / (id.to_string() + ".vmesh"); }
 std::filesystem::path AssetLibrary::material_path(AssetID id) const { return directory_ / (id.to_string() + ".vmatc"); }
+std::filesystem::path AssetLibrary::texture_path(AssetID id) const { return directory_ / (id.to_string() + ".vtex"); }
 
 render::MeshData AssetLibrary::load_mesh(AssetID id) const {
     if (id.is_nil()) {
@@ -29,6 +31,13 @@ render::Material AssetLibrary::load_material(AssetID id) const {
     const auto path = material_path(id);
     base::log::debug("AssetLibrary: loading material {} from {}", id.to_string(), path.string());
     return MaterialAsset::read(path);
+}
+
+render::TextureData AssetLibrary::load_texture(AssetID id) const {
+    if (id.is_nil()) throw std::invalid_argument("Cannot load a texture with an empty asset ID");
+    const auto path = texture_path(id);
+    base::log::debug("AssetLibrary: loading texture {} from {}", id.to_string(), path.string());
+    return TextureAsset::read(path);
 }
 
 } // namespace vulcal::asset

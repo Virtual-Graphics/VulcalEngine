@@ -5,6 +5,7 @@
 #include "asset/asset_library.h"
 #include "render/resources/material.h"
 #include "render/resources/mesh_data.h"
+#include "render/resources/texture_data.h"
 
 #include <filesystem>
 #include <memory>
@@ -21,10 +22,12 @@ public:
     std::shared_ptr<const render::MeshData> load_mesh(AssetID id);
     // Nil selects the shared default. Other IDs resolve from memory or the runtime library.
     std::shared_ptr<const render::Material> load_material(AssetID id);
+    std::shared_ptr<const render::TextureData> load_texture(AssetID id);
 
     // Procedural IDs are valid until invalidation, clear, or directory change.
     AssetID add_mesh(render::MeshData mesh);
     AssetID add_material(render::Material material);
+    AssetID add_texture(render::TextureData texture);
 
     void invalidate(AssetID id);
     void clear();
@@ -34,6 +37,7 @@ private:
     AssetLibrary library_;
     AssetCache<render::MeshData> meshes_;
     AssetCache<render::Material> materials_;
+    AssetCache<render::TextureData> textures_;
     std::shared_ptr<const render::Material> default_material_;
 };
 

@@ -4,6 +4,7 @@
 #include "render/resources/material.h"
 #include "render/resources/mesh_data.h"
 #include "render/resources/resources_handle.h"
+#include "render/resources/texture_data.h"
 
 #include <memory>
 #include <unordered_map>
@@ -28,6 +29,7 @@ public:
     // Returned handles are borrowed; callers must not destroy them directly.
     render::MeshHandle resolve_mesh(AssetID id);
     render::MaterialHandle resolve_material(AssetID id);
+    render::TextureHandle resolve_texture(AssetID id);
 
     // Releases GPU handles; CPU data remains in AssetManager.
     void invalidate(AssetID id);
@@ -42,11 +44,16 @@ private:
         std::shared_ptr<const render::Material> source_;
         render::MaterialHandle handle_;
     };
+    struct TextureEntry {
+        std::shared_ptr<const render::TextureData> source_;
+        render::TextureHandle handle_;
+    };
 
     AssetManager& assets_;
     render::Renderer& renderer_;
     std::unordered_map<AssetID, MeshEntry> meshes_;
     std::unordered_map<AssetID, MaterialEntry> materials_;
+    std::unordered_map<AssetID, TextureEntry> textures_;
 };
 
 } // namespace vulcal::asset

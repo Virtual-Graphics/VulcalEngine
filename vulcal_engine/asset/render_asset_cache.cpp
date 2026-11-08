@@ -58,6 +58,28 @@ render::MaterialHandle RenderAssetCache::resolve_material(AssetID id) {
     return handle;
 }
 
+render::TextureHandle RenderAssetCache::resolve_texture(AssetID id) {
+    auto source = assets_.load_texture(id);
+    auto it     = textures_.find(id);
+    if (it != textures_.end()) {
+        if (source == it->second.source_) return it->second.handle_;
+        base::log::debug("RenderAssetCache: releasing stale texture {} (handle {})", id.to_string(), it->second.handle_.value_);
+        renderer_.destroy_texture(it->second.handle_);
+        textures_.erase(it);
+    }
+    if (!source) return {};
+
+    const auto handle = renderer_.create_texture(*source);
+    try {
+        textures_.emplace(id, TextureEntry{ std::move(source), handle });
+    } catch (...) {
+        renderer_.destroy_texture(handle);
+        throw;
+    }
+    base::log::debug("RenderAssetCache: cached texture {} as handle {}", id.to_string(), handle.value_);
+    return handle;
+}
+
 void RenderAssetCache::invalidate(AssetID id) {
     if (const auto it = meshes_.find(id); it != meshes_.end()) {
         base::log::debug("RenderAssetCache: invalidating mesh {} (handle {})", id.to_string(), it->second.handle_.value_);
@@ -69,16 +91,24 @@ void RenderAssetCache::invalidate(AssetID id) {
         renderer_.destroy_material(it->second.handle_);
         materials_.erase(it);
     }
+    if (const auto it = textures_.find(id); it != textures_.end()) {
+        base::log::debug("RenderAssetCache: invalidating texture {} (handle {})", id.to_string(), it->second.handle_.value_);
+        renderer_.destroy_texture(it->second.handle_);
+        textures_.erase(it);
+    }
 }
 
 void RenderAssetCache::clear() {
-    if (!meshes_.empty() || !materials_.empty()) {
-        base::log::debug("RenderAssetCache: releasing GPU cache ({} meshes, {} materials)", meshes_.size(), materials_.size());
+    if (!meshes_.empty() || !materials_.empty() || !textures_.empty()) {
+        base::log::debug("RenderAssetCache: releasing GPU cache ({} meshes, {} materials, {} textures)", meshes_.size(), materials_.size(),
+                         textures_.size());
     }
     for (const auto& [id, entry]: meshes_) renderer_.destroy_mesh(entry.handle_);
     for (const auto& [id, entry]: materials_) renderer_.destroy_material(entry.handle_);
+    for (const auto& [id, entry]: textures_) renderer_.destroy_texture(entry.handle_);
     meshes_.clear();
     materials_.clear();
+    textures_.clear();
 }
 
 } // namespace vulcal::asset

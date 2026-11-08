@@ -19,6 +19,7 @@ const apps::nfd::FileFilter project_filter{ "Vulcal Project", "vproj" };
 const apps::nfd::FileFilter scene_filter{ "Vulcal Scene", "vscene" };
 const apps::nfd::FileFilter obj_filter{ "Wavefront OBJ", "obj" };
 const apps::nfd::FileFilter material_filter{ "Vulcal Material", "vmat" };
+const apps::nfd::FileFilter texture_filter{ "Image", "png,jpg,jpeg,bmp,tga" };
 const apps::nfd::FileFilter script_filter{ "Lua Script", "lua" };
 
 } // namespace
@@ -75,6 +76,16 @@ vulcal::scene::Entity EditorActions::require_selected_mesh_renderer(const char* 
     const auto target = context_.selected_entity();
     if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::MeshRendererComponent>()) {
         throw std::invalid_argument(std::string("Select an entity with a Mesh Renderer before importing a ") + asset_name);
+    }
+    return target;
+}
+
+vulcal::scene::Entity EditorActions::require_selected_sprite_renderer(const char* asset_name) const {
+    context_.require_edit_mode();
+    if (!context_.has_project()) throw std::logic_error("Open a project before importing assets");
+    const auto target = context_.selected_entity();
+    if (!context_.has_scene() || !target || !target.has_component<vulcal::scene::SpriteRendererComponent>()) {
+        throw std::invalid_argument(std::string("Select an entity with a Sprite Renderer before importing a ") + asset_name);
     }
     return target;
 }
@@ -137,6 +148,20 @@ void EditorActions::import_material_asset() {
         const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
         target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
         base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
+                         target.get_component<vulcal::scene::TagComponent>().name_,
+                         target.get_component<vulcal::scene::IDComponent>().id_.to_string());
+        render_assets_.invalidate(id);
+        assets_.invalidate(id);
+    }
+}
+
+void EditorActions::import_texture_asset() {
+    const auto target = require_selected_sprite_renderer("texture");
+    if (auto path = dialogs_.open_file(texture_filter, context_.assets_directory())) {
+        if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during texture import");
+        const auto id = apps::asset_import::AssetImporter::import(*path, context_.assets_directory(), context_.library_directory());
+        target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = id;
+        base::log::debug("Editor: assigned texture asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
         render_assets_.invalidate(id);

@@ -1,10 +1,13 @@
 #include "asset/asset_library.h"
+#include "asset/texture_asset.h"
 #include "asset_import/asset_importer.h"
 #include "asset_import/importers/material_asset_importer.h"
 #include "asset_import/meta_data.h"
 #include "asset_import/importers/obj_asset_importer.h"
+#include "asset_import/importers/texture_asset_importer.h"
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -28,6 +31,50 @@ public:
 private:
     std::filesystem::path path_;
 };
+
+void write_bmp(const std::filesystem::path& path, std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
+    constexpr std::int32_t width       = 2;
+    constexpr std::int32_t height      = 2;
+    constexpr std::uint32_t row_stride = 8;
+    constexpr std::uint32_t image_size = row_stride * height;
+
+    std::ofstream output(path, std::ios::binary);
+    auto write_u16 = [&](std::uint16_t value) {
+        const char bytes[2]{ static_cast<char>(value & 0xff), static_cast<char>((value >> 8) & 0xff) };
+        output.write(bytes, 2);
+    };
+    auto write_u32 = [&](std::uint32_t value) {
+        const char bytes[4]{ static_cast<char>(value & 0xff), static_cast<char>((value >> 8) & 0xff),
+                             static_cast<char>((value >> 16) & 0xff), static_cast<char>((value >> 24) & 0xff) };
+        output.write(bytes, 4);
+    };
+
+    output.write("BM", 2);
+    write_u32(14 + 40 + image_size);
+    write_u16(0);
+    write_u16(0);
+    write_u32(54);
+    write_u32(40);
+    write_u32(static_cast<std::uint32_t>(width));
+    write_u32(static_cast<std::uint32_t>(height));
+    write_u16(1);
+    write_u16(24);
+    write_u32(0);
+    write_u32(image_size);
+    write_u32(2835);
+    write_u32(2835);
+    write_u32(0);
+    write_u32(0);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            output.put(static_cast<char>(blue));
+            output.put(static_cast<char>(green));
+            output.put(static_cast<char>(red));
+        }
+        output.put('\0');
+        output.put('\0');
+    }
+}
 
 TEST(ObjAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMesh) {
     TemporaryDirectory directory;
@@ -82,6 +129,50 @@ TEST(AssetImporter, DispatchesObjAndVmatSourcesByExtension) {
     EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(mesh_source)).type, vulcal::asset::AssetType::Mesh);
     EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(material_source)).type,
               vulcal::asset::AssetType::Material);
+}
+
+TEST(AssetImporter, DispatchesTextureSourcesByExtension) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+
+    const auto source = assets / "sprite.BMP";
+    write_bmp(source, 10, 20, 30);
+
+    const auto id = apps::asset_import::AssetImporter::import(source, assets, library);
+
+    EXPECT_TRUE(std::filesystem::exists(library / (id.to_string() + ".vtex")));
+    EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(source)).type, vulcal::asset::AssetType::Texture);
+}
+
+TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
+    TemporaryDirectory directory;
+    const auto assets  = directory.path() / "Assets";
+    const auto library = directory.path() / ".vulcal_engine";
+    std::filesystem::create_directories(assets);
+    const auto source = assets / "sprite.bmp";
+    write_bmp(source, 10, 20, 30);
+
+    const auto first_id = apps::asset_import::TextureAssetImporter::import(source, assets, library);
+    write_bmp(source, 40, 50, 60);
+    const auto second_id = apps::asset_import::TextureAssetImporter::import(source, assets, library);
+    ASSERT_EQ(first_id, second_id);
+
+    const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
+    EXPECT_EQ(metadata.id, first_id);
+    EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Texture);
+    EXPECT_TRUE(std::filesystem::exists(library / (first_id.to_string() + ".vtex")));
+
+    const auto texture = vulcal::asset::AssetLibrary{ library }.load_texture(first_id);
+    EXPECT_EQ(texture.width_, 2u);
+    EXPECT_EQ(texture.height_, 2u);
+    EXPECT_EQ(texture.format_, vulcal::render::TextureFormat::RGBA8);
+    ASSERT_EQ(texture.pixels_.size(), 16u);
+    EXPECT_EQ(texture.pixels_[0], 40u);
+    EXPECT_EQ(texture.pixels_[1], 50u);
+    EXPECT_EQ(texture.pixels_[2], 60u);
+    EXPECT_EQ(texture.pixels_[3], 255u);
 }
 
 TEST(AssetImporter, RejectsSourcesOutsideAssetsAndUnsupportedExtensions) {

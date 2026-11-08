@@ -18,6 +18,18 @@ void write_material_file(const std::filesystem::path& path, const vulcal::render
     }
 }
 
+void write_texture_file(const std::filesystem::path& path, std::uint8_t red, std::uint8_t alpha) {
+    std::ofstream output(path, std::ios::binary);
+    output.write("VULTEX\0\0", 8);
+    base::binary::write_u32_le(output, 1);
+    base::binary::write_u32_le(output, 1);
+    base::binary::write_u32_le(output, 1);
+    base::binary::write_u32_le(output, static_cast<std::uint32_t>(vulcal::render::TextureFormat::RGBA8));
+    base::binary::write_u64_le(output, 4);
+    const std::uint8_t pixels[4]{ red, 0, 0, alpha };
+    output.write(reinterpret_cast<const char*>(pixels), 4);
+}
+
 class AssetManagerTest : public testing::Test {
 protected:
     void SetUp() override {
@@ -116,15 +128,24 @@ TEST(AssetManager, RegistersProceduralDataWithoutRenderer) {
     vulcal::render::Material material;
     material.shininess_    = 17.0f;
     const auto material_id = assets.add_material(material);
+    vulcal::render::TextureData texture;
+    texture.width_        = 1;
+    texture.height_       = 1;
+    texture.pixels_       = { 10, 20, 30, 40 };
+    const auto texture_id = assets.add_texture(std::move(texture));
 
     EXPECT_FALSE(mesh_id.is_nil());
     EXPECT_FALSE(material_id.is_nil());
+    EXPECT_FALSE(texture_id.is_nil());
     const auto loaded = assets.load_mesh(mesh_id);
     ASSERT_TRUE(loaded);
     EXPECT_FLOAT_EQ(loaded->vertices_[0].position.x, 4.0f);
     const auto loaded_material = assets.load_material(material_id);
     ASSERT_TRUE(loaded_material);
     EXPECT_FLOAT_EQ(loaded_material->shininess_, 17.0f);
+    const auto loaded_texture = assets.load_texture(texture_id);
+    ASSERT_TRUE(loaded_texture);
+    EXPECT_EQ(loaded_texture->pixels_, (std::vector<std::uint8_t>{ 10, 20, 30, 40 }));
 }
 
 TEST(AssetManager, SharesDefaultMaterialOnlyForNilId) {
@@ -174,6 +195,41 @@ TEST_F(AssetManagerTest, MissingMaterialCanBeRetriedAfterInvalidation) {
     const auto loaded = assets.load_material(id);
     ASSERT_TRUE(loaded);
     EXPECT_FLOAT_EQ(loaded->shininess_, 24.0f);
+}
+
+TEST_F(AssetManagerTest, LoadsCompiledTextureCachesUntilInvalidated) {
+    const vulcal::asset::AssetID id{ 41 };
+    const auto path = directory_ / (id.to_string() + ".vtex");
+    write_texture_file(path, 10, 255);
+
+    vulcal::asset::AssetManager assets(directory_);
+    const auto first = assets.load_texture(id);
+    ASSERT_TRUE(first);
+    EXPECT_EQ(first->pixels_[0], 10);
+
+    write_texture_file(path, 20, 128);
+    EXPECT_EQ(assets.load_texture(id), first);
+
+    assets.invalidate(id);
+    const auto second = assets.load_texture(id);
+    ASSERT_TRUE(second);
+    EXPECT_NE(second, first);
+    EXPECT_EQ(second->pixels_[0], 20);
+    EXPECT_EQ(second->pixels_[3], 128);
+}
+
+TEST_F(AssetManagerTest, MissingTextureCanBeRetriedAfterInvalidation) {
+    const vulcal::asset::AssetID id{ 42 };
+    vulcal::asset::AssetManager assets(directory_);
+    EXPECT_FALSE(assets.load_texture(id));
+
+    write_texture_file(directory_ / (id.to_string() + ".vtex"), 30, 255);
+    EXPECT_FALSE(assets.load_texture(id));
+
+    assets.invalidate(id);
+    const auto loaded = assets.load_texture(id);
+    ASSERT_TRUE(loaded);
+    EXPECT_EQ(loaded->pixels_[0], 30);
 }
 
 TEST(AssetManager, InvalidatingOneAssetKeepsOthersAndClearReleasesRegisteredData) {

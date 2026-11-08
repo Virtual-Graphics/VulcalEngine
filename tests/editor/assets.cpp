@@ -46,6 +46,37 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
     EXPECT_EQ(component.material_asset_id_, base::UUID{ 1147797409030816545ull });
 }
 
+TEST(SceneSerializer, PersistsSpriteRendererComponent) {
+    TemporaryDirectory directory;
+    vulcal::scene::Scene scene;
+    auto entity              = scene.create_entity("Sprite");
+    auto& sprite             = entity.add_component<vulcal::scene::SpriteRendererComponent>();
+    sprite.texture_asset_id_ = base::UUID{ 1311768467463790320ull };
+    sprite.color_            = { 0.1f, 0.2f, 0.3f, 0.4f };
+    sprite.uv_rect_          = { 0.05f, 0.1f, 0.95f, 0.9f };
+    sprite.pivot_            = { 0.0f, 0.0f };
+    sprite.flip_x_           = true;
+    sprite.flip_y_           = false;
+    sprite.sorting_order_    = -3;
+    sprite.visible_          = false;
+
+    const auto path          = directory.path() / "scene.vscene";
+    editor::SceneSerializer::serialize(scene, path);
+    auto loaded     = editor::SceneSerializer::deserialize(path);
+    const auto view = loaded->registry().view<vulcal::scene::SpriteRendererComponent>();
+    ASSERT_EQ(view.size(), 1u);
+    const auto& component = view.get<vulcal::scene::SpriteRendererComponent>(view.front());
+
+    EXPECT_EQ(component.texture_asset_id_, base::UUID{ 1311768467463790320ull });
+    EXPECT_EQ(component.color_, sprite.color_);
+    EXPECT_EQ(component.uv_rect_, sprite.uv_rect_);
+    EXPECT_EQ(component.pivot_, sprite.pivot_);
+    EXPECT_TRUE(component.flip_x_);
+    EXPECT_FALSE(component.flip_y_);
+    EXPECT_EQ(component.sorting_order_, -3);
+    EXPECT_FALSE(component.visible_);
+}
+
 TEST(SceneSerializer, PersistsScriptComponentPath) {
     TemporaryDirectory directory;
     vulcal::scene::Scene scene;

@@ -1,52 +1,20 @@
 format_version: 1
 entities:
-  - id: 1838377709232359917
+  - id: 4703588741493806554
     name: Entity
     transform:
-      translation: [0.0500000007, 0.449999988, 0.300000012]
-      rotation: [0, 0.0261799395, 0]
-      scale: [1, 1, 1]
-    mesh_renderer:
-      mesh_asset_id: 11559153236028480115
-      material_asset_id: 11102779953852357662
-      visible: true
-  - id: 8912122927174721280
-    name: Entity
-    transform:
-      translation: [0, 0, 0]
-      rotation: [0, 0, 0]
-      scale: [4, 4, 4]
-    mesh_renderer:
-      mesh_asset_id: 11559153236028480115
-      material_asset_id: 0
-      visible: true
-  - id: 3950411888081444643
-    name: Environment
-    transform:
-      translation: [0, 0, 0]
+      translation: [0.649999976, 0.300000012, 0]
       rotation: [0, 0, 0]
       scale: [1, 1, 1]
-    environment:
-      ambient_color: [0.150000006, 0.150000006, 0.150000006]
-      clear_color: [0.187716275, 0.308823526, 0.248269856, 1]
-  - id: 6826384270445376577
-    name: Camera
-    transform:
-      translation: [-0, 4, 8]
-      rotation: [-0.512389481, 0, 0]
-      scale: [1, 1, 1]
-    camera:
-      projection: perspective
-      primary: true
-      perspective_fov_y: 0.785398185
-      perspective_near: 0.100000001
-      perspective_far: 100
-      orthographic_left: -1
-      orthographic_right: 1
-      orthographic_bottom: -1
-      orthographic_top: 1
-      orthographic_near: 0.100000001
-      orthographic_far: 100
+    sprite_renderer:
+      texture_asset_id: 2644633865450366458
+      color: [1, 1, 1, 1]
+      uv_rect: [0, 0, 1, 1]
+      pivot: [0, 0.5]
+      flip_x: false
+      flip_y: false
+      sorting_order: 0
+      visible: true
   - id: 7066125730918130968
     name: Sun
     transform:
@@ -65,3 +33,50 @@ entities:
       shadow_far: 40
       shadow_depth_bias: 0.00150000001
       shadow_normal_bias: 0.0199999996
+  - id: 6826384270445376577
+    name: Camera
+    transform:
+      translation: [-0, 4, 8]
+      rotation: [-0.512389481, 0, 0]
+      scale: [1, 1, 1]
+    camera:
+      projection: perspective
+      primary: true
+      perspective_fov_y: 0.785398185
+      perspective_near: 0.100000001
+      perspective_far: 100
+      orthographic_left: -1
+      orthographic_right: 1
+      orthographic_bottom: -1
+      orthographic_top: 1
+      orthographic_near: 0.100000001
+      orthographic_far: 100
+  - id: 3950411888081444643
+    name: Environment
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    environment:
+      ambient_color: [0.150000006, 0.150000006, 0.150000006]
+      clear_color: [0.187716275, 0.308823526, 0.248269856, 1]
+  - id: 8912122927174721280
+    name: Entity
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [4, 4, 4]
+    mesh_renderer:
+      mesh_asset_id: 11559153236028480115
+      material_asset_id: 0
+      visible: true
+  - id: 1838377709232359917
+    name: Entity
+    transform:
+      translation: [0.0500000007, 0.449999988, 0.300000012]
+      rotation: [0, 0.0261799395, 0]
+      scale: [1, 1, 1]
+    mesh_renderer:
+      mesh_asset_id: 11559153236028480115
+      material_asset_id: 11102779953852357662
+      visible: true

@@ -31,6 +31,17 @@ struct MeshRendererComponent {
     bool visible_ = true;
 };
 
+struct SpriteRendererComponent {
+    asset::AssetID texture_asset_id_;
+    glm::vec4 color_{ 1.0f };
+    glm::vec4 uv_rect_{ 0.0f, 0.0f, 1.0f, 1.0f };
+    glm::vec2 pivot_{ 0.5f, 0.5f };
+    bool flip_x_                = false;
+    bool flip_y_                = false;
+    std::int32_t sorting_order_ = 0;
+    bool visible_               = true;
+};
+
 struct CameraComponent {
     enum class ProjectionType { Perspective, Orthographic };
 
