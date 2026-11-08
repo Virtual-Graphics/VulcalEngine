@@ -1,9 +1,8 @@
 #include "asset_import/meta_data.h"
 
 #include "base/logger.h"
+#include "base/string_utils.h"
 
-#include <algorithm>
-#include <cctype>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -107,9 +106,7 @@ void validate_source_file(const std::filesystem::path& source_file, const std::f
         throw std::invalid_argument(asset_name + " source file does not exist: " + source_file.string());
     }
 
-    auto actual_extension = source_file.extension().string();
-    std::transform(actual_extension.begin(), actual_extension.end(), actual_extension.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const auto actual_extension = base::lowercase_extension(source_file);
     if (actual_extension != extension) {
         throw std::invalid_argument("Only " + extension + " files can be imported as " + asset_name + " assets");
     }

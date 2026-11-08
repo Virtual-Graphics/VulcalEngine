@@ -377,6 +377,173 @@ TEST(ScriptRuntime, LuaExposesRotationAndScaleGettersAndSetters) {
     std::filesystem::remove_all(root);
 }
 
+TEST(ScriptRuntime, LuaExposesSceneEntitiesComponentsAndTime) {
+    const auto root   = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_api_test_" + base::UUID::generate().to_string());
+    const auto assets = root / "Assets";
+    std::filesystem::create_directories(assets);
+    std::ofstream(assets / "api.lua") << R"(
+function on_create()
+    local player = scene:find("Player")
+    assert(player ~= nil and player.valid)
+    assert(player.name == "Player")
+    assert(scene:find("Missing") == nil)
+    assert(scene:find_by_id(player.id) ~= nil)
+
+    local count = 0
+    for _, e in ipairs(scene:entities()) do count = count + 1 end
+    assert(count >= 4)
+
+    local gone = scene:create_entity("Gone")
+    gone:destroy()
+    assert(gone.valid == false)
+    assert(pcall(function() return gone.name end) == false)
+
+    local textured = scene:create_entity("Textured")
+    local textured_sprite = textured:add_sprite("111")
+    assert(textured_sprite.texture_id == "111")
+
+    local created = scene:create_entity("Created")
+    created:set_translation(1, 2, 3)
+
+    local sprite = created:add_sprite()
+    sprite.color = { 0.1, 0.2, 0.3, 0.4 }
+    sprite.uv_rect = { 0.05, 0.1, 0.95, 0.9 }
+    sprite.pivot = { 0.0, 0.5 }
+    sprite.flip_x = true
+    sprite.sorting_order = 4
+    assert(sprite.texture_id == "0")
+
+    local camera = created:add_camera()
+    camera.projection = "orthographic"
+    camera.fov = 60
+    camera.near = 0.2
+    camera.far = 500
+    camera.left = -10
+    camera.right = 10
+    camera.bottom = -5
+    camera.top = 5
+    camera.primary = false
+    assert(math.abs(camera.fov - 60) < 1e-4)
+
+    local light = created:add_light()
+    light.color = { 1, 0.5, 0.25 }
+    light.intensity = 2.5
+    light.shadow_enabled = false
+    created:remove_light()
+    assert(created.light == nil)
+
+    local mesh = created:add_mesh("111", "222")
+    mesh.visible = false
+    assert(mesh.mesh_id == "111")
+    assert(mesh.material_id == "222")
+
+    assert(created.sprite ~= nil)
+    assert(created.camera ~= nil)
+    assert(created.mesh ~= nil)
+
+    local environment = scene.environment
+    assert(environment ~= nil)
+    environment.ambient_color = { 0.1, 0.2, 0.3 }
+    environment.clear_color = { 0.4, 0.5, 0.6, 1 }
+
+    player:remove_sprite()
+    player:remove_mesh()
+    player:remove_light()
+    player:remove_camera()
+
+    assert(Time.delta == 0)
+    assert(Time.elapsed == 0)
+    assert(Time.frame == 0)
+    local mouse_x, mouse_y = Input.mouse_position()
+    assert(type(mouse_x) == "number" and type(mouse_y) == "number")
+    assert(Input.key_axis(Key.A, Key.D) == 0)
+end
+
+function on_update(dt)
+    assert(math.abs(Time.delta - dt) < 1e-6)
+    assert(Time.elapsed > 0)
+    assert(Time.frame >= 1)
+    local target = scene:find("ToDestroy")
+    if target then scene:destroy(target) end
+end
+)";
+
+    vulcal::scene::Scene scene;
+    auto player = scene.create_entity("Player");
+    player.add_component<vulcal::scene::SpriteRendererComponent>();
+    auto environment = scene.create_entity("Environment");
+    environment.add_component<vulcal::scene::EnvironmentComponent>();
+    auto runner = scene.create_entity("Runner");
+    runner.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/api.lua";
+    auto target = scene.create_entity("ToDestroy");
+
+    const auto find_by_name = [&scene](const std::string& name) {
+        for (const auto handle: scene.registry().view<const vulcal::scene::TagComponent>()) {
+            const auto& tag = scene.registry().get<const vulcal::scene::TagComponent>(handle);
+            if (tag.name_ == name) return vulcal::scene::Entity{ handle, scene };
+        }
+        return vulcal::scene::Entity{};
+    };
+
+    vulcal::script::ScriptRuntime runtime;
+    runtime.start(scene, root, assets);
+    EXPECT_TRUE(runtime.running());
+
+    EXPECT_FALSE(find_by_name("Gone"));
+    auto textured = find_by_name("Textured");
+    ASSERT_TRUE(textured);
+    ASSERT_TRUE(textured.has_component<vulcal::scene::SpriteRendererComponent>());
+    EXPECT_EQ(textured.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, base::UUID{ 111 });
+
+    auto created = find_by_name("Created");
+    ASSERT_TRUE(created);
+    expect_near(created.get_component<vulcal::scene::TransformComponent>().translation_, { 1.0f, 2.0f, 3.0f });
+
+    ASSERT_TRUE(created.has_component<vulcal::scene::SpriteRendererComponent>());
+    const auto& sprite = created.get_component<vulcal::scene::SpriteRendererComponent>();
+    EXPECT_EQ(sprite.color_, (glm::vec4{ 0.1f, 0.2f, 0.3f, 0.4f }));
+    EXPECT_EQ(sprite.uv_rect_, (glm::vec4{ 0.05f, 0.1f, 0.95f, 0.9f }));
+    EXPECT_EQ(sprite.pivot_, (glm::vec2{ 0.0f, 0.5f }));
+    EXPECT_TRUE(sprite.flip_x_);
+    EXPECT_FALSE(sprite.flip_y_);
+    EXPECT_EQ(sprite.sorting_order_, 4);
+
+    ASSERT_TRUE(created.has_component<vulcal::scene::CameraComponent>());
+    const auto& camera = created.get_component<vulcal::scene::CameraComponent>();
+    EXPECT_EQ(camera.projection_type_, vulcal::scene::CameraComponent::ProjectionType::Orthographic);
+    EXPECT_NEAR(camera.perspective_fov_y_, glm::radians(60.0f), 1e-4f);
+    EXPECT_NEAR(camera.orthographic_near_, 0.2f, 1e-5f);
+    EXPECT_NEAR(camera.orthographic_far_, 500.0f, 1e-5f);
+    EXPECT_NEAR(camera.orthographic_left_, -10.0f, 1e-5f);
+    EXPECT_NEAR(camera.orthographic_right_, 10.0f, 1e-5f);
+    EXPECT_NEAR(camera.orthographic_bottom_, -5.0f, 1e-5f);
+    EXPECT_NEAR(camera.orthographic_top_, 5.0f, 1e-5f);
+    EXPECT_FALSE(camera.primary_);
+
+    EXPECT_FALSE(created.has_component<vulcal::scene::LightComponent>());
+
+    ASSERT_TRUE(created.has_component<vulcal::scene::MeshRendererComponent>());
+    const auto& mesh = created.get_component<vulcal::scene::MeshRendererComponent>();
+    EXPECT_FALSE(mesh.visible_);
+    EXPECT_EQ(mesh.mesh_asset_id_, base::UUID{ 111 });
+    EXPECT_EQ(mesh.material_asset_id_, base::UUID{ 222 });
+
+    const auto& env = environment.get_component<vulcal::scene::EnvironmentComponent>();
+    EXPECT_EQ(env.ambient_color_, (glm::vec3{ 0.1f, 0.2f, 0.3f }));
+    EXPECT_EQ(env.clear_color_, (glm::vec4{ 0.4f, 0.5f, 0.6f, 1.0f }));
+
+    EXPECT_FALSE(player.has_component<vulcal::scene::SpriteRendererComponent>());
+    EXPECT_TRUE(target.valid());
+
+    runtime.update(0.05f);
+    EXPECT_FALSE(target.valid());
+    EXPECT_FALSE(find_by_name("ToDestroy"));
+    runtime.stop();
+    EXPECT_FALSE(runtime.running());
+
+    std::filesystem::remove_all(root);
+}
+
 TEST(ScriptRuntime, RejectsPathsOutsideAssetsAndUnsupportedExtensions) {
     const auto root   = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_paths_test_" + base::UUID::generate().to_string());
     const auto assets = root / "Assets";
@@ -441,8 +608,9 @@ TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFail
         explicit FakeBackend(State& state)
                 : state_(state) {}
         std::string_view extension() const override { return ".lua"; }
-        std::unique_ptr<vulcal::script::ScriptInstance> create(vulcal::scene::Entity entity, const std::filesystem::path&) override {
-            const auto fails = entity.get_component<vulcal::scene::TagComponent>().name_ == "Fails";
+        std::unique_ptr<vulcal::script::ScriptInstance> create(const vulcal::script::ScriptContext& context,
+                const std::filesystem::path&) override {
+            const auto fails = context.entity.get_component<vulcal::scene::TagComponent>().name_ == "Fails";
             return std::make_unique<FakeInstance>(state_, fails);
         }
 

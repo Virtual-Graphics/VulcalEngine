@@ -1,6 +1,7 @@
 #include "editor/project/project_manager.h"
 
 #include "base/logger.h"
+#include "base/string_utils.h"
 #include "editor/project/scene/default_scene.h"
 #include "editor/project/scene/scene_serializer.h"
 #include "scene/scene.h"
@@ -48,7 +49,7 @@ void ProjectManager::create_project(const std::filesystem::path& directory, cons
 
 void ProjectManager::open_project(const std::filesystem::path& project_file) {
     base::log::debug("ProjectManager: opening project {}", project_file.string());
-    if (project_file.extension() != ".vproj") {
+    if (!base::has_extension(project_file, ".vproj")) {
         throw std::invalid_argument("Select a .vproj project file");
     }
 

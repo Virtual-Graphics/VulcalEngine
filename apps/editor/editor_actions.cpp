@@ -4,6 +4,7 @@
 #include "asset/render_asset_cache.h"
 #include "asset_import/asset_importer.h"
 #include "base/logger.h"
+#include "base/string_utils.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_context.h"
 #include "scene/components.h"
@@ -106,7 +107,7 @@ void EditorActions::assign_script() {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during script assignment");
         std::error_code error;
         const auto selected = std::filesystem::canonical(*path, error);
-        if (error || selected.extension() != ".lua" || !std::filesystem::is_regular_file(selected)) {
+        if (error || !base::has_extension(selected, ".lua") || !std::filesystem::is_regular_file(selected)) {
             throw std::invalid_argument("Select an existing .lua script inside the Assets directory");
         }
         const auto assets = std::filesystem::canonical(context_.assets_directory(), error);
