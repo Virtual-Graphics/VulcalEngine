@@ -75,9 +75,9 @@ void ShadowPass::prepare(PassContext& ctx) {
     ctx.shadow_map_ = target_->depth();
 
     target_->bind();
+    bind_pipeline();
     target_->clear_depth();
 
-    bind_pipeline();
     program_.set("u_light_view_proj", ctx.light_view_proj_);
 }
 
