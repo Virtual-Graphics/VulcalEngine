@@ -41,11 +41,14 @@ public:
     std::filesystem::path current_build_dir() const;
     const ProjectInfo& current_project_info() const;
     std::filesystem::path current_scene_file() const;
+    std::filesystem::path resolved_last_edited_scene() const;
 
     vulcal::scene::Scene* current_scene();
     const vulcal::scene::Scene* current_scene() const;
 
 private:
+    void remember_last_edited_scene(const std::filesystem::path& scene_file);
+
     std::filesystem::path current_project_file_;
     ProjectInfo current_project_info_;
     std::filesystem::path current_scene_file_;

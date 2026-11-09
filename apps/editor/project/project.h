@@ -11,17 +11,19 @@ struct ProjectInfo {
     std::string description;
     std::string author;
 
-    // relative path to project file
+    // relative paths to project file
     std::filesystem::path assets_path;
+    std::filesystem::path last_edited_scene;
 };
 
 inline bool save_project_info(const std::filesystem::path& project_file, const ProjectInfo& info) {
     YAML::Emitter out;
     out << YAML::BeginMap;
-    out << YAML::Key << "name"        << YAML::Value << info.name;
-    out << YAML::Key << "description" << YAML::Value << info.description;
-    out << YAML::Key << "author"      << YAML::Value << info.author;
-    out << YAML::Key << "assets_path" << YAML::Value << info.assets_path.string();
+    out << YAML::Key << "name"              << YAML::Value << info.name;
+    out << YAML::Key << "description"       << YAML::Value << info.description;
+    out << YAML::Key << "author"            << YAML::Value << info.author;
+    out << YAML::Key << "assets_path"       << YAML::Value << info.assets_path.string();
+    out << YAML::Key << "last_edited_scene" << YAML::Value << info.last_edited_scene.generic_string();
     out << YAML::EndMap;
 
     std::ofstream fout(project_file);
@@ -39,10 +41,11 @@ inline bool load_project_info(const std::filesystem::path& project_file, Project
             return false;
         }
 
-        info.name           = node["name"].as<std::string>();
-        info.description    = node["description"].as<std::string>();
-        info.author         = node["author"].as<std::string>();
-        info.assets_path    = node["assets_path"].as<std::string>();
+        info.name              = node["name"].as<std::string>();
+        info.description       = node["description"].as<std::string>();
+        info.author            = node["author"].as<std::string>();
+        info.assets_path       = node["assets_path"].as<std::string>();
+        info.last_edited_scene = node["last_edited_scene"].as<std::string>();
     } catch (const YAML::Exception&) {
         return false;
     }

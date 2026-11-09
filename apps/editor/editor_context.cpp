@@ -107,6 +107,21 @@ void EditorContext::create_project(const std::filesystem::path& directory, const
 void EditorContext::open_project(const std::filesystem::path& project_file) {
     require_edit_mode();
     project_manager_.open_project(project_file);
+
+    const auto last_scene = project_manager_.resolved_last_edited_scene();
+    if (!last_scene.empty()) {
+        std::error_code check_error;
+        if (std::filesystem::is_regular_file(last_scene, check_error)) {
+            try {
+                open_scene(last_scene);
+                return;
+            } catch (const std::exception& open_error) {
+                base::log::warn("Failed to open last edited scene '{}': {}", last_scene.string(), open_error.what());
+            }
+        } else {
+            base::log::warn("Last edited scene '{}' is missing; starting a new scene", last_scene.string());
+        }
+    }
     new_scene();
 }
 

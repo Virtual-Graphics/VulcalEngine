@@ -116,6 +116,7 @@ void ProjectManager::open_scene(const std::filesystem::path& scene_file) {
     }
     opened_scene_       = std::move(scene);
     current_scene_file_ = scene_file;
+    remember_last_edited_scene(scene_file);
     base::log::info("Loaded scene from {}", scene_file.string());
 }
 
@@ -132,6 +133,7 @@ void ProjectManager::save_scene(const std::filesystem::path& scene_file) {
         throw std::runtime_error("Failed to serialize scene to " + scene_file.string() + ": " + error.what());
     }
     current_scene_file_ = scene_file;
+    remember_last_edited_scene(scene_file);
     base::log::info("Saved scene to {}", scene_file.string());
 }
 
@@ -174,6 +176,26 @@ std::filesystem::path ProjectManager::current_build_dir() const {
 const ProjectInfo& ProjectManager::current_project_info() const { return current_project_info_; }
 
 std::filesystem::path ProjectManager::current_scene_file() const { return current_scene_file_; }
+
+std::filesystem::path ProjectManager::resolved_last_edited_scene() const {
+    if (!has_project() || current_project_info_.last_edited_scene.empty()) return {};
+    const auto& scene_file = current_project_info_.last_edited_scene;
+    return scene_file.is_absolute() ? scene_file : current_project_dir() / scene_file;
+}
+
+void ProjectManager::remember_last_edited_scene(const std::filesystem::path& scene_file) {
+    if (!has_project()) return;
+
+    std::error_code error;
+    auto relative = std::filesystem::relative(scene_file, current_project_dir(), error);
+    if (error || relative.empty()) relative = scene_file;
+    if (current_project_info_.last_edited_scene == relative) return;
+
+    current_project_info_.last_edited_scene = std::move(relative);
+    if (!save_project_info(current_project_file_, current_project_info_)) {
+        base::log::warn("Failed to save last edited scene to {}", current_project_file_.string());
+    }
+}
 
 vulcal::scene::Scene* ProjectManager::current_scene() {
     if (!opened_scene_) {
