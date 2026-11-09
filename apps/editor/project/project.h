@@ -22,7 +22,7 @@ inline bool save_project_info(const std::filesystem::path& project_file, const P
     out << YAML::Key << "name"              << YAML::Value << info.name;
     out << YAML::Key << "description"       << YAML::Value << info.description;
     out << YAML::Key << "author"            << YAML::Value << info.author;
-    out << YAML::Key << "assets_path"       << YAML::Value << info.assets_path.string();
+    out << YAML::Key << "assets_path"       << YAML::Value << info.assets_path.generic_string();
     out << YAML::Key << "last_edited_scene" << YAML::Value << info.last_edited_scene.generic_string();
     out << YAML::EndMap;
 

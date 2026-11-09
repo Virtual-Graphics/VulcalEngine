@@ -12,13 +12,13 @@
 
 namespace apps::asset_import {
 
-vulcal::asset::AssetID TextureAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& assets_directory,
+vulcal::asset::AssetID TextureAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
                                                     const std::filesystem::path& library_directory) {
-    base::log::debug("TextureAssetImporter: importing {} (assets: {}, runtime: {})", source_file.string(), assets_directory.string(),
+    base::log::debug("TextureAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
 
     const auto extension = base::lowercase_extension(source_file);
-    validate_source_file(source_file, assets_directory, extension, "texture");
+    validate_source_file(source_file, project_directory, extension, "texture");
 
     const auto image = load_image(source_file, 4);
     if (image.width == 0 || image.height == 0 || image.pixels.empty()) {

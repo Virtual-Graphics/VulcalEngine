@@ -1,6 +1,7 @@
 #include "script/script_runtime.h"
 
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "base/string_utils.h"
 #include "scene/components.h"
 #include "script/lua/lua_script_backend.h"
@@ -16,14 +17,7 @@ std::string extension_key(std::string_view extension) {
     return key;
 }
 
-bool is_within(const std::filesystem::path& path, const std::filesystem::path& root) {
-    const auto relative = path.lexically_relative(root);
-    if (relative.empty()) return path == root;
-    return *relative.begin() != "..";
-}
-
-std::filesystem::path checked_script_path(const std::string& script_path, const std::filesystem::path& project_root,
-                                          const std::filesystem::path& assets_root) {
+std::filesystem::path checked_script_path(const std::string& script_path, const std::filesystem::path& project_root) {
     const std::filesystem::path relative{ script_path };
     if (relative.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) {
         throw std::runtime_error("Script path must be project-relative");
@@ -32,11 +26,9 @@ std::filesystem::path checked_script_path(const std::string& script_path, const 
     std::error_code error;
     const auto project = std::filesystem::canonical(project_root, error);
     if (error || !std::filesystem::is_directory(project)) throw std::runtime_error("Project root does not exist");
-    const auto assets = std::filesystem::canonical(assets_root, error);
-    if (error || !std::filesystem::is_directory(assets)) throw std::runtime_error("Assets root does not exist");
     const auto script = std::filesystem::canonical(project / relative, error);
     if (error || !std::filesystem::is_regular_file(script)) throw std::runtime_error("Script file does not exist");
-    if (!is_within(script, assets)) throw std::runtime_error("Script resolves outside the Assets root");
+    if (!base::is_within(script, project)) throw std::runtime_error("Script resolves outside the project root");
     return script;
 }
 
@@ -53,14 +45,14 @@ void ScriptRuntime::register_backend(std::unique_ptr<ScriptBackend> backend) {
     backends_.insert_or_assign(std::move(extension), std::move(backend));
 }
 
-void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& project_root, const std::filesystem::path& assets_root) {
+void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& project_root) {
     stop();
     scene_ = &scene;
     scene.each<scene::ScriptComponent>([&](scene::Entity entity, scene::ScriptComponent& component) {
         const auto entity_id      = entity.get_component<scene::IDComponent>().id_.to_string();
         const auto requested_path = component.script_path_;
         try {
-            const auto path    = checked_script_path(requested_path, project_root, assets_root);
+            const auto path    = checked_script_path(requested_path, project_root);
             const auto backend = backends_.find(extension_key(path.extension().string()));
             if (backend == backends_.end()) {
                 throw std::runtime_error("No backend for script extension");

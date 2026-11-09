@@ -1,6 +1,7 @@
 #include "editor/project/project_manager.h"
 
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "base/string_utils.h"
 #include "editor/project/scene/default_scene.h"
 #include "editor/project/scene/scene_serializer.h"
@@ -37,7 +38,7 @@ void ProjectManager::create_project(const std::filesystem::path& directory, cons
     info.assets_path = "assets";
     std::filesystem::create_directories(directory / info.assets_path);
     std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "Build");
+    std::filesystem::create_directories(directory / "build");
     if (!save_project_info(project_file, info)) {
         throw std::runtime_error("Failed to create project file at " + project_file.string());
     }
@@ -59,11 +60,19 @@ void ProjectManager::open_project(const std::filesystem::path& project_file) {
         throw std::runtime_error("Failed to load project info from " + project_file.string());
     }
     const auto directory = project_file.parent_path();
+    if (info.assets_path.empty() || info.assets_path.is_absolute() || !base::is_within(directory / info.assets_path, directory)) {
+        throw std::runtime_error("Project assets path must be inside the project directory");
+    }
+    if (!info.last_edited_scene.empty() &&
+        (info.last_edited_scene.is_absolute() || !base::is_within(directory / info.last_edited_scene, directory))) {
+        base::log::warn("Ignoring last edited scene outside the project directory: {}", info.last_edited_scene.string());
+        info.last_edited_scene.clear();
+    }
     base::log::debug("ProjectManager: preparing project directories (assets: {}, runtime: {}, build: {})",
-                     (directory / info.assets_path).string(), (directory / ".vulcal_engine").string(), (directory / "Build").string());
+                     (directory / info.assets_path).string(), (directory / ".vulcal_engine").string(), (directory / "build").string());
     std::filesystem::create_directories(directory / info.assets_path);
     std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "Build");
+    std::filesystem::create_directories(directory / "build");
     current_project_file_ = project_file;
     current_project_info_ = std::move(info);
     base::log::info("Opened project '{}' from {}", current_project_info_.name, project_file.string());
@@ -103,6 +112,9 @@ void ProjectManager::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
 
 void ProjectManager::open_scene(const std::filesystem::path& scene_file) {
     base::log::debug("ProjectManager: opening scene {}", scene_file.string());
+    if (has_project() && !base::is_within(scene_file, current_project_dir())) {
+        throw std::invalid_argument("Scene must be opened inside the project directory");
+    }
     std::unique_ptr<vulcal::scene::Scene> scene;
     try {
         scene = SceneSerializer::deserialize(scene_file);
@@ -125,6 +137,9 @@ void ProjectManager::save_scene(const std::filesystem::path& scene_file) {
     if (!opened_scene_) {
         base::log::error("No scene is currently open");
         throw std::runtime_error("No scene is currently open");
+    }
+    if (has_project() && !base::is_within(scene_file, current_project_dir())) {
+        throw std::invalid_argument("Scene must be saved inside the project directory");
     }
     try {
         SceneSerializer::serialize(*opened_scene_, scene_file);
@@ -170,7 +185,7 @@ std::filesystem::path ProjectManager::current_library_dir() const {
 }
 
 std::filesystem::path ProjectManager::current_build_dir() const {
-    return has_project() ? current_project_dir() / "Build" : std::filesystem::path{};
+    return has_project() ? current_project_dir() / "build" : std::filesystem::path{};
 }
 
 const ProjectInfo& ProjectManager::current_project_info() const { return current_project_info_; }
@@ -180,15 +195,19 @@ std::filesystem::path ProjectManager::current_scene_file() const { return curren
 std::filesystem::path ProjectManager::resolved_last_edited_scene() const {
     if (!has_project() || current_project_info_.last_edited_scene.empty()) return {};
     const auto& scene_file = current_project_info_.last_edited_scene;
-    return scene_file.is_absolute() ? scene_file : current_project_dir() / scene_file;
+    if (scene_file.is_absolute()) return {};
+    const auto resolved = current_project_dir() / scene_file;
+    return base::is_within(resolved, current_project_dir()) ? resolved : std::filesystem::path{};
 }
 
 void ProjectManager::remember_last_edited_scene(const std::filesystem::path& scene_file) {
     if (!has_project()) return;
 
-    std::error_code error;
-    auto relative = std::filesystem::relative(scene_file, current_project_dir(), error);
-    if (error || relative.empty()) relative = scene_file;
+    auto relative = base::relative_to(scene_file, current_project_dir());
+    if (relative.empty()) {
+        base::log::warn("Cannot record last edited scene outside the project directory: {}", scene_file.string());
+        return;
+    }
     if (current_project_info_.last_edited_scene == relative) return;
 
     current_project_info_.last_edited_scene = std::move(relative);

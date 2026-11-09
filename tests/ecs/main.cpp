@@ -339,7 +339,7 @@ TEST(ScriptRuntime, LuaCallbacksUseBindingsAndIsolatedEnvironments) {
     second.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/counter.lua";
     vulcal::script::ScriptRuntime runtime;
 
-    runtime.start(scene, root, assets);
+    runtime.start(scene, root);
     EXPECT_TRUE(runtime.running());
     EXPECT_FLOAT_EQ(first.get_component<vulcal::scene::TransformComponent>().translation_.x, 1.0f);
     EXPECT_FLOAT_EQ(second.get_component<vulcal::scene::TransformComponent>().translation_.x, 1.0f);
@@ -367,7 +367,7 @@ TEST(ScriptRuntime, LuaExposesRotationAndScaleGettersAndSetters) {
     entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/transform.lua";
     vulcal::script::ScriptRuntime runtime;
 
-    runtime.start(scene, root, assets);
+    runtime.start(scene, root);
     expect_near(entity.get_component<vulcal::scene::TransformComponent>().rotation_, { 1.0f, 2.0f, 3.0f });
     expect_near(entity.get_component<vulcal::scene::TransformComponent>().scale_, { 4.0f, 5.0f, 6.0f });
     runtime.update(0.25f);
@@ -486,7 +486,7 @@ end
     };
 
     vulcal::script::ScriptRuntime runtime;
-    runtime.start(scene, root, assets);
+    runtime.start(scene, root);
     EXPECT_TRUE(runtime.running());
 
     EXPECT_FALSE(find_by_name("Gone"));
@@ -544,33 +544,43 @@ end
     std::filesystem::remove_all(root);
 }
 
-TEST(ScriptRuntime, RejectsPathsOutsideAssetsAndUnsupportedExtensions) {
-    const auto root   = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_paths_test_" + base::UUID::generate().to_string());
-    const auto assets = root / "Assets";
-    std::filesystem::create_directories(assets);
-    std::ofstream(assets / "valid.lua") << "function on_create() entity:set_translation(99, 0, 0) end\n";
-    std::ofstream(root / "outside.lua") << "function on_create() entity:set_translation(99, 0, 0) end\n";
-    std::ofstream(assets / "unsupported.txt") << "function on_create() entity:set_translation(99, 0, 0) end\n";
+TEST(ScriptRuntime, AllowsProjectScriptsAndRejectsOutsideProjectPaths) {
+    const auto root = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_paths_test_" + base::UUID::generate().to_string());
+    const auto outside_root = root.parent_path() / (root.filename().string() + "_outside");
+    std::filesystem::create_directories(root / "Scripts");
+    std::filesystem::create_directories(outside_root);
+    std::ofstream(root / "root.lua") << "function on_create() entity:set_translation(1, 0, 0) end\n";
+    std::ofstream(root / "Scripts" / "nested.lua") << "function on_create() entity:set_translation(2, 0, 0) end\n";
+    std::ofstream(root / "unsupported.txt") << "function on_create() entity:set_translation(3, 0, 0) end\n";
+    std::ofstream(outside_root / "outside.lua") << "function on_create() entity:set_translation(4, 0, 0) end\n";
     vulcal::scene::Scene scene;
-    auto outside                                                              = scene.create_entity("Outside");
-    auto unsupported                                                          = scene.create_entity("Unsupported");
-    auto absolute                                                             = scene.create_entity("Absolute");
-    auto missing                                                              = scene.create_entity("Missing");
-    outside.add_component<vulcal::scene::ScriptComponent>().script_path_     = "outside.lua";
-    unsupported.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/unsupported.txt";
-    absolute.add_component<vulcal::scene::ScriptComponent>().script_path_    = (assets / "valid.lua").string();
-    missing.add_component<vulcal::scene::ScriptComponent>().script_path_     = "Assets/missing.lua";
+    auto root_script                                                         = scene.create_entity("RootScript");
+    auto nested                                                              = scene.create_entity("NestedScript");
+    auto outside                                                             = scene.create_entity("Outside");
+    auto unsupported                                                         = scene.create_entity("Unsupported");
+    auto absolute                                                            = scene.create_entity("Absolute");
+    auto missing                                                             = scene.create_entity("Missing");
+    root_script.add_component<vulcal::scene::ScriptComponent>().script_path_ = "root.lua";
+    nested.add_component<vulcal::scene::ScriptComponent>().script_path_      = "Scripts/nested.lua";
+    outside.add_component<vulcal::scene::ScriptComponent>().script_path_ =
+            "../" + outside_root.filename().string() + "/outside.lua";
+    unsupported.add_component<vulcal::scene::ScriptComponent>().script_path_ = "unsupported.txt";
+    absolute.add_component<vulcal::scene::ScriptComponent>().script_path_    = (root / "root.lua").string();
+    missing.add_component<vulcal::scene::ScriptComponent>().script_path_     = "missing.lua";
     vulcal::script::ScriptRuntime runtime;
 
-    EXPECT_NO_THROW(runtime.start(scene, root, assets));
+    EXPECT_NO_THROW(runtime.start(scene, root));
     EXPECT_TRUE(runtime.running());
     runtime.stop();
     EXPECT_FALSE(runtime.running());
+    expect_near(root_script.get_component<vulcal::scene::TransformComponent>().translation_, { 1.0f, 0.0f, 0.0f });
+    expect_near(nested.get_component<vulcal::scene::TransformComponent>().translation_, { 2.0f, 0.0f, 0.0f });
     expect_near(outside.get_component<vulcal::scene::TransformComponent>().translation_, { 0.0f, 0.0f, 0.0f });
     expect_near(unsupported.get_component<vulcal::scene::TransformComponent>().translation_, { 0.0f, 0.0f, 0.0f });
     expect_near(absolute.get_component<vulcal::scene::TransformComponent>().translation_, { 0.0f, 0.0f, 0.0f });
     expect_near(missing.get_component<vulcal::scene::TransformComponent>().translation_, { 0.0f, 0.0f, 0.0f });
     std::filesystem::remove_all(root);
+    std::filesystem::remove_all(outside_root);
 }
 
 TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFailures) {
@@ -630,7 +640,7 @@ TEST(ScriptRuntime, FakeBackendUsesLanguageNeutralRuntimeContractAndContainsFail
     vulcal::script::ScriptRuntime runtime;
     runtime.register_backend(std::make_unique<FakeBackend>(state));
 
-    runtime.start(scene, root, assets);
+    runtime.start(scene, root);
     EXPECT_EQ(state.creates, 2);
     runtime.update(1.0f);
     EXPECT_EQ(state.updates, 2);

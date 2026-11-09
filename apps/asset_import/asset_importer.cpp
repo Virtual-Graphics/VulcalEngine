@@ -11,18 +11,18 @@
 namespace apps::asset_import {
 
 vulcal::asset::AssetID AssetImporter::import(const std::filesystem::path& source_file,
-                                             const std::filesystem::path& assets_directory,
+                                             const std::filesystem::path& project_directory,
                                              const std::filesystem::path& library_directory) {
     const auto extension = base::lowercase_extension(source_file);
 
     if (extension == ".obj") {
-        return ObjAssetImporter::import(source_file, assets_directory, library_directory);
+        return ObjAssetImporter::import(source_file, project_directory, library_directory);
     }
     if (extension == ".vmat") {
-        return MaterialAssetImporter::import(source_file, assets_directory, library_directory);
+        return MaterialAssetImporter::import(source_file, project_directory, library_directory);
     }
     if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".bmp" || extension == ".tga") {
-        return TextureAssetImporter::import(source_file, assets_directory, library_directory);
+        return TextureAssetImporter::import(source_file, project_directory, library_directory);
     }
     throw std::invalid_argument("Unsupported asset source extension: " + extension);
 }
