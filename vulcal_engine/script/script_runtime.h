@@ -19,7 +19,7 @@ public:
     ScriptRuntime& operator=(const ScriptRuntime&) = delete;
 
     void register_backend(std::unique_ptr<ScriptBackend> backend);
-    void start(scene::Scene& scene, const std::filesystem::path& project_root, const std::filesystem::path& assets_root);
+    void start(scene::Scene& scene, const std::filesystem::path& project_root);
     void update(float delta_time);
     void stop();
     bool running() const { return scene_ != nullptr; }

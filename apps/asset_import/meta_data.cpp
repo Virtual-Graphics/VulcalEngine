@@ -1,6 +1,7 @@
 #include "asset_import/meta_data.h"
 
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "base/string_utils.h"
 
 #include <fstream>
@@ -99,7 +100,7 @@ Metadata metadata_for_source(const std::filesystem::path& source_file, vulcal::a
     return metadata;
 }
 
-void validate_source_file(const std::filesystem::path& source_file, const std::filesystem::path& assets_directory,
+void validate_source_file(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
                           const std::string& extension, const std::string& asset_name) {
     std::error_code error;
     if (!std::filesystem::is_regular_file(source_file, error) || error) {
@@ -111,11 +112,8 @@ void validate_source_file(const std::filesystem::path& source_file, const std::f
         throw std::invalid_argument("Only " + extension + " files can be imported as " + asset_name + " assets");
     }
 
-    const auto source   = std::filesystem::weakly_canonical(source_file);
-    const auto assets   = std::filesystem::weakly_canonical(assets_directory);
-    const auto relative = source.lexically_relative(assets);
-    if (relative.empty() || relative.is_absolute() || *relative.begin() == "..") {
-        throw std::invalid_argument("Import source must be inside the project's Assets directory");
+    if (!base::is_within(source_file, project_directory)) {
+        throw std::invalid_argument("Import source must be inside the project directory");
     }
 }
 

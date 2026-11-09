@@ -37,7 +37,7 @@ void EditorLayer::play() {
         base::log::warn("Editor: scene has no primary camera; using the editor camera while playing");
     }
     try {
-        script_runtime_.start(context_.scene(), context_.project_directory(), context_.assets_directory());
+        script_runtime_.start(context_.scene(), context_.project_directory());
     } catch (...) {
         stop();
         throw;

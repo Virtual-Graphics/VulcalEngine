@@ -34,11 +34,11 @@ vulcal::render::Material read_source(const std::filesystem::path& path) {
 } // namespace
 
 vulcal::asset::AssetID MaterialAssetImporter::import(const std::filesystem::path& source_file,
-                                                     const std::filesystem::path& assets_directory,
+                                                     const std::filesystem::path& project_directory,
                                                      const std::filesystem::path& library_directory) {
-    base::log::debug("MaterialAssetImporter: importing {} (assets: {}, runtime: {})", source_file.string(), assets_directory.string(),
+    base::log::debug("MaterialAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
-    validate_source_file(source_file, assets_directory, ".vmat", "material");
+    validate_source_file(source_file, project_directory, ".vmat", "material");
 
     const auto material     = read_source(source_file);
     const auto meta         = metadata_path(source_file);

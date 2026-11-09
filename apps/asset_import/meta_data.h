@@ -23,7 +23,7 @@ void write_metadata(const std::filesystem::path& metadata_file_path, const Metad
 
 Metadata metadata_for_source(const std::filesystem::path& source_file, vulcal::asset::AssetType expected_type);
 
-void validate_source_file(const std::filesystem::path& source_file, const std::filesystem::path& assets_directory,
+void validate_source_file(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
                           const std::string& extension, const std::string& asset_name);
 
 } // namespace apps::asset_import

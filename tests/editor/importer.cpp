@@ -87,8 +87,8 @@ TEST(ObjAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMesh) {
         output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
     }
 
-    const auto first_id  = apps::asset_import::ObjAssetImporter::import(source, assets, library);
-    const auto second_id = apps::asset_import::ObjAssetImporter::import(source, assets, library);
+    const auto first_id  = apps::asset_import::ObjAssetImporter::import(source, directory.path(), library);
+    const auto second_id = apps::asset_import::ObjAssetImporter::import(source, directory.path(), library);
     ASSERT_EQ(first_id, second_id);
     EXPECT_TRUE(std::filesystem::exists(source.string() + ".meta"));
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
@@ -121,8 +121,8 @@ TEST(AssetImporter, DispatchesObjAndVmatSourcesByExtension) {
         output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 8\n";
     }
 
-    const auto mesh_id     = apps::asset_import::AssetImporter::import(mesh_source, assets, library);
-    const auto material_id = apps::asset_import::AssetImporter::import(material_source, assets, library);
+    const auto mesh_id     = apps::asset_import::AssetImporter::import(mesh_source, directory.path(), library);
+    const auto material_id = apps::asset_import::AssetImporter::import(material_source, directory.path(), library);
 
     EXPECT_TRUE(std::filesystem::exists(library / (mesh_id.to_string() + ".vmesh")));
     EXPECT_TRUE(std::filesystem::exists(library / (material_id.to_string() + ".vmatc")));
@@ -140,10 +140,26 @@ TEST(AssetImporter, DispatchesTextureSourcesByExtension) {
     const auto source = assets / "sprite.BMP";
     write_bmp(source, 10, 20, 30);
 
-    const auto id = apps::asset_import::AssetImporter::import(source, assets, library);
+    const auto id = apps::asset_import::AssetImporter::import(source, directory.path(), library);
 
     EXPECT_TRUE(std::filesystem::exists(library / (id.to_string() + ".vtex")));
     EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(source)).type, vulcal::asset::AssetType::Texture);
+}
+
+TEST(AssetImporter, ImportsSourcesOutsideAssetsButInsideProject) {
+    TemporaryDirectory directory;
+    const auto library = directory.path() / ".vulcal_engine";
+    const auto source  = directory.path() / "Meshes" / "triangle.obj";
+    std::filesystem::create_directories(source.parent_path());
+    {
+        std::ofstream output(source);
+        output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
+    }
+
+    const auto id = apps::asset_import::AssetImporter::import(source, directory.path(), library);
+
+    EXPECT_TRUE(std::filesystem::exists(library / (id.to_string() + ".vmesh")));
+    EXPECT_TRUE(std::filesystem::exists(apps::asset_import::metadata_path(source)));
 }
 
 TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
@@ -154,9 +170,9 @@ TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
     const auto source = assets / "sprite.bmp";
     write_bmp(source, 10, 20, 30);
 
-    const auto first_id = apps::asset_import::TextureAssetImporter::import(source, assets, library);
+    const auto first_id = apps::asset_import::TextureAssetImporter::import(source, directory.path(), library);
     write_bmp(source, 40, 50, 60);
-    const auto second_id = apps::asset_import::TextureAssetImporter::import(source, assets, library);
+    const auto second_id = apps::asset_import::TextureAssetImporter::import(source, directory.path(), library);
     ASSERT_EQ(first_id, second_id);
 
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
@@ -175,25 +191,27 @@ TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
     EXPECT_EQ(texture.pixels_[3], 255u);
 }
 
-TEST(AssetImporter, RejectsSourcesOutsideAssetsAndUnsupportedExtensions) {
+TEST(AssetImporter, RejectsSourcesOutsideProjectAndUnsupportedExtensions) {
     TemporaryDirectory directory;
-    const auto assets  = directory.path() / "Assets";
-    const auto library = directory.path() / ".vulcal_engine";
-    std::filesystem::create_directories(assets);
+    const auto library           = directory.path() / ".vulcal_engine";
+    const auto outside_directory = directory.path().parent_path() / (directory.path().filename().string() + "_outside");
+    std::filesystem::create_directories(outside_directory);
 
-    const auto outside_source = directory.path() / "outside.obj";
+    const auto outside_source = outside_directory / "outside.obj";
     {
         std::ofstream output(outside_source);
         output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
     }
-    const auto unsupported_source = assets / "notes.txt";
+    const auto unsupported_source = directory.path() / "notes.txt";
     {
         std::ofstream output(unsupported_source);
         output << "not an importable asset\n";
     }
 
-    EXPECT_THROW(apps::asset_import::AssetImporter::import(outside_source, assets, library), std::invalid_argument);
-    EXPECT_THROW(apps::asset_import::AssetImporter::import(unsupported_source, assets, library), std::invalid_argument);
+    EXPECT_THROW(apps::asset_import::AssetImporter::import(outside_source, directory.path(), library), std::invalid_argument);
+    EXPECT_THROW(apps::asset_import::AssetImporter::import(unsupported_source, directory.path(), library), std::invalid_argument);
+
+    std::filesystem::remove_all(outside_directory);
 }
 
 TEST(MaterialAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMaterial) {
@@ -216,9 +234,9 @@ TEST(MaterialAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMaterial) {
     };
 
     write_source(0.2f, 8.0f);
-    const auto first_id = apps::asset_import::MaterialAssetImporter::import(source, assets, library);
+    const auto first_id = apps::asset_import::MaterialAssetImporter::import(source, directory.path(), library);
     write_source(0.7f, 32.0f);
-    const auto second_id = apps::asset_import::MaterialAssetImporter::import(source, assets, library);
+    const auto second_id = apps::asset_import::MaterialAssetImporter::import(source, directory.path(), library);
     ASSERT_EQ(first_id, second_id);
 
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
@@ -247,7 +265,7 @@ TEST(MaterialAssetImporter, RejectsSourceWhoseMetadataDeclaresAnotherType) {
     apps::asset_import::write_metadata(apps::asset_import::metadata_path(source),
                                        { .id = vulcal::asset::AssetID{ 99 }, .type = vulcal::asset::AssetType::Mesh });
 
-    EXPECT_THROW(apps::asset_import::MaterialAssetImporter::import(source, assets, library), std::invalid_argument);
+    EXPECT_THROW(apps::asset_import::MaterialAssetImporter::import(source, directory.path(), library), std::invalid_argument);
     EXPECT_FALSE(std::filesystem::exists(library / "99.vmatc"));
 }
 

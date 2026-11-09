@@ -25,7 +25,7 @@ TEST(SnakeProject, SceneAndScriptCreateBoardAndGameOver) {
     ASSERT_TRUE(scene);
 
     vulcal::script::ScriptRuntime runtime;
-    runtime.start(*scene, project, project / "assets");
+    runtime.start(*scene, project);
     EXPECT_TRUE(runtime.running());
 
     EXPECT_TRUE(find_by_name(*scene, "Board"));

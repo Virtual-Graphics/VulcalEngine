@@ -10,13 +10,13 @@
 
 namespace apps::asset_import {
 
-vulcal::asset::AssetID ObjAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& assets_directory,
+vulcal::asset::AssetID ObjAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
                                                 const std::filesystem::path& library_directory) {
 
-    base::log::debug("ObjAssetImporter: importing {} (assets: {}, runtime: {})", source_file.string(), assets_directory.string(),
+    base::log::debug("ObjAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
     // 预处理 begin
-    validate_source_file(source_file, assets_directory, ".obj", "OBJ");
+    validate_source_file(source_file, project_directory, ".obj", "OBJ");
 
     const auto mesh = OBJImporter::load_obj(source_file);
     if (mesh.vertices_.empty() || mesh.indices_.empty()) {

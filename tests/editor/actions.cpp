@@ -141,14 +141,15 @@ protected:
 
 TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
     const auto entity = context_.create_entity();
-    save_path_        = directory_ / "level";
+    const auto scene  = context_.project_directory() / "level.vscene";
+    save_path_        = scene;
     actions_->save_scene();
-    ASSERT_TRUE(std::filesystem::exists(directory_ / "level.vscene"));
+    ASSERT_TRUE(std::filesystem::exists(scene));
 
     entity.get_component<vulcal::scene::TagComponent>().name_ = "Saved again";
     save_path_.reset();
     actions_->save_scene();
-    const auto loaded = editor::SceneSerializer::deserialize(directory_ / "level.vscene");
+    const auto loaded = editor::SceneSerializer::deserialize(scene);
     bool found        = false;
     for (const auto e: loaded->registry().view<vulcal::scene::TagComponent>()) {
         found |= loaded->registry().get<vulcal::scene::TagComponent>(e).name_ == "Saved again";
@@ -233,7 +234,7 @@ TEST_F(EditorActionsTest, FailedProjectOpenPreservesSceneAndCaches) {
 }
 
 TEST_F(EditorActionsTest, SceneOpenClearsSelectionWithoutResettingAssets) {
-    save_path_ = directory_ / "level.vscene";
+    save_path_ = context_.project_directory() / "level.vscene";
     actions_->save_scene_as();
     context_.create_entity();
     const auto id  = assets_.add_mesh(triangle());
@@ -350,10 +351,10 @@ TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     EXPECT_NO_THROW(draw(mesh, replacement));
 }
 
-TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromAssetsPicker) {
+TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromProject) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::ScriptComponent>();
-    open_path_ = context_.assets_directory() / "Scripts" / "player.lua";
+    open_path_ = context_.project_directory() / "scripts" / "player.lua";
     std::filesystem::create_directories(open_path_->parent_path());
     std::ofstream(*open_path_) << "return {}\n";
 
@@ -361,10 +362,10 @@ TEST_F(EditorActionsTest, AssignsProjectRelativeScriptPathFromAssetsPicker) {
 
     EXPECT_EQ(last_filter_, "lua");
     EXPECT_EQ(last_directory_, context_.assets_directory());
-    EXPECT_EQ(target.get_component<vulcal::scene::ScriptComponent>().script_path_, "assets/Scripts/player.lua");
+    EXPECT_EQ(target.get_component<vulcal::scene::ScriptComponent>().script_path_, "scripts/player.lua");
 }
 
-TEST_F(EditorActionsTest, RejectsScriptSelectionOutsideAssets) {
+TEST_F(EditorActionsTest, RejectsScriptSelectionOutsideProject) {
     const auto target                                                    = context_.create_entity();
     target.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/Scripts/old.lua";
     open_path_                                                           = directory_ / "outside.lua";
@@ -374,7 +375,7 @@ TEST_F(EditorActionsTest, RejectsScriptSelectionOutsideAssets) {
     EXPECT_EQ(target.get_component<vulcal::scene::ScriptComponent>().script_path_, "Assets/Scripts/old.lua");
 }
 
-TEST_F(EditorActionsTest, RejectsScriptSymlinkThatResolvesOutsideAssets) {
+TEST_F(EditorActionsTest, RejectsScriptSymlinkThatResolvesOutsideProject) {
     const auto target = context_.create_entity();
     target.add_component<vulcal::scene::ScriptComponent>();
     const auto outside = directory_ / "outside.lua";

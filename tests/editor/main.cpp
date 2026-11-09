@@ -1,5 +1,6 @@
 #include "editor/editor_camera.h"
 #include "editor/editor_context.h"
+#include "editor/project/project.h"
 
 #include <chrono>
 #include <cmath>
@@ -118,7 +119,7 @@ TEST(EditorContext, CreateProjectStartsDefaultScene) {
     EXPECT_TRUE(std::filesystem::exists(directory / "Demo.vproj"));
     EXPECT_TRUE(std::filesystem::is_directory(directory / "assets"));
     EXPECT_TRUE(std::filesystem::is_directory(directory / ".vulcal_engine"));
-    EXPECT_TRUE(std::filesystem::is_directory(directory / "Build"));
+    EXPECT_TRUE(std::filesystem::is_directory(directory / "build"));
     EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
 
     std::filesystem::remove_all(directory);
@@ -140,6 +141,156 @@ TEST(EditorContext, OpenProjectStartsDefaultScene) {
     std::filesystem::remove_all(directory);
 }
 
+TEST(ProjectInfo, RoundTripsLastEditedScene) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::ProjectInfo info;
+    info.name              = "Demo";
+    info.description       = "Description";
+    info.author            = "Author";
+    info.assets_path       = "assets";
+    info.last_edited_scene = "assets/scenes/level.vscene";
+    ASSERT_TRUE(editor::save_project_info(directory / "Demo.vproj", info));
+
+    editor::ProjectInfo loaded;
+    ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", loaded));
+    EXPECT_EQ(loaded.last_edited_scene, info.last_edited_scene);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, SaveSceneRecordsRelativeLastEditedScene) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::EditorContext context;
+    context.create_project(directory, "Demo");
+    const auto scene_file = directory / "assets" / "scenes" / "level.vscene";
+    std::filesystem::create_directories(scene_file.parent_path());
+    context.save_scene_as(scene_file);
+
+    editor::ProjectInfo info;
+    ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", info));
+    EXPECT_EQ(info.last_edited_scene, std::filesystem::path{ "assets/scenes/level.vscene" });
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, RejectsSavingSceneOutsideProject) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::EditorContext context;
+    context.create_project(directory, "Demo");
+    const auto outside = directory.parent_path() / (directory.filename().string() + "_outside.vscene");
+
+    EXPECT_THROW(context.save_scene_as(outside), std::invalid_argument);
+    EXPECT_FALSE(std::filesystem::exists(outside));
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, RejectsOpeningSceneOutsideProject) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::EditorContext context;
+    context.create_project(directory, "Demo");
+    const auto outside = directory.parent_path() / (directory.filename().string() + "_outside.vscene");
+
+    EXPECT_THROW(context.open_scene(outside), std::invalid_argument);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, RejectsAssetsPathOutsideProject) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    {
+        editor::EditorContext creator;
+        creator.create_project(directory, "Demo");
+    }
+
+    editor::ProjectInfo info;
+    ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", info));
+    info.assets_path = "../assets";
+    ASSERT_TRUE(editor::save_project_info(directory / "Demo.vproj", info));
+
+    editor::EditorContext context;
+    EXPECT_THROW(context.open_project(directory / "Demo.vproj"), std::runtime_error);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, OpenProjectIgnoresLastEditedSceneOutsideProject) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    {
+        editor::EditorContext creator;
+        creator.create_project(directory, "Demo");
+    }
+
+    editor::ProjectInfo info;
+    ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", info));
+    info.last_edited_scene = "../escape.vscene";
+    ASSERT_TRUE(editor::save_project_info(directory / "Demo.vproj", info));
+
+    editor::EditorContext context;
+    context.open_project(directory / "Demo.vproj");
+
+    EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+    EXPECT_EQ(context.suggested_scene_name(), std::filesystem::path{ "Untitled.vscene" });
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, OpenProjectRestoresLastEditedScene) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    {
+        editor::EditorContext creator;
+        creator.create_project(directory, "Demo");
+        creator.create_entity().get_component<vulcal::scene::TagComponent>().name_ = "Marker";
+        const auto scene_file                                                      = directory / "assets" / "scenes" / "level.vscene";
+        std::filesystem::create_directories(scene_file.parent_path());
+        creator.save_scene_as(scene_file);
+    }
+
+    editor::EditorContext context;
+    context.open_project(directory / "Demo.vproj");
+
+    EXPECT_EQ(context.scene_dialog_directory(), directory / "assets" / "scenes");
+    EXPECT_EQ(context.suggested_scene_name(), std::filesystem::path{ "level.vscene" });
+    bool found = false;
+    for (const auto entity: context.scene().registry().view<vulcal::scene::TagComponent>()) {
+        found |= context.scene().registry().get<vulcal::scene::TagComponent>(entity).name_ == "Marker";
+    }
+    EXPECT_TRUE(found);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(EditorContext, OpenProjectFallsBackToDefaultSceneWhenLastEditedSceneIsMissing) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    const auto scene_file = directory / "level.vscene";
+    {
+        editor::EditorContext creator;
+        creator.create_project(directory, "Demo");
+        creator.save_scene_as(scene_file);
+    }
+    std::filesystem::remove(scene_file);
+
+    editor::EditorContext context;
+    context.open_project(directory / "Demo.vproj");
+
+    EXPECT_EQ(context.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
+    EXPECT_EQ(context.suggested_scene_name(), std::filesystem::path{ "Untitled.vscene" });
+
+    std::filesystem::remove_all(directory);
+}
+
 TEST(EditorContext, FailedProjectOpenPreservesPreviousProjectAndScene) {
     const auto directory = temporary_directory();
     const auto previous  = directory / "previous";
@@ -150,8 +301,8 @@ TEST(EditorContext, FailedProjectOpenPreservesPreviousProjectAndScene) {
         editor::EditorContext creator;
         creator.create_project(broken, "Broken");
     }
-    std::filesystem::remove(broken / "Build");
-    std::ofstream(broken / "Build").put('x');
+    std::filesystem::remove(broken / "build");
+    std::ofstream(broken / "build").put('x');
 
     editor::EditorContext context;
     context.create_project(previous, "Previous");
