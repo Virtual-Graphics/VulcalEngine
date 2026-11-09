@@ -18,3 +18,6 @@ set(SOL2_DOCS                     OFF CACHE BOOL "" FORCE)
 set(SOL2_ENABLE_INSTALL           OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(sol2)
+
+# Upstream Lua supplies C headers only; do not pick up an unrelated system lua.hpp.
+target_compile_definitions(sol2 INTERFACE SOL_NO_LUA_HPP=1)
