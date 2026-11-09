@@ -40,6 +40,11 @@ ctest --test-dir build --output-on-failure
 ```
 帮我在电脑本地成功构建 https://github.com/Virtual-Graphics/VulcalEngine 这个项目
 ```
+## 示例小游戏
+
+- `projects/snake/snake.vproj`：贪吃蛇。
+- `projects/arena/arena.vproj`：**最后三分钟**，单屏竞技场生存游戏。编辑器打开项目并点击 Play，Enter 开始，WASD 移动，方向键射击，空格冲刺。规则与测试见 [项目说明](projects/arena/README.md)。
+
 ## GOALS
 我们最终期望 Vulcal Engine 能够做到
 - 跨平台游戏引擎，支持 Windows、Linux、MacOS、Android、Web 发布游戏。

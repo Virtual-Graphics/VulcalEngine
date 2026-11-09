@@ -1,0 +1,5 @@
+name: arena
+description: "Last Three Minutes - a single-screen survival arena"
+author: ""
+assets_path: assets
+last_edited_scene: assets/scenes/arena.vscene

@@ -1,0 +1,37 @@
+format_version: 1
+entities:
+  - id: 2000000000000000001
+    name: Camera
+    transform:
+      translation: [0, 0, 10]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    camera:
+      projection: orthographic
+      primary: true
+      perspective_fov_y: 0.785398185
+      perspective_near: 0.1
+      perspective_far: 100
+      orthographic_left: -18
+      orthographic_right: 18
+      orthographic_bottom: -13
+      orthographic_top: 13
+      orthographic_near: 0.1
+      orthographic_far: 100
+  - id: 2000000000000000002
+    name: Environment
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    environment:
+      ambient_color: [0.15, 0.15, 0.15]
+      clear_color: [0.018, 0.025, 0.045, 1]
+  - id: 2000000000000000003
+    name: Game
+    transform:
+      translation: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    script:
+      path: assets/scripts/arena.lua
