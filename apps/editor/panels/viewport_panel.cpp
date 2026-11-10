@@ -21,7 +21,6 @@ void ViewportPanel::draw(bool& open, const vulcal::gfx::Context::Limits& limits)
     }
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
     if (ImGui::Begin("Viewport", &open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-        ImGui::Text("RMB: look | WASD: move | Q/E: down/up | Wheel: speed (%.2f)", camera_.speed());
         const auto size = ImGui::GetContentRegionAvail();
         if (size.x >= 1.0f && size.y >= 1.0f) {
             const auto scale  = ImGui::GetIO().DisplayFramebufferScale;
