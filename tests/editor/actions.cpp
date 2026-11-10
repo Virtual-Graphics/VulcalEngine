@@ -1,5 +1,5 @@
 #include "asset/asset_manager.h"
-#include "asset/mesh_asset.h"
+#include "asset/res/mesh_asset.h"
 #include "asset/render_asset_cache.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_actions.h"

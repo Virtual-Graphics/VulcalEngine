@@ -1,8 +1,8 @@
 #include "asset/asset_library.h"
 
-#include "asset/material_asset.h"
-#include "asset/mesh_asset.h"
-#include "asset/texture_asset.h"
+#include "asset/res/material_asset.h"
+#include "asset/res/mesh_asset.h"
+#include "asset/res/texture_asset.h"
 #include "base/logger.h"
 
 #include <stdexcept>

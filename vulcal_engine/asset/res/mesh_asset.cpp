@@ -1,4 +1,4 @@
-#include "asset/mesh_asset.h"
+#include "asset/res/mesh_asset.h"
 
 #include "base/binary_io.h"
 #include "base/logger.h"

@@ -1,4 +1,4 @@
-#include "asset/texture_asset.h"
+#include "asset/res/texture_asset.h"
 
 #include "base/binary_io.h"
 #include "base/logger.h"

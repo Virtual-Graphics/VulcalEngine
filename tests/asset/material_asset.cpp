@@ -1,4 +1,4 @@
-#include "asset/material_asset.h"
+#include "asset/res/material_asset.h"
 
 #include "base/binary_io.h"
 #include "base/uuid.h"

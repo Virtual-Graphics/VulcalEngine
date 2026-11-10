@@ -1,5 +1,5 @@
 #include "asset/asset_library.h"
-#include "asset/texture_asset.h"
+#include "asset/res/texture_asset.h"
 #include "asset_import/asset_importer.h"
 #include "asset_import/importers/material_asset_importer.h"
 #include "asset_import/meta_data.h"

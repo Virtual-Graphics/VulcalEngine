@@ -1,7 +1,7 @@
 #include "asset_import/importers/texture_asset_importer.h"
 
 #include "asset/asset_library.h"
-#include "asset/texture_asset.h"
+#include "asset/res/texture_asset.h"
 #include "asset_import/loaders/image_loader.h"
 #include "asset_import/meta_data.h"
 #include "base/logger.h"

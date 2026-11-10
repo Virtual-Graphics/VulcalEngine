@@ -1,6 +1,6 @@
 #include "asset_import/importers/material_asset_importer.h"
 
-#include "asset/material_asset.h"
+#include "asset/res/material_asset.h"
 #include "asset/asset_library.h"
 #include "asset_import/meta_data.h"
 #include "base/logger.h"

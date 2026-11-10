@@ -1,6 +1,6 @@
 #include "asset_import/importers/obj_asset_importer.h"
 
-#include "asset/mesh_asset.h"
+#include "asset/res/mesh_asset.h"
 #include "asset/asset_library.h"
 #include "asset_import/meta_data.h"
 #include "asset_import/loaders/obj_loader.h"
