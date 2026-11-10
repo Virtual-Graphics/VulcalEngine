@@ -45,7 +45,7 @@ public:
 
     template<typename T>
     void set_sub_data(const std::vector<T>& data, std::size_t offset = 0) {
-        set_sub_data(data.data(), data.size() * sizeof(T), offset);
+        set_sub_data(data.data(), data.size(), offset);
     }
 
     void set_sub_data(const void* data, std::size_t size, std::size_t offset = 0) {
