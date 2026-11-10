@@ -16,6 +16,45 @@
 ## INTRODUCTION
 Vulcal Engine 是一个架构清晰、代码极简、无 AI Slop、非 Vibe Coding 、轻量、高性能以 ECS 架构为核心、目前使用 OpenGL 4.6 (未来明确支持 Vulkan) 为图形 API 、支持 Lua 脚本语言的游戏引擎。
 
+## GOALS
+我们最终期望 Vulcal Engine 能够做到
+- 跨平台游戏引擎，支持 Windows、Linux、MacOS、Android、Web 发布游戏。
+- 更适合个人开发者与 AI 配合的游戏开发工作流
+- 支持多渲染管线的渲染器架构，支持实时光线追踪管线，延迟渲染（主要），以及轻量级前向渲染管线。
+- 高性能游戏引擎，支持在低端设备上高效运行，包括移动端。
+- 可编程渲染管线，暴露低级图形 API 供开发者使用。
+- Native C++ 开发模式
+
+## 示例小游戏
+
+<table>
+  <thead>
+    <tr>
+      <th>游戏截图</th>
+      <th>项目与说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="screen_shots/snake.png" alt="贪吃蛇游戏截图" width="400"></td>
+      <td>
+        <p><strong>贪吃蛇</strong></p>
+        <p>项目：<a href="projects/snake/snake.vproj"><code>projects/snake/snake.vproj</code></a></p>
+         <p>编辑器打开项目并点击 Play，自动开始，WASD 移动，Space 重新开始。</p>
+      </td>
+    </tr>
+    <tr>
+      <td><img src="screen_shots/arena.png" alt="最后三分钟游戏截图" width="400"></td>
+      <td>
+        <p><strong>最后三分钟</strong></p>
+        <p>项目：<a href="projects/arena/arena.vproj"><code>projects/arena/arena.vproj</code></a></p>
+        <p>编辑器打开项目并点击 Play，Enter 开始，WASD 移动，方向键射击，空格冲刺。</p>
+        <p>规则与测试见 <a href="projects/arena/README.md">项目说明</a>。</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 ## START
 目前 Vulcal Engine 支持 Windows 与 Linux 两个平台，要求 CMake 版本大于等于 `3.28`，以及支持 C++23 的编译器和 OpenGL 4.6 的显卡驱动。第三方依赖会在配置阶段自动下载，首次配置需要联网。
 
@@ -40,19 +79,9 @@ ctest --test-dir build --output-on-failure
 ```
 帮我在电脑本地成功构建 https://github.com/Virtual-Graphics/VulcalEngine 这个项目
 ```
-## 示例小游戏
 
-- `projects/snake/snake.vproj`：贪吃蛇。
-- `projects/arena/arena.vproj`：**最后三分钟**，单屏竞技场生存游戏。编辑器打开项目并点击 Play，Enter 开始，WASD 移动，方向键射击，空格冲刺。规则与测试见 [项目说明](projects/arena/README.md)。
 
-## GOALS
-我们最终期望 Vulcal Engine 能够做到
-- 跨平台游戏引擎，支持 Windows、Linux、MacOS、Android、Web 发布游戏。
-- 更适合个人开发者与 AI 配合的游戏开发工作流 
-- 支持多渲染管线的渲染器架构，支持实时光线追踪管线，延迟渲染（主要），以及轻量级前向渲染管线。
-- 高性能游戏引擎，支持在低端设备上高效运行，包括移动端。
-- 可编程渲染管线，暴露低级图形 API 供开发者使用。
-- Native C++ 开发模式
+
 
 ## PRINCIPLE
 在 AI 时代下，稍微了解一些游戏引擎的程序员都能借助 Agents 开发游戏引擎，互联网上也出现各种所谓的 “自研引擎” 的演示视频，Vulcal Engine 的开发者也是 AI Coding 的重度依赖者，前前后后在 AI 的帮助下开发了 6 个游戏引擎了（不包括此引擎）。无论是作者自己用 AI Coding 的引擎，还是其他人用 AI Coding 出来的引擎，如果没有使用一种合理的开发流程那么最后都会沦落为和作者前 6 个引擎一样的下落逐渐被抛弃（原因是因为在有了 AI 的加持下，我天然的认为自己什么软件都能写出来了，但事实上相反的，我如果借助 AI 开发了我自己理解不了的代码（最终也许能实现出来，但也只能是个玩具），那么项目就会逐渐变得不可维护，而我脑海中存在各种奇思妙想的游戏引擎架构，我没有具体的架构方案（通常他们很复杂））。
