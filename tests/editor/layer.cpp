@@ -116,6 +116,9 @@ protected:
 };
 
 TEST_F(EditorLayerTest, NewSceneShortcutReplacesScene) {
+    ScriptProject project;
+    layer_->context().create_project(project.directory, "Shortcuts");
+    frame();
     const auto initial_height = hierarchy_height();
     add_entity();
     ASSERT_GT(hierarchy_height(), initial_height);
@@ -123,7 +126,22 @@ TEST_F(EditorLayerTest, NewSceneShortcutReplacesScene) {
     EXPECT_FLOAT_EQ(hierarchy_height(), initial_height);
 }
 
+TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWithoutProject) {
+    ASSERT_FALSE(layer_->context().has_project());
+    ASSERT_TRUE(layer_->context().has_scene());
+    add_entity();
+    const auto selected = layer_->context().selected_entity();
+    ASSERT_TRUE(selected);
+    const auto height = hierarchy_height();
+    new_scene_shortcut();
+    EXPECT_FLOAT_EQ(hierarchy_height(), height);
+    EXPECT_EQ(layer_->context().selected_entity(), selected);
+}
+
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotInterruptTextEditing) {
+    ScriptProject project;
+    layer_->context().create_project(project.directory, "Shortcuts");
+    frame();
     add_entity();
     const auto height     = hierarchy_height();
     const auto* inspector = ImGui::FindWindowByName("Inspector");
@@ -136,6 +154,9 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotInterruptTextEditing) {
 }
 
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWhileProjectDialogIsOpen) {
+    ScriptProject project;
+    layer_->context().create_project(project.directory, "Shortcuts");
+    frame();
     add_entity();
     const auto height = hierarchy_height();
     click({ 15.0f, ImGui::GetFontSize() * 0.5f });

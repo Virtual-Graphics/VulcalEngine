@@ -93,6 +93,7 @@ void EditorLayer::draw_file_menu() {
 
     ImGui::Separator();
 
+    ImGui::BeginDisabled(!context_.has_project());
     if (ImGui::MenuItem("New Scene", "Ctrl+N")) actions_->run_guarded([this] { actions_->new_scene(); });
     if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) actions_->run_guarded([this] { actions_->open_scene(); });
 
@@ -103,12 +104,14 @@ void EditorLayer::draw_file_menu() {
 
     ImGui::EndDisabled();
 
+    ImGui::EndDisabled();
+
     ImGui::EndMenu();
 }
 
 void EditorLayer::handle_shortcuts() {
-    if (context_.playing() || viewport_.controlling_camera() || ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive() ||
-        ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+    if (!context_.has_project() || context_.playing() || viewport_.controlling_camera() || ImGui::GetIO().WantTextInput ||
+        ImGui::IsAnyItemActive() || ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
         return;
 
     const bool new_scene     = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_N, ImGuiInputFlags_RouteGlobal);
