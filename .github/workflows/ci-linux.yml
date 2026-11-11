@@ -28,7 +28,26 @@ jobs:
             -o Acquire::http::Timeout=15
             -o Acquire::https::Timeout=15
           )
-          sudo apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update
+          if ! sudo timeout --kill-after=10s 60s \
+            apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update; then
+            echo "::warning::Default APT sources failed; trying the kernel.org Ubuntu mirror."
+            source /etc/os-release
+            : "${VERSION_CODENAME:?Ubuntu release codename is required}"
+            mirror_sources="${RUNNER_TEMP}/vulcal-ubuntu.sources"
+            cat > "$mirror_sources" <<EOF
+          Types: deb
+          URIs: https://mirrors.kernel.org/ubuntu/
+          Suites: ${VERSION_CODENAME} ${VERSION_CODENAME}-updates ${VERSION_CODENAME}-security
+          Components: main restricted universe multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          EOF
+            apt_options+=(
+              -o "Dir::Etc::sourcelist=$mirror_sources"
+              -o Dir::Etc::sourceparts=-
+            )
+            sudo timeout --kill-after=10s 120s \
+              apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update
+          fi
           sudo apt-get "${apt_options[@]}" install -y \
             build-essential \
             cmake \
