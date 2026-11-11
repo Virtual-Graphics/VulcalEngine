@@ -12,15 +12,24 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install dependencies
+        timeout-minutes: 5
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          # Bound transient mirror/network failures; never continue with stale indexes.
+          apt_options=(
+            -o Acquire::Retries=2
+            -o Acquire::http::Timeout=15
+            -o Acquire::https::Timeout=15
+          )
+          sudo apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update
+          sudo apt-get "${apt_options[@]}" install -y \
             build-essential \
             cmake \
             ninja-build \
