@@ -3,8 +3,8 @@
 </div>
 <div align=center>
 
-<a href="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-windows.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-windows.yml/badge.svg?branch=main" alt="Windows CI"></a>
-<a href="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-linux.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-linux.yml/badge.svg?branch=main" alt="Linux CI"></a>
+<a href="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-windows.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-windows.yml/badge.svg?branch=main" alt="Windows CI"></a>
+<a href="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-linux.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-linux.yml/badge.svg?branch=main" alt="Linux CI"></a>
 
 <a href="https://github.com/orgs/Virtual-Graphics/projects/1"> 路线图 </a> |
 <a href="https://virtual-graphics.github.io/VulcalEngine-website/"> 文档 </a> 
@@ -56,24 +56,55 @@ Vulcal Engine 是一个架构清晰、代码极简、无 AI Slop、非 Vibe Codi
 </table>
 
 ## START
-目前 Vulcal Engine 支持 Windows 与 Linux 两个平台，要求 CMake 版本大于等于 `3.28`，以及支持 C++23 的编译器和 OpenGL 4.6 的显卡驱动。第三方依赖会在配置阶段自动下载，首次配置需要联网。
+v0.0.5 以源码形式发布，不包含预编译可执行文件。下载并解压源码包后，在源码根目录执行以下步骤即可构建，无需 Git 仓库历史。
 
-构建：
+构建需要 Git、CMake ≥ `3.28`，以及支持 C++23 的编译器。第三方依赖会在配置阶段自动下载，首次配置需要联网；源码包不包含下载后的第三方依赖。运行编辑器、模型查看器和图形测试还需要支持 OpenGL 4.6 的显卡驱动。
+
+### Linux
+
+Ubuntu / Debian 系统可以参考以下命令安装系统依赖；安装后仍需确认 CMake 与编译器满足上述版本要求：
 
 ```bash
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel
+sudo apt-get update
+sudo apt-get install -y \
+    git build-essential cmake ninja-build pkg-config \
+    libasound2-dev libdrm-dev libegl1-mesa-dev libgbm-dev \
+    libgl1-mesa-dev libgtk-3-dev libudev-dev libwayland-dev \
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+    libxinerama-dev libxkbcommon-dev wayland-protocols
 ```
 
-Windows 也可以直接使用 CMake Preset，例如 `cmake --preset msvc` 或 `cmake --preset clang-debug`。
-
-运行：
+构建、测试与运行：
 
 ```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+
 ./build/bin/editor                    # 编辑器，可打开 projects/ 下的 .vproj
 ./build/bin/model_viewer model.obj    # 查看 OBJ 模型
-ctest --test-dir build --output-on-failure
 ```
+
+### Windows
+
+安装 Git、CMake 和支持 C++23 的 Visual Studio C++ 工具链，然后在 PowerShell 中执行：
+
+```powershell
+cmake -S . -B build -A x64
+cmake --build build --config Debug --parallel
+ctest --test-dir build -C Debug --output-on-failure
+
+.\build\bin\Debug\editor.exe
+.\build\bin\Debug\model_viewer.exe model.obj
+```
+
+也可以使用 `CMakePresets.json` 中的预设；其中 `msvc` 预设要求 Visual Studio 2026，`clang-debug` 预设使用 PATH 中的 `clang-cl` 和 Ninja。
+
+### 着色器与图形测试
+
+引擎内置着色器在构建时自动嵌入程序，运行时不需要源码目录或外部 GLSL 文件。修改 `vulcal_engine/render/shaders/` 下的着色器后，重新执行构建即可更新。
+
+默认测试不需要图形显示环境。要启用需要 OpenGL 4.6 的图形测试，在配置时增加 `-DBUILD_GRAPHICS_TESTS=ON`，重新构建后运行测试；Windows 多配置构建的测试命令仍需添加 `-C Debug`。启用图形测试后，需要可用的图形显示环境。
 
 如果你依然构建失败，可以将如下 Prompt 发送给你的 Agent
 ```
