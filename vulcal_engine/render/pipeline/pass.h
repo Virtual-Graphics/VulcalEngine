@@ -64,7 +64,7 @@ public:
 protected:
     explicit Pass(const gfx::PipelineState::Spec& pipeline_spec = {});
 
-    void load_shaders(const char* vertex_file, const char* fragment_file);
+    void load_shaders(const char* vertex_source, const char* fragment_source);
     void bind_pipeline();
 
     gfx::Program program_;

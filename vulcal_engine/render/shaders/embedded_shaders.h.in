@@ -1,0 +1,13 @@
+#pragma once
+
+// Generated from the GLSL files by CMake. Edit the original shader files.
+namespace vulcal::render::shaders {
+
+inline constexpr char blinn_phong_vert[] = R"vulcal_glsl(@BLINN_PHONG_VERT@)vulcal_glsl";
+inline constexpr char blinn_phong_frag[] = R"vulcal_glsl(@BLINN_PHONG_FRAG@)vulcal_glsl";
+inline constexpr char shadow_vert[] = R"vulcal_glsl(@SHADOW_VERT@)vulcal_glsl";
+inline constexpr char shadow_frag[] = R"vulcal_glsl(@SHADOW_FRAG@)vulcal_glsl";
+inline constexpr char sprite_vert[] = R"vulcal_glsl(@SPRITE_VERT@)vulcal_glsl";
+inline constexpr char sprite_frag[] = R"vulcal_glsl(@SPRITE_FRAG@)vulcal_glsl";
+
+} // namespace vulcal::render::shaders

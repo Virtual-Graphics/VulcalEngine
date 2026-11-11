@@ -4,6 +4,7 @@
 #include "gfx/render_target.h"
 #include "gfx/texture.h"
 #include "render/render_data.h"
+#include "render/shaders/embedded_shaders.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -36,7 +37,7 @@ SpritePass::SpritePass()
                  .dst_rgb     = gfx::PipelineState::BlendFactor::OneMinusSrcAlpha,
                  .src_alpha   = gfx::PipelineState::BlendFactor::One,
                  .dst_alpha   = gfx::PipelineState::BlendFactor::OneMinusSrcAlpha }) {
-    load_shaders("sprite.vert", "sprite.frag");
+    load_shaders(shaders::sprite_vert, shaders::sprite_frag);
     program_.bind_uniform_block("CameraBlock", 0);
     camera_ubo_.set_data(CameraUBO{ glm::mat4(1.0f), glm::vec4() }, 0);
 

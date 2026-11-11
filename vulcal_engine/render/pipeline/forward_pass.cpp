@@ -6,6 +6,7 @@
 #include "gfx/vertex_array.h"
 #include "render/render_data.h"
 #include "render/resources/mesh_gpu.h"
+#include "render/shaders/embedded_shaders.h"
 
 namespace vulcal::render {
 namespace {
@@ -18,7 +19,7 @@ constexpr std::uint32_t kShadowMapUnit = 0;
 } // namespace
 
 ForwardPass::ForwardPass() : Pass({ .depth_test = true }) {
-    load_shaders("blinn_phong.vert", "blinn_phong.frag");
+    load_shaders(shaders::blinn_phong_vert, shaders::blinn_phong_frag);
     program_.bind_uniform_block("CameraBlock", 0);
     camera_ubo_.set_data(CameraUBO{ glm::mat4(1.0f), glm::vec4() }, 0);
 }

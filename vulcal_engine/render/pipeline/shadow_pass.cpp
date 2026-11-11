@@ -6,6 +6,7 @@
 #include "gfx/render_target.h"
 #include "render/render_data.h"
 #include "render/resources/mesh_gpu.h"
+#include "render/shaders/embedded_shaders.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace vulcal::render {
@@ -36,7 +37,7 @@ ShadowPass::ShadowPass()
               .polygon_offset = true,
               .polygon_offset_factor = 2.0f,
               .polygon_offset_units = 4.0f }) {
-    load_shaders("shadow.vert", "shadow.frag");
+    load_shaders(shaders::shadow_vert, shaders::shadow_frag);
 }
 
 ShadowPass::~ShadowPass() = default;
