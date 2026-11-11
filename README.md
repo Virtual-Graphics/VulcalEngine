@@ -6,8 +6,8 @@
 <a href="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-windows.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-windows.yml/badge.svg?branch=main" alt="Windows CI"></a>
 <a href="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-linux.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/MiniEngine/actions/workflows/ci-linux.yml/badge.svg?branch=main" alt="Linux CI"></a>
 
-<a href="https://github.com/orgs/Virtual-Graphics/projects/1"> 路线图 </a> 
-<a href="https://virtual-graphics.github.io/VulcalEngine-website/"> 关于 </a>
+<a href="https://github.com/orgs/Virtual-Graphics/projects/1"> 路线图 </a> |
+<a href="https://virtual-graphics.github.io/VulcalEngine-website/"> 文档 </a> 
 
 
 </div>
