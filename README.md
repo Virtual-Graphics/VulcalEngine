@@ -3,11 +3,18 @@
 </div>
 <div align=center>
 
+
+<a href="https://github.com/orgs/Virtual-Graphics/projects/1"> 路线图</a> |
+<a href="https://virtual-graphics.github.io/VulcalEngine-website/docs/intro/"> 文档</a> |
+<a href="https://virtual-graphics.github.io/VulcalEngine-website/blog/"> 开发日志</a>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
+![C++ VERSION](https://img.shields.io/badge/C%2B%2B23-00599C?style=flat&logo=cplusplus&logoColor=white)
+
+
 <a href="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-windows.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-windows.yml/badge.svg?branch=main" alt="Windows CI"></a>
 <a href="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-linux.yml?query=branch%3Amain"><img src="https://github.com/Virtual-Graphics/VulcalEngine/actions/workflows/ci-linux.yml/badge.svg?branch=main" alt="Linux CI"></a>
-
-<a href="https://github.com/orgs/Virtual-Graphics/projects/1"> 路线图 </a> |
-<a href="https://virtual-graphics.github.io/VulcalEngine-website/"> 文档 </a> 
 
 
 </div>
