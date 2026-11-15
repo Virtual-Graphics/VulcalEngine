@@ -107,6 +107,42 @@ ctest --test-dir build -C Debug --output-on-failure
 
 也可以使用 `CMakePresets.json` 中的预设；其中 `msvc` 预设要求 Visual Studio 2026，`clang-debug` 预设使用 PATH 中的 `clang-cl` 和 Ninja。
 
+### Tracy 性能分析
+
+通过 CMake 开关接入 Tracy `v0.15.0`，默认关闭。关闭时不下载或链接 Tracy，埋点参数也不会被求值。
+建议使用带调试信息的优化构建来分析实际性能：
+
+```bash
+cmake -S . -B build/profile -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVULCAL_ENABLE_PROFILING=ON
+cmake --build build/profile --config RelWithDebInfo --parallel
+./build/profile/bin/editor
+```
+
+Windows 多配置生成器的编辑器路径为 `build/profile/bin/RelWithDebInfo/editor.exe`。
+启动同版本的 Tracy Profiler，连接 `127.0.0.1`，即可查看时间线、Statistics 和 Plots。
+默认启用 `TRACY_ON_DEMAND`，连接后开始采集；要分析启动和首次加载，配置时加上 `-DTRACY_ON_DEMAND=OFF`，并提前启动 Profiler 等待连接。
+只分析 CPU 时加上 `-DVULCAL_ENABLE_GPU_PROFILING=OFF`。
+
+已覆盖的分析位置：
+
+| 范围 | 数据 |
+| --- | --- |
+| 主循环 | 每帧、事件轮询、各 Layer 的更新/渲染、交换缓冲与 VSync 等待 |
+| 渲染 | 场景提取、绘制排序、每个 Pass 的 CPU/GPU 耗时、ImGui 的 CPU/GPU 耗时 |
+| 脚本 | 启动/停止、逐帧更新、各实例的创建和更新，附带脚本路径 |
+| 资源与项目 | 磁盘缓存未命中的加载、GPU 资源上传、导入、项目打开、场景读写 |
+| 曲线 | 帧间隔、实体数、渲染项数、Draw Call 数、提交索引数、驻留资源数、脚本实例数 |
+
+Draw Call 和索引数按引擎 `gfx::Command` 的实际提交统计，包括阴影等多 Pass 的重复绘制；不包含 ImGui 后端内部提交。
+渲染项和实体数在每次场景渲染/提取时采样；GPU 查询结果在交换缓冲后收集，耗时通过 GPU 时间戳测量。
+启用垂直同步时，`Swap buffers / VSync` 中包含等待时间，不能把它视作场景绘制耗时。
+
+新增 CPU 埋点时包含 `base/profiler.h`，在函数或代码块中使用 `VULCAL_PROFILE_SCOPE()`；
+固定名称使用 `VULCAL_PROFILE_SCOPE_NAMED("Name")`，运行时名称使用 `VULCAL_PROFILE_SCOPE_DYNAMIC(name)`，
+额外文本使用 `VULCAL_PROFILE_TEXT(text, size)`，数值曲线使用 `VULCAL_PROFILE_PLOT("Name", value)`。
+GPU 埋点包含 `gfx/profiler.h` 并使用 `VULCAL_PROFILE_GPU_SCOPE("Name")`，必须在引擎创建的 OpenGL 上下文所在线程执行。
+自定义主循环须调用 `Context::swap_buffers()`，以收集 GPU 查询并发布、重置每帧绘制统计。
+
 ### 着色器与图形测试
 
 引擎内置着色器在构建时自动嵌入程序，运行时不需要源码目录或外部 GLSL 文件。修改 `vulcal_engine/render/shaders/` 下的着色器后，重新执行构建即可更新。

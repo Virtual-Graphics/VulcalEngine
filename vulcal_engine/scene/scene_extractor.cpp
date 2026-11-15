@@ -1,5 +1,7 @@
 #include "scene/scene_extractor.h"
 
+#include "base/profiler.h"
+
 #include "asset/render_asset_cache.h"
 #include "base/logger.h"
 #include "scene/components.h"
@@ -48,6 +50,8 @@ render::RenderData SceneExtractor::extract(const Scene& scene, float aspect) con
 }
 
 render::RenderData SceneExtractor::extract(const Scene& scene, const Options& options) const {
+    VULCAL_PROFILE_SCOPE();
+    VULCAL_PROFILE_PLOT("Scene/Entities", scene.registry().view<const IDComponent>().size());
     render::RenderData data;
 
     if (options.camera_override_) {

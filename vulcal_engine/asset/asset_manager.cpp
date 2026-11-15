@@ -1,5 +1,7 @@
 #include "asset/asset_manager.h"
 
+#include "base/profiler.h"
+
 #include "base/logger.h"
 
 #include <exception>
@@ -16,6 +18,8 @@ std::shared_ptr<const T> load_runtime_asset(AssetCache<T>& cache, const std::fil
     if (auto data = cache.find(id)) return data;
     if (directory.empty() || cache.failed(id)) return {};
 
+    VULCAL_PROFILE_SCOPE_NAMED("Load asset from disk");
+    VULCAL_PROFILE_TEXT(type.data(), type.size());
     try {
         auto data = std::make_shared<const T>(std::forward<Loader>(loader)());
         cache.store(id, data);

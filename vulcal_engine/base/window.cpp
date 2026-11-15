@@ -1,5 +1,7 @@
 #include "base/window.h"
 
+#include "base/profiler.h"
+
 #include <SDL3/SDL.h>
 
 #include <stdexcept>
@@ -47,6 +49,7 @@ Window::~Window() {
 }
 
 void Window::poll_events() {
+    VULCAL_PROFILE_SCOPE();
     Input::begin_frame();
 
     SDL_Event event;

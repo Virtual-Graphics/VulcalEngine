@@ -13,12 +13,16 @@ jobs:
   windows:
     runs-on: windows-latest
 
+    strategy:
+      matrix:
+        profiling: ["OFF", "ON"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -B build -A x64
+        run: cmake -B build -A x64 -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }}
 
       - name: Build
         run: cmake --build build --config Debug --parallel

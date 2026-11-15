@@ -1,5 +1,7 @@
 #include "gfx/command.h"
 
+#include "gfx/profiler.h"
+
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -53,6 +55,7 @@ void Command::apply(const PipelineState& pipeline) {
 }
 
 void Command::draw_indexed(const VertexArray& vao, Primitive primitive) {
+    VULCAL_PROFILE_DRAW(vao.index_count());
     vao.bind();
     glDrawElements(to_gl(primitive), static_cast<GLsizei>(vao.index_count()), static_cast<GLenum>(vao.index_type()), nullptr);
 }

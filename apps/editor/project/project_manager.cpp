@@ -1,5 +1,7 @@
 #include "editor/project/project_manager.h"
 
+#include "base/profiler.h"
+
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
@@ -49,6 +51,7 @@ void ProjectManager::create_project(const std::filesystem::path& directory, cons
 }
 
 void ProjectManager::open_project(const std::filesystem::path& project_file) {
+    VULCAL_PROFILE_SCOPE();
     base::log::debug("ProjectManager: opening project {}", project_file.string());
     if (!base::has_extension(project_file, ".vproj")) {
         throw std::invalid_argument("Select a .vproj project file");
@@ -111,6 +114,7 @@ void ProjectManager::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
 }
 
 void ProjectManager::open_scene(const std::filesystem::path& scene_file) {
+    VULCAL_PROFILE_SCOPE();
     base::log::debug("ProjectManager: opening scene {}", scene_file.string());
     if (has_project() && !base::is_within(scene_file, current_project_dir())) {
         throw std::invalid_argument("Scene must be opened inside the project directory");
@@ -133,6 +137,7 @@ void ProjectManager::open_scene(const std::filesystem::path& scene_file) {
 }
 
 void ProjectManager::save_scene(const std::filesystem::path& scene_file) {
+    VULCAL_PROFILE_SCOPE();
     base::log::debug("ProjectManager: saving scene to {}", scene_file.string());
     if (!opened_scene_) {
         base::log::error("No scene is currently open");

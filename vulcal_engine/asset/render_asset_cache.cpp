@@ -1,5 +1,7 @@
 #include "asset/render_asset_cache.h"
 
+#include "base/profiler.h"
+
 #include "asset/asset_manager.h"
 #include "base/logger.h"
 #include "render/renderer.h"
@@ -25,6 +27,7 @@ render::MeshHandle RenderAssetCache::resolve_mesh(AssetID id) {
     }
     if (!source) return {};
 
+    VULCAL_PROFILE_SCOPE_NAMED("Upload mesh");
     const auto handle = renderer_.create_mesh(*source);
     try {
         meshes_.emplace(id, MeshEntry{ std::move(source), handle });
@@ -47,6 +50,7 @@ render::MaterialHandle RenderAssetCache::resolve_material(AssetID id) {
     }
     if (!source) return {};
 
+    VULCAL_PROFILE_SCOPE_NAMED("Upload material");
     const auto handle = renderer_.create_material(*source);
     try {
         materials_.emplace(id, MaterialEntry{ std::move(source), handle });
@@ -69,6 +73,7 @@ render::TextureHandle RenderAssetCache::resolve_texture(AssetID id) {
     }
     if (!source) return {};
 
+    VULCAL_PROFILE_SCOPE_NAMED("Upload texture");
     const auto handle = renderer_.create_texture(*source);
     try {
         textures_.emplace(id, TextureEntry{ std::move(source), handle });

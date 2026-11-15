@@ -1,5 +1,7 @@
 #include "gfx/context.h"
 
+#include "gfx/profiler.h"
+
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 
@@ -49,6 +51,7 @@ Context::Context(SDL_Window* window)
             reinterpret_cast<const char*>(glGetString(GL_VENDOR)), reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
 
     init_debug_output();
+    VULCAL_PROFILE_GPU_CONTEXT();
 
     GLint texture_size = 0, framebuffer_width = 0, framebuffer_height = 0;
     GLint viewport_size[2]{};
@@ -71,7 +74,17 @@ Context::~Context() {
     }
 }
 
-void Context::swap_buffers() const { SDL_GL_SwapWindow(window_); }
+void Context::swap_buffers() const {
+    {
+        VULCAL_PROFILE_SCOPE_NAMED("Swap buffers / VSync");
+        SDL_GL_SwapWindow(window_);
+    }
+    {
+        VULCAL_PROFILE_SCOPE_NAMED("Collect GPU timestamps");
+        VULCAL_PROFILE_GPU_COLLECT();
+    }
+    VULCAL_PROFILE_RENDER_FRAME();
+}
 
 void Context::set_swap_interval(int interval) const { SDL_GL_SetSwapInterval(interval); }
 
