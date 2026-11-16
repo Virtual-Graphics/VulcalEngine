@@ -21,8 +21,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Avoid the hosted runner's DbgHelp failure during GoogleTest discovery.
       - name: Configure
-        run: cmake -B build -A x64 -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }}
+        run: cmake -B build -A x64 -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }} -DTRACY_NO_CALLSTACK=ON
 
       - name: Build
         run: cmake --build build --config Debug --parallel
