@@ -38,8 +38,8 @@ Context::Context(SDL_Window* window)
         base::log::error("SDL_GL_MakeCurrent failed: {}", reason);
         throw std::runtime_error("SDL_GL_MakeCurrent failed: " + reason);
     }
-    if (!SDL_GL_SetSwapInterval(1)) {
-        base::log::warn("Could not enable VSync: {}", SDL_GetError());
+    if (!SDL_GL_SetSwapInterval(0)) {
+        base::log::warn("Could not disable VSync: {}", SDL_GetError());
     }
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
@@ -76,7 +76,7 @@ Context::~Context() {
 
 void Context::swap_buffers() const {
     {
-        VULCAL_PROFILE_SCOPE_NAMED("Swap buffers / VSync");
+        VULCAL_PROFILE_SCOPE_NAMED("Swap buffers");
         SDL_GL_SwapWindow(window_);
     }
     {

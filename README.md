@@ -127,7 +127,7 @@ Windows 多配置生成器的编辑器路径为 `build/profile/bin/RelWithDebInf
 
 | 范围 | 数据 |
 | --- | --- |
-| 主循环 | 每帧、事件轮询、各 Layer 的更新/渲染、交换缓冲与 VSync 等待 |
+| 主循环 | 每帧、事件轮询、各 Layer 的更新/渲染、交换缓冲（默认关闭 VSync） |
 | 渲染 | 场景提取、绘制排序、每个 Pass 的 CPU/GPU 耗时、ImGui 的 CPU/GPU 耗时 |
 | 脚本 | 启动/停止、逐帧更新、各实例的创建和更新，附带脚本路径 |
 | 资源与项目 | 磁盘缓存未命中的加载、GPU 资源上传、导入、项目打开、场景读写 |
@@ -135,7 +135,7 @@ Windows 多配置生成器的编辑器路径为 `build/profile/bin/RelWithDebInf
 
 Draw Call 和索引数按引擎 `gfx::Command` 的实际提交统计，包括阴影等多 Pass 的重复绘制；不包含 ImGui 后端内部提交。
 渲染项和实体数在每次场景渲染/提取时采样；GPU 查询结果在交换缓冲后收集，耗时通过 GPU 时间戳测量。
-启用垂直同步时，`Swap buffers / VSync` 中包含等待时间，不能把它视作场景绘制耗时。
+默认关闭垂直同步；如通过 `Context::set_swap_interval` 启用，交换缓冲区域可能包含等待时间，不能把它视作场景绘制耗时。
 
 新增 CPU 埋点时包含 `base/profiler.h`，在函数或代码块中使用 `VULCAL_PROFILE_SCOPE()`；
 固定名称使用 `VULCAL_PROFILE_SCOPE_NAMED("Name")`，运行时名称使用 `VULCAL_PROFILE_SCOPE_DYNAMIC(name)`，
