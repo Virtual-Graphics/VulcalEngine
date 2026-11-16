@@ -1,5 +1,7 @@
 #include "editor/editor_layer.h"
 
+#include "base/profiler.h"
+
 #include "asset/render_asset_cache.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
@@ -255,6 +257,7 @@ void EditorLayer::draw_workspace() {
 }
 
 void EditorLayer::on_update(base::Timestep dt) {
+    VULCAL_PROFILE_SCOPE();
     if (context_.playing()) script_runtime_.update(dt.get_seconds());
     imgui_->begin_frame();
     draw_workspace();
@@ -271,6 +274,7 @@ void EditorLayer::on_update(base::Timestep dt) {
 }
 
 void EditorLayer::on_render() {
+    VULCAL_PROFILE_SCOPE();
     if (viewport_.visible()) {
         auto& target = viewport_.target();
         vulcal::scene::SceneExtractor::Options options;

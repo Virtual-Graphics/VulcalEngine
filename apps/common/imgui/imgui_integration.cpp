@@ -1,5 +1,7 @@
 #include "common/imgui/imgui_integration.h"
 
+#include "gfx/profiler.h"
+
 #include "base/logger.h"
 #include "base/window.h"
 #include "gfx/command.h"
@@ -60,6 +62,7 @@ ImGuiIntegration::~ImGuiIntegration() {
 }
 
 void ImGuiIntegration::begin_frame() {
+    VULCAL_PROFILE_SCOPE();
     ImGui::SetCurrentContext(context_);
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -67,12 +70,16 @@ void ImGuiIntegration::begin_frame() {
 }
 
 void ImGuiIntegration::end_frame() {
+    VULCAL_PROFILE_SCOPE();
     ImGui::SetCurrentContext(context_);
     ImGui::Render();
 }
 
 void ImGuiIntegration::render() {
+    VULCAL_PROFILE_SCOPE();
     ImGui::SetCurrentContext(context_);
+
+    VULCAL_PROFILE_GPU_SCOPE("ImGui");
 
     // The overlay draws over the scene without clearing its framebuffer.
     vulcal::gfx::RenderTarget::unbind();

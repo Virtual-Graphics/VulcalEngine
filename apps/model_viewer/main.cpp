@@ -158,7 +158,7 @@ private:
         if (ImGui::Begin("Model Viewer", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             const float fps = ImGui::GetIO().Framerate;
             ImGui::Text("%.1f FPS | %.2f ms/frame", fps, fps > 0.0f ? 1000.0f / fps : 0.0f);
-            ImGui::TextDisabled("Whole-frame interval, including VSync");
+            ImGui::TextDisabled("Whole-frame interval");
             ImGui::Text("Model: %s", model_name_.c_str());
             ImGui::Text("Vertices: %zu | Triangles: %zu", vertex_count_, triangle_count_);
 

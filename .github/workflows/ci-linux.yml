@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    strategy:
+      matrix:
+        profiling: ["OFF", "ON"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,7 +75,7 @@ jobs:
             wayland-protocols
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }}
 
       - name: Build
         run: cmake --build build --parallel

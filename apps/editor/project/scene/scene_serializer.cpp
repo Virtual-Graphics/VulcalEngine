@@ -1,5 +1,7 @@
 #include "editor/project/scene/scene_serializer.h"
 
+#include "base/profiler.h"
+
 #include "base/logger.h"
 #include "base/yaml.h"
 #include "scene/components.h"
@@ -120,6 +122,7 @@ void load_component(const YAML::Node& node, const char* key, Entity entity) {
 } // namespace
 
 void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::filesystem::path& path) {
+    VULCAL_PROFILE_SCOPE();
     YAML::Node root;
     root["format_version"] = scene_format_version;
     auto entities = root["entities"] = YAML::Node(YAML::NodeType::Sequence);
@@ -145,6 +148,7 @@ void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::fi
 }
 
 std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::filesystem::path& path) {
+    VULCAL_PROFILE_SCOPE();
     base::log::debug("SceneSerializer: reading {}", path.string());
     std::ifstream input(path, std::ios::binary);
     const auto root    = YAML::Load(input);

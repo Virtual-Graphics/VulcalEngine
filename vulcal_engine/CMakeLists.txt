@@ -36,3 +36,11 @@ target_link_libraries(vulcal_engine PUBLIC
     Lua::Lua
     sol2::sol2
 )
+
+if (VULCAL_ENABLE_PROFILING)
+    target_link_libraries(vulcal_engine PUBLIC Tracy::TracyClient)
+    target_compile_definitions(vulcal_engine PUBLIC VULCAL_ENABLE_PROFILING)
+    if (VULCAL_ENABLE_GPU_PROFILING)
+        target_compile_definitions(vulcal_engine PUBLIC VULCAL_ENABLE_GPU_PROFILING)
+    endif()
+endif()

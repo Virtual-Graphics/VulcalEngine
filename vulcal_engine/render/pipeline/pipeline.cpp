@@ -1,5 +1,7 @@
 #include "render/pipeline/pipeline.h"
 
+#include "gfx/profiler.h"
+
 #include "gfx/command.h"
 #include "gfx/debug.h"
 #include "render/pipeline/forward_pass.h"
@@ -24,6 +26,8 @@ void Pipeline::render(const RenderData& data, gfx::RenderTarget* target,
             continue;
         }
 
+        VULCAL_PROFILE_SCOPE_DYNAMIC(pass->name());
+        VULCAL_PROFILE_GPU_SCOPE_DYNAMIC(pass->name());
         gfx::DebugScope scope(pass->name());
         pass->prepare(ctx);
         for (const DrawItem& item: items) {

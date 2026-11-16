@@ -1,5 +1,7 @@
 #include "script/script_runtime.h"
 
+#include "base/profiler.h"
+
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
@@ -46,6 +48,7 @@ void ScriptRuntime::register_backend(std::unique_ptr<ScriptBackend> backend) {
 }
 
 void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& project_root) {
+    VULCAL_PROFILE_SCOPE();
     stop();
     scene_ = &scene;
     scene.each<scene::ScriptComponent>([&](scene::Entity entity, scene::ScriptComponent& component) {
@@ -58,6 +61,8 @@ void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& proj
                 throw std::runtime_error("No backend for script extension");
             }
 
+            VULCAL_PROFILE_SCOPE_NAMED("Script create");
+            VULCAL_PROFILE_TEXT(requested_path.data(), requested_path.size());
             auto instance = backend->second->create(ScriptContext{ scene, entity }, path);
             if (!instance) {
                 throw std::runtime_error("Backend returned an empty script instance");
@@ -82,6 +87,8 @@ void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& proj
 }
 
 void ScriptRuntime::update(float delta_time) {
+    VULCAL_PROFILE_SCOPE();
+    VULCAL_PROFILE_PLOT("Script/Instances", entries_.size());
     auto entry = entries_.begin();
     while (entry != entries_.end()) {
         if (!entry->entity.valid() || !entry->entity.has_component<scene::ScriptComponent>()) {
@@ -97,6 +104,8 @@ void ScriptRuntime::update(float delta_time) {
         }
         if (entry->active) {
             try {
+                VULCAL_PROFILE_SCOPE_NAMED("Script on_update");
+                VULCAL_PROFILE_TEXT(entry->script_path.data(), entry->script_path.size());
                 entry->instance->on_update(delta_time);
             } catch (const std::exception& error) {
                 entry->active = false;
@@ -111,6 +120,7 @@ void ScriptRuntime::update(float delta_time) {
 }
 
 void ScriptRuntime::stop() {
+    VULCAL_PROFILE_SCOPE();
     for (auto& entry: entries_) {
         try {
             entry.instance->on_destroy();

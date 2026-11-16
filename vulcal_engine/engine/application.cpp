@@ -1,5 +1,7 @@
 #include "engine/application.h"
 
+#include "base/profiler.h"
+
 #include <chrono>
 
 #include "base/logger.h"
@@ -38,16 +40,21 @@ void Application::push_overlay(std::unique_ptr<Layer> overlay) {
 }
 
 void Application::run() {
+    VULCAL_PROFILE_SCOPE();
     base::log::info("Entering main loop");
+    VULCAL_PROFILE_THREAD("Main");
     running_ = true;
     auto last = std::chrono::high_resolution_clock::now();
 
     while (running_ && !window_->should_close()) {
+        VULCAL_PROFILE_FRAME();
+        VULCAL_PROFILE_SCOPE_NAMED("Frame");
         window_->poll_events();
 
         const auto now = std::chrono::high_resolution_clock::now();
         const base::Timestep dt(std::chrono::duration<float>(now - last).count());
         last = now;
+        VULCAL_PROFILE_PLOT("Frame/Delta (ms)", dt.get_milliseconds());
 
         if (window_->width() == 0 || window_->height() == 0) {
             continue;
@@ -55,12 +62,20 @@ void Application::run() {
 
         vulcal::gfx::Command::set_viewport(window_->width(), window_->height());
 
-        for (auto& layer : layer_stack_) {
-            layer->on_update(dt);
+        {
+            VULCAL_PROFILE_SCOPE_NAMED("Layer update");
+            for (auto& layer : layer_stack_) {
+                VULCAL_PROFILE_SCOPE_DYNAMIC(layer->get_name().c_str());
+                layer->on_update(dt);
+            }
         }
 
-        for (auto& layer : layer_stack_) {
-            layer->on_render();
+        {
+            VULCAL_PROFILE_SCOPE_NAMED("Layer render");
+            for (auto& layer : layer_stack_) {
+                VULCAL_PROFILE_SCOPE_DYNAMIC(layer->get_name().c_str());
+                layer->on_render();
+            }
         }
 
         context_->swap_buffers();

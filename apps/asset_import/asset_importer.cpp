@@ -1,5 +1,7 @@
 #include "asset_import/asset_importer.h"
 
+#include "base/profiler.h"
+
 #include "asset_import/importers/material_asset_importer.h"
 #include "asset_import/importers/obj_asset_importer.h"
 #include "asset_import/importers/texture_asset_importer.h"
@@ -13,6 +15,7 @@ namespace apps::asset_import {
 vulcal::asset::AssetID AssetImporter::import(const std::filesystem::path& source_file,
                                              const std::filesystem::path& project_directory,
                                              const std::filesystem::path& library_directory) {
+    VULCAL_PROFILE_SCOPE();
     const auto extension = base::lowercase_extension(source_file);
 
     if (extension == ".obj") {

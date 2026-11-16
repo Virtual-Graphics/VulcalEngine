@@ -9,6 +9,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+option(VULCAL_ENABLE_PROFILING "Enable Tracy performance profiling" OFF)
+option(VULCAL_ENABLE_GPU_PROFILING "Include OpenGL GPU timings when profiling is enabled" ON)
+
 include(cmake/dependencies.cmake)
 
 option(BUILD_CORE "Build the Engine Core" ON)
