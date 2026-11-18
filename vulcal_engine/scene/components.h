@@ -26,13 +26,13 @@ struct TransformComponent {
 };
 
 struct MeshRendererComponent {
-    asset::AssetID mesh_asset_id_;
-    asset::AssetID material_asset_id_;
+    asset::MeshAssetID mesh_asset_id_;
+    asset::MaterialAssetID material_asset_id_;
     bool visible_ = true;
 };
 
 struct SpriteRendererComponent {
-    asset::AssetID texture_asset_id_;
+    asset::TextureAssetID texture_asset_id_;
     glm::vec4 color_{ 1.0f };
     glm::vec4 uv_rect_{ 0.0f, 0.0f, 1.0f, 1.0f };
     glm::vec2 pivot_{ 0.5f, 0.5f };

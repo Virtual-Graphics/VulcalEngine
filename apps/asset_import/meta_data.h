@@ -1,7 +1,7 @@
 #pragma once
 
-#include "asset/asset_id.h"
 #include "asset/asset_type.h"
+#include "base/uuid.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -12,7 +12,7 @@ constexpr std::uint32_t metadata_format_version = 1;
 
 struct Metadata {
     std::uint32_t format_version = metadata_format_version;
-    vulcal::asset::AssetID id;
+    base::UUID id;
     vulcal::asset::AssetType type = vulcal::asset::AssetType::Mesh;
 };
 

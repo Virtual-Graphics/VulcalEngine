@@ -15,12 +15,12 @@ class AssetLibrary {
 public:
     explicit AssetLibrary(std::filesystem::path directory);
 
-    render::MeshData load_mesh(AssetID id) const;
-    render::Material load_material(AssetID id) const;
-    render::TextureData load_texture(AssetID id) const;
-    std::filesystem::path mesh_path(AssetID id) const;
-    std::filesystem::path material_path(AssetID id) const;
-    std::filesystem::path texture_path(AssetID id) const;
+    render::MeshData load_mesh(MeshAssetID id) const;
+    render::Material load_material(MaterialAssetID id) const;
+    render::TextureData load_texture(TextureAssetID id) const;
+    std::filesystem::path mesh_path(MeshAssetID id) const;
+    std::filesystem::path material_path(MaterialAssetID id) const;
+    std::filesystem::path texture_path(TextureAssetID id) const;
 
     const std::filesystem::path& directory() const { return directory_; }
 

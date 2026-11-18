@@ -1,3 +1,6 @@
+add_executable(asset_id_test asset_id.cpp)
+target_link_libraries(asset_id_test PRIVATE vulcal_engine GTest::gtest_main)
+
 add_executable(asset_manager_test asset_manager.cpp)
 target_link_libraries(asset_manager_test PRIVATE vulcal_engine GTest::gtest_main)
 
@@ -11,6 +14,7 @@ add_executable(texture_asset_test texture_asset.cpp)
 target_link_libraries(texture_asset_test PRIVATE vulcal_engine GTest::gtest_main)
 
 include(GoogleTest)
+gtest_discover_tests(asset_id_test)
 gtest_discover_tests(asset_manager_test)
 gtest_discover_tests(mesh_asset_test)
 gtest_discover_tests(material_asset_test)

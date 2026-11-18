@@ -10,8 +10,9 @@
 
 namespace apps::asset_import {
 
-vulcal::asset::AssetID ObjAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
-                                                const std::filesystem::path& library_directory) {
+vulcal::asset::MeshAssetID ObjAssetImporter::import(const std::filesystem::path& source_file,
+                                                    const std::filesystem::path& project_directory,
+                                                    const std::filesystem::path& library_directory) {
 
     base::log::debug("ObjAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
@@ -27,7 +28,7 @@ vulcal::asset::AssetID ObjAssetImporter::import(const std::filesystem::path& sou
     const auto meta         = metadata_path(source_file);
     const auto has_metadata = std::filesystem::exists(meta);
     const auto metadata     = metadata_for_source(source_file, vulcal::asset::AssetType::Mesh);
-    const auto id           = metadata.id;
+    const vulcal::asset::MeshAssetID id{ metadata.id };
 
     std::filesystem::create_directories(library_directory);
     const auto runtime_file = vulcal::asset::AssetLibrary{ library_directory }.mesh_path(id);

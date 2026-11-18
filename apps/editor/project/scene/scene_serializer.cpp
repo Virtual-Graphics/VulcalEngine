@@ -41,8 +41,8 @@ void fields(YAML::Node n, TransformComponent& c, bool load) {
 
 void fields(YAML::Node n, MeshRendererComponent& c, bool load) {
     if (load) {
-        c.mesh_asset_id_     = base::UUID{ n["mesh_asset_id"].as<std::uint64_t>() };
-        c.material_asset_id_ = base::UUID{ n["material_asset_id"].as<std::uint64_t>() };
+        c.mesh_asset_id_     = vulcal::asset::MeshAssetID{ n["mesh_asset_id"].as<std::uint64_t>() };
+        c.material_asset_id_ = vulcal::asset::MaterialAssetID{ n["material_asset_id"].as<std::uint64_t>() };
         c.visible_           = n["visible"].as<bool>();
     } else {
         n["mesh_asset_id"]     = c.mesh_asset_id_.value();
@@ -53,7 +53,7 @@ void fields(YAML::Node n, MeshRendererComponent& c, bool load) {
 
 void fields(YAML::Node n, SpriteRendererComponent& c, bool load) {
     if (load) {
-        c.texture_asset_id_ = base::UUID{ n["texture_asset_id"].as<std::uint64_t>() };
+        c.texture_asset_id_ = vulcal::asset::TextureAssetID{ n["texture_asset_id"].as<std::uint64_t>() };
     } else {
         n["texture_asset_id"] = c.texture_asset_id_.value();
     }

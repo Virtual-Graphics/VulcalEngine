@@ -12,9 +12,8 @@
 
 namespace apps::asset_import {
 
-vulcal::asset::AssetID AssetImporter::import(const std::filesystem::path& source_file,
-                                             const std::filesystem::path& project_directory,
-                                             const std::filesystem::path& library_directory) {
+ImportedAssetID AssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
+                                      const std::filesystem::path& library_directory) {
     VULCAL_PROFILE_SCOPE();
     const auto extension = base::lowercase_extension(source_file);
 

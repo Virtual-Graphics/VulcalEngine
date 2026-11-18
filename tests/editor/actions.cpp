@@ -208,7 +208,7 @@ TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     editor::EditorContext other;
     std::filesystem::create_directories(directory_ / "other");
     other.create_project(directory_ / "other", "Other");
-    const vulcal::asset::AssetID new_id{ 12 };
+    const vulcal::asset::MeshAssetID new_id{ 12 };
     vulcal::asset::MeshAsset::write(other.library_directory() / "12.vmesh", triangle());
     open_path_ = directory_ / "other" / "Other.vproj";
 

@@ -13,11 +13,11 @@ namespace vulcal::asset {
 AssetLibrary::AssetLibrary(std::filesystem::path directory)
         : directory_(std::move(directory)) {}
 
-std::filesystem::path AssetLibrary::mesh_path(AssetID id) const { return directory_ / (id.to_string() + ".vmesh"); }
-std::filesystem::path AssetLibrary::material_path(AssetID id) const { return directory_ / (id.to_string() + ".vmatc"); }
-std::filesystem::path AssetLibrary::texture_path(AssetID id) const { return directory_ / (id.to_string() + ".vtex"); }
+std::filesystem::path AssetLibrary::mesh_path(MeshAssetID id) const { return directory_ / (id.to_string() + ".vmesh"); }
+std::filesystem::path AssetLibrary::material_path(MaterialAssetID id) const { return directory_ / (id.to_string() + ".vmatc"); }
+std::filesystem::path AssetLibrary::texture_path(TextureAssetID id) const { return directory_ / (id.to_string() + ".vtex"); }
 
-render::MeshData AssetLibrary::load_mesh(AssetID id) const {
+render::MeshData AssetLibrary::load_mesh(MeshAssetID id) const {
     if (id.is_nil()) {
         throw std::invalid_argument("Cannot load a mesh with an empty asset ID");
     }
@@ -26,14 +26,14 @@ render::MeshData AssetLibrary::load_mesh(AssetID id) const {
     return MeshAsset::read(path);
 }
 
-render::Material AssetLibrary::load_material(AssetID id) const {
+render::Material AssetLibrary::load_material(MaterialAssetID id) const {
     if (id.is_nil()) throw std::invalid_argument("Cannot load a material with an empty asset ID");
     const auto path = material_path(id);
     base::log::debug("AssetLibrary: loading material {} from {}", id.to_string(), path.string());
     return MaterialAsset::read(path);
 }
 
-render::TextureData AssetLibrary::load_texture(AssetID id) const {
+render::TextureData AssetLibrary::load_texture(TextureAssetID id) const {
     if (id.is_nil()) throw std::invalid_argument("Cannot load a texture with an empty asset ID");
     const auto path = texture_path(id);
     base::log::debug("AssetLibrary: loading texture {} from {}", id.to_string(), path.string());

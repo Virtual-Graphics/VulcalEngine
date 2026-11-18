@@ -8,9 +8,8 @@ namespace apps::asset_import {
 
 class ObjAssetImporter {
 public:
-    static vulcal::asset::AssetID import(const std::filesystem::path& source_file,
-                                         const std::filesystem::path& project_directory,
-                                         const std::filesystem::path& library_directory);
+    static vulcal::asset::MeshAssetID import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
+                                             const std::filesystem::path& library_directory);
 };
 
 } // namespace apps::asset_import

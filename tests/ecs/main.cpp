@@ -79,10 +79,10 @@ TEST(Scene, AddGetAndRemoveComponents) {
     auto entity                      = scene.create_entity("Player");
 
     auto& mesh_renderer              = entity.add_component<vulcal::scene::MeshRendererComponent>();
-    mesh_renderer.mesh_asset_id_     = base::UUID{ 7 };
-    mesh_renderer.material_asset_id_ = base::UUID{ 9 };
+    mesh_renderer.mesh_asset_id_     = vulcal::asset::MeshAssetID{ 7 };
+    mesh_renderer.material_asset_id_ = vulcal::asset::MaterialAssetID{ 9 };
     EXPECT_TRUE(entity.has_component<vulcal::scene::MeshRendererComponent>());
-    EXPECT_EQ(entity.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, base::UUID{ 7 });
+    EXPECT_EQ(entity.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, vulcal::asset::MeshAssetID{ 7 });
 
     entity.remove_component<vulcal::scene::MeshRendererComponent>();
     EXPECT_FALSE(entity.has_component<vulcal::scene::MeshRendererComponent>());
@@ -203,8 +203,8 @@ TEST(SceneCopy, CopyPreservesEntitiesAndComponents) {
     source.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 4.0f, 5.0f, 6.0f };
 
     auto& source_renderer                                                  = source.add_component<vulcal::scene::MeshRendererComponent>();
-    source_renderer.mesh_asset_id_                                         = base::UUID{ 21 };
-    source_renderer.material_asset_id_                                     = base::UUID{ 22 };
+    source_renderer.mesh_asset_id_                                         = vulcal::asset::MeshAssetID{ 21 };
+    source_renderer.material_asset_id_                                     = vulcal::asset::MaterialAssetID{ 22 };
 
     auto& camera                                                           = source.add_component<vulcal::scene::CameraComponent>();
     camera.primary_                                                        = true;
@@ -235,7 +235,7 @@ TEST(SceneCopy, CopyPreservesEntitiesAndComponents) {
     expect_near(copied_source.get_component<vulcal::scene::TransformComponent>().translation_, source_translation);
     EXPECT_TRUE(copied_source.has_component<vulcal::scene::CameraComponent>());
     EXPECT_TRUE(copied_source.get_component<vulcal::scene::CameraComponent>().primary_);
-    EXPECT_EQ(copied_source.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, base::UUID{ 21 });
+    EXPECT_EQ(copied_source.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, vulcal::asset::MeshAssetID{ 21 });
 
     const auto environment_view = copy.registry().view<const vulcal::scene::EnvironmentComponent>();
     ASSERT_FALSE(environment_view.empty());
@@ -288,7 +288,7 @@ TEST(SceneCopy, PreservesSpriteRendererComponent) {
     vulcal::scene::Scene scene;
     auto source  = scene.create_entity("Sprite");
     auto& sprite = source.add_component<vulcal::scene::SpriteRendererComponent>();
-    sprite.texture_asset_id_ = base::UUID{ 777 };
+    sprite.texture_asset_id_  = vulcal::asset::TextureAssetID{ 777 };
     sprite.color_            = { 0.1f, 0.2f, 0.3f, 0.4f };
     sprite.uv_rect_          = { 0.05f, 0.1f, 0.95f, 0.9f };
     sprite.pivot_            = { 0.0f, 0.0f };
@@ -303,7 +303,7 @@ TEST(SceneCopy, PreservesSpriteRendererComponent) {
     ASSERT_TRUE(copied.valid());
     ASSERT_TRUE(copied.has_component<vulcal::scene::SpriteRendererComponent>());
     const auto& copied_sprite = copied.get_component<vulcal::scene::SpriteRendererComponent>();
-    EXPECT_EQ(copied_sprite.texture_asset_id_, base::UUID{ 777 });
+    EXPECT_EQ(copied_sprite.texture_asset_id_, vulcal::asset::TextureAssetID{ 777 });
     EXPECT_EQ(copied_sprite.color_, sprite.color_);
     EXPECT_EQ(copied_sprite.uv_rect_, sprite.uv_rect_);
     EXPECT_EQ(copied_sprite.pivot_, sprite.pivot_);
@@ -493,7 +493,7 @@ end
     auto textured = find_by_name("Textured");
     ASSERT_TRUE(textured);
     ASSERT_TRUE(textured.has_component<vulcal::scene::SpriteRendererComponent>());
-    EXPECT_EQ(textured.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, base::UUID{ 111 });
+    EXPECT_EQ(textured.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, vulcal::asset::TextureAssetID{ 111 });
 
     auto created = find_by_name("Created");
     ASSERT_TRUE(created);
@@ -525,8 +525,8 @@ end
     ASSERT_TRUE(created.has_component<vulcal::scene::MeshRendererComponent>());
     const auto& mesh = created.get_component<vulcal::scene::MeshRendererComponent>();
     EXPECT_FALSE(mesh.visible_);
-    EXPECT_EQ(mesh.mesh_asset_id_, base::UUID{ 111 });
-    EXPECT_EQ(mesh.material_asset_id_, base::UUID{ 222 });
+    EXPECT_EQ(mesh.mesh_asset_id_, vulcal::asset::MeshAssetID{ 111 });
+    EXPECT_EQ(mesh.material_asset_id_, vulcal::asset::MaterialAssetID{ 222 });
 
     const auto& env = environment.get_component<vulcal::scene::EnvironmentComponent>();
     EXPECT_EQ(env.ambient_color_, (glm::vec3{ 0.1f, 0.2f, 0.3f }));
@@ -707,13 +707,13 @@ protected:
         auto mesh_entity                                                            = scene_.create_entity("Mesh");
         mesh_entity.get_component<vulcal::scene::TransformComponent>().translation_ = glm::vec3{ 1.0f, 2.0f, 3.0f };
         auto& mesh_renderer                = mesh_entity.add_component<vulcal::scene::MeshRendererComponent>();
-        mesh_renderer.mesh_asset_id_       = base::UUID{ 11 };
-        mesh_renderer.material_asset_id_   = base::UUID{ 22 };
+        mesh_renderer.mesh_asset_id_       = vulcal::asset::MeshAssetID{ 11 };
+        mesh_renderer.material_asset_id_   = vulcal::asset::MaterialAssetID{ 22 };
 
         auto hidden_entity                 = scene_.create_entity("Hidden");
         auto& hidden_renderer              = hidden_entity.add_component<vulcal::scene::MeshRendererComponent>();
-        hidden_renderer.mesh_asset_id_     = base::UUID{ 33 };
-        hidden_renderer.material_asset_id_ = base::UUID{ 44 };
+        hidden_renderer.mesh_asset_id_     = vulcal::asset::MeshAssetID{ 33 };
+        hidden_renderer.material_asset_id_ = vulcal::asset::MaterialAssetID{ 44 };
         hidden_renderer.visible_           = false;
     }
 
@@ -860,9 +860,9 @@ TEST(SceneExtractor, SkipsMeshDataWithoutBoundCache) {
     options.camera_override_ = vulcal::render::CameraData{};
     vulcal::scene::SceneExtractor extractor;
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
-    mesh.mesh_asset_id_ = base::UUID{ 1 };
+    mesh.mesh_asset_id_ = vulcal::asset::MeshAssetID{ 1 };
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
-    mesh.material_asset_id_ = base::UUID{ 2 };
+    mesh.material_asset_id_ = vulcal::asset::MaterialAssetID{ 2 };
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
 }
 

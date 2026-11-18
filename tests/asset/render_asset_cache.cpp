@@ -1,5 +1,7 @@
 #include "asset/render_asset_cache.h"
 #include "asset/asset_manager.h"
+#include "asset/res/material_asset.h"
+#include "asset/res/texture_asset.h"
 #include "base/binary_io.h"
 #include "gfx/context.h"
 #include "render/renderer.h"
@@ -61,7 +63,7 @@ protected:
         renderer_->render(data);
     }
 
-    void write_triangle(vulcal::asset::AssetID id, float x) {
+    void write_triangle(vulcal::asset::MeshAssetID id, float x) {
         std::ofstream output(directory_ / (id.to_string() + ".vmesh"), std::ios::binary);
         output.write("VULMESH\0", 8);
         base::binary::write_u32_le(output, 1);
@@ -84,9 +86,9 @@ protected:
     std::unique_ptr<vulcal::render::Renderer> renderer_;
     vulcal::asset::AssetManager assets_;
     std::unique_ptr<vulcal::asset::RenderAssetCache> cache_;
-    vulcal::asset::AssetID mesh_id_;
-    vulcal::asset::AssetID material_id_;
-    vulcal::asset::AssetID texture_id_;
+    vulcal::asset::MeshAssetID mesh_id_;
+    vulcal::asset::MaterialAssetID material_id_;
+    vulcal::asset::TextureAssetID texture_id_;
 };
 
 TEST_F(RenderAssets, ReusesHandlesAcrossFrames) {
@@ -103,7 +105,7 @@ TEST_F(RenderAssets, UsesSharedDefaultOnlyForNilMaterialId) {
     const auto first = cache_->resolve_material({});
     EXPECT_NE(first.value_, 0u);
     EXPECT_EQ(cache_->resolve_material({}), first);
-    EXPECT_EQ(cache_->resolve_material(vulcal::asset::AssetID{ 123 }).value_, 0u);
+    EXPECT_EQ(cache_->resolve_material(vulcal::asset::MaterialAssetID{ 123 }).value_, 0u);
     EXPECT_EQ(cache_->resolve_mesh({}).value_, 0u);
 }
 
@@ -129,9 +131,68 @@ TEST_F(RenderAssets, CanRebuildGpuResourcesWithoutReloadingCpuData) {
     EXPECT_NO_THROW(draw(replacement, material));
 }
 
+TEST_F(RenderAssets, InvalidatingOneCategoryKeepsOtherHandlesWithTheSameNumericId) {
+    assets_.set_directory(directory_);
+    const vulcal::asset::MeshAssetID mesh_id{ 7 };
+    const vulcal::asset::MaterialAssetID material_id{ 7 };
+    const vulcal::asset::TextureAssetID texture_id{ 7 };
+    write_triangle(mesh_id, -0.5f);
+    vulcal::asset::MaterialAsset::write(directory_ / (material_id.to_string() + ".vmatc"), {});
+    vulcal::render::TextureData texture_data;
+    texture_data.width_  = 1;
+    texture_data.height_ = 1;
+    texture_data.pixels_ = { 255, 255, 255, 255 };
+    vulcal::asset::TextureAsset::write(directory_ / (texture_id.to_string() + ".vtex"), texture_data);
+
+    auto mesh          = cache_->resolve_mesh(mesh_id);
+    auto material      = cache_->resolve_material(material_id);
+    const auto texture = cache_->resolve_texture(texture_id);
+    ASSERT_NE(mesh.value_, 0u);
+    ASSERT_NE(material.value_, 0u);
+    ASSERT_NE(texture.value_, 0u);
+    const auto cpu_mesh     = assets_.load_mesh(mesh_id);
+    const auto cpu_material = assets_.load_material(material_id);
+    const auto cpu_texture  = assets_.load_texture(texture_id);
+
+    cache_->invalidate(mesh_id);
+    EXPECT_THROW(draw(mesh, material), std::invalid_argument);
+    EXPECT_EQ(cache_->resolve_material(material_id), material);
+    EXPECT_EQ(cache_->resolve_texture(texture_id), texture);
+    const auto new_mesh = cache_->resolve_mesh(mesh_id);
+    EXPECT_NE(new_mesh, mesh);
+    mesh = new_mesh;
+    EXPECT_NO_THROW(draw(mesh, material));
+
+    cache_->invalidate(material_id);
+    EXPECT_THROW(draw(mesh, material), std::invalid_argument);
+    EXPECT_EQ(cache_->resolve_mesh(mesh_id), mesh);
+    EXPECT_EQ(cache_->resolve_texture(texture_id), texture);
+    const auto new_material = cache_->resolve_material(material_id);
+    EXPECT_NE(new_material, material);
+    material = new_material;
+    EXPECT_NO_THROW(draw(mesh, material));
+
+    cache_->invalidate(texture_id);
+    EXPECT_EQ(cache_->resolve_mesh(mesh_id), mesh);
+    EXPECT_EQ(cache_->resolve_material(material_id), material);
+    const auto new_texture = cache_->resolve_texture(texture_id);
+    EXPECT_NE(new_texture, texture);
+    vulcal::render::RenderData data;
+    data.items_.push_back(vulcal::render::RenderItem{
+        .kind_   = vulcal::render::RenderItemKind::Sprite,
+        .sprite_ = vulcal::render::SpriteData{ .texture_ = texture },
+    });
+    EXPECT_THROW(renderer_->render(data), std::invalid_argument);
+    data.items_[0].sprite_.texture_ = new_texture;
+    EXPECT_NO_THROW(renderer_->render(data));
+    EXPECT_EQ(assets_.load_mesh(mesh_id), cpu_mesh);
+    EXPECT_EQ(assets_.load_material(material_id), cpu_material);
+    EXPECT_EQ(assets_.load_texture(texture_id), cpu_texture);
+}
+
 TEST_F(RenderAssets, ReimportReplacesOnlyChangedHandle) {
     assets_.set_directory(directory_);
-    const vulcal::asset::AssetID id{ 7 };
+    const vulcal::asset::MeshAssetID id{ 7 };
     write_triangle(id, -0.5f);
     const auto material = cache_->resolve_material({});
     const auto old      = cache_->resolve_mesh(id);
@@ -210,7 +271,7 @@ TEST_F(RenderAssets, ExtractorEmitsSpriteItemsWithResolvedTextures) {
     untextured.add_component<vulcal::scene::SpriteRendererComponent>();
 
     auto missing                                                                      = scene.create_entity("Missing");
-    missing.add_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = vulcal::asset::AssetID{ 123 };
+    missing.add_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = vulcal::asset::TextureAssetID{ 123 };
 
     vulcal::scene::SceneExtractor extractor(*cache_);
     vulcal::scene::SceneExtractor::Options options;
@@ -301,7 +362,7 @@ TEST_F(RenderAssets, ExtractorUsesBoundCacheAndSkipsMissingOrInvisibleAssets) {
 
     // EnTT may move components when adding another entity with the same component.
     auto& current              = entity.get_component<vulcal::scene::MeshRendererComponent>();
-    current.material_asset_id_ = vulcal::asset::AssetID{ 123 };
+    current.material_asset_id_ = vulcal::asset::MaterialAssetID{ 123 };
     EXPECT_TRUE(extractor.extract(scene, options).items_.empty());
     current.material_asset_id_ = material_id_;
     EXPECT_EQ(extractor.extract(scene, options).items_.size(), 1u);

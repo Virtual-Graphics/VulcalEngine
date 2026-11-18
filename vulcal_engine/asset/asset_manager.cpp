@@ -11,8 +11,8 @@
 namespace vulcal::asset {
 namespace {
 
-template<typename T, typename Loader>
-std::shared_ptr<const T> load_runtime_asset(AssetCache<T>& cache, const std::filesystem::path& directory, AssetID id, std::string_view type,
+template<typename T, typename ID, typename Loader>
+std::shared_ptr<const T> load_runtime_asset(AssetCache<T, ID>& cache, const std::filesystem::path& directory, ID id, std::string_view type,
                                             Loader&& loader) {
     if (id.is_nil()) return {};
     if (auto data = cache.find(id)) return data;
@@ -41,23 +41,23 @@ AssetManager::AssetManager(std::filesystem::path directory)
     if (!library_.directory().empty()) base::log::info("AssetManager: runtime directory is {}", library_.directory().string());
 }
 
-std::shared_ptr<const render::MeshData> AssetManager::load_mesh(AssetID id) {
+std::shared_ptr<const render::MeshData> AssetManager::load_mesh(MeshAssetID id) {
     return load_runtime_asset<render::MeshData>(meshes_, library_.directory(), id, "mesh", [&] { return library_.load_mesh(id); });
 }
 
-std::shared_ptr<const render::Material> AssetManager::load_material(AssetID id) {
+std::shared_ptr<const render::Material> AssetManager::load_material(MaterialAssetID id) {
     if (id.is_nil()) return default_material_;
     return load_runtime_asset<render::Material>(materials_, library_.directory(), id, "material",
                                                 [&] { return library_.load_material(id); });
 }
 
-std::shared_ptr<const render::TextureData> AssetManager::load_texture(AssetID id) {
+std::shared_ptr<const render::TextureData> AssetManager::load_texture(TextureAssetID id) {
     return load_runtime_asset<render::TextureData>(textures_, library_.directory(), id, "texture",
                                                    [&] { return library_.load_texture(id); });
 }
 
-AssetID AssetManager::add_mesh(render::MeshData mesh) {
-    const auto id = AssetID::generate();
+MeshAssetID AssetManager::add_mesh(render::MeshData mesh) {
+    const auto id = MeshAssetID::generate();
     auto data     = std::make_shared<const render::MeshData>(std::move(mesh));
     meshes_.store(id, data);
     base::log::debug("AssetManager: registered procedural mesh {} ({} vertices, {} indices)", id.to_string(), data->vertices_.size(),
@@ -65,27 +65,36 @@ AssetID AssetManager::add_mesh(render::MeshData mesh) {
     return id;
 }
 
-AssetID AssetManager::add_material(render::Material material) {
-    const auto id = AssetID::generate();
+MaterialAssetID AssetManager::add_material(render::Material material) {
+    const auto id = MaterialAssetID::generate();
     materials_.store(id, std::make_shared<const render::Material>(std::move(material)));
     base::log::debug("AssetManager: registered material {}", id.to_string());
     return id;
 }
 
-AssetID AssetManager::add_texture(render::TextureData texture) {
-    const auto id = AssetID::generate();
+TextureAssetID AssetManager::add_texture(render::TextureData texture) {
+    const auto id = TextureAssetID::generate();
     auto data     = std::make_shared<const render::TextureData>(std::move(texture));
     textures_.store(id, data);
     base::log::debug("AssetManager: registered procedural texture {} ({}x{})", id.to_string(), data->width_, data->height_);
     return id;
 }
 
-void AssetManager::invalidate(AssetID id) {
-    const bool mesh     = meshes_.erase(id);
-    const bool material = materials_.erase(id);
-    const bool texture  = textures_.erase(id);
-    if (mesh || material || texture) {
-        base::log::debug("AssetManager: invalidated asset {} (mesh {}, material {}, texture {})", id.to_string(), mesh, material, texture);
+void AssetManager::invalidate(MeshAssetID id) {
+    if (meshes_.erase(id)) {
+        base::log::debug("AssetManager: invalidated mesh {}", id.to_string());
+    }
+}
+
+void AssetManager::invalidate(MaterialAssetID id) {
+    if (materials_.erase(id)) {
+        base::log::debug("AssetManager: invalidated material {}", id.to_string());
+    }
+}
+
+void AssetManager::invalidate(TextureAssetID id) {
+    if (textures_.erase(id)) {
+        base::log::debug("AssetManager: invalidated texture {}", id.to_string());
     }
 }
 

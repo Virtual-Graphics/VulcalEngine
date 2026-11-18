@@ -27,12 +27,14 @@ public:
     RenderAssetCache& operator=(const RenderAssetCache&) = delete;
 
     // Returned handles are borrowed; callers must not destroy them directly.
-    render::MeshHandle resolve_mesh(AssetID id);
-    render::MaterialHandle resolve_material(AssetID id);
-    render::TextureHandle resolve_texture(AssetID id);
+    render::MeshHandle resolve_mesh(MeshAssetID id);
+    render::MaterialHandle resolve_material(MaterialAssetID id);
+    render::TextureHandle resolve_texture(TextureAssetID id);
 
     // Releases GPU handles; CPU data remains in AssetManager.
-    void invalidate(AssetID id);
+    void invalidate(MeshAssetID id);
+    void invalidate(MaterialAssetID id);
+    void invalidate(TextureAssetID id);
     void clear();
 
 private:
@@ -51,9 +53,9 @@ private:
 
     AssetManager& assets_;
     render::Renderer& renderer_;
-    std::unordered_map<AssetID, MeshEntry> meshes_;
-    std::unordered_map<AssetID, MaterialEntry> materials_;
-    std::unordered_map<AssetID, TextureEntry> textures_;
+    std::unordered_map<MeshAssetID, MeshEntry> meshes_;
+    std::unordered_map<MaterialAssetID, MaterialEntry> materials_;
+    std::unordered_map<TextureAssetID, TextureEntry> textures_;
 };
 
 } // namespace vulcal::asset

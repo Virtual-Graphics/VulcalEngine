@@ -12,12 +12,16 @@
 
 namespace apps::asset_import {
 
-vulcal::asset::AssetID TextureAssetImporter::import(const std::filesystem::path& source_file, const std::filesystem::path& project_directory,
-                                                    const std::filesystem::path& library_directory) {
+vulcal::asset::TextureAssetID TextureAssetImporter::import(const std::filesystem::path& source_file,
+                                                           const std::filesystem::path& project_directory,
+                                                           const std::filesystem::path& library_directory) {
     base::log::debug("TextureAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
 
     const auto extension = base::lowercase_extension(source_file);
+    if (extension != ".png" && extension != ".jpg" && extension != ".jpeg" && extension != ".bmp" && extension != ".tga") {
+        throw std::invalid_argument("Unsupported texture source extension: " + extension);
+    }
     validate_source_file(source_file, project_directory, extension, "texture");
 
     const auto image = load_image(source_file, 4);
@@ -34,7 +38,7 @@ vulcal::asset::AssetID TextureAssetImporter::import(const std::filesystem::path&
     const auto meta         = metadata_path(source_file);
     const auto has_metadata = std::filesystem::exists(meta);
     const auto metadata     = metadata_for_source(source_file, vulcal::asset::AssetType::Texture);
-    const auto id           = metadata.id;
+    const vulcal::asset::TextureAssetID id{ metadata.id };
 
     std::filesystem::create_directories(library_directory);
     const auto runtime_file = vulcal::asset::AssetLibrary{ library_directory }.texture_path(id);

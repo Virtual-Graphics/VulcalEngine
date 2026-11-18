@@ -39,7 +39,7 @@ protected:
 
     void TearDown() override { std::filesystem::remove_all(directory_); }
 
-    void write_mesh(const std::filesystem::path& directory, vulcal::asset::AssetID id, float x) {
+    void write_mesh(const std::filesystem::path& directory, vulcal::asset::MeshAssetID id, float x) {
         std::filesystem::create_directories(directory);
         std::ofstream output(directory / (id.to_string() + ".vmesh"), std::ios::binary);
         output.write("VULMESH\0", 8);
@@ -54,7 +54,7 @@ protected:
 };
 
 TEST_F(AssetManagerTest, ReusesLoadedDataUntilInvalidated) {
-    const vulcal::asset::AssetID id{ 1 };
+    const vulcal::asset::MeshAssetID id{ 1 };
     write_mesh(directory_, id, 1.0f);
     vulcal::asset::AssetManager assets(directory_);
     const auto first = assets.load_mesh(id);
@@ -72,7 +72,7 @@ TEST_F(AssetManagerTest, ReusesLoadedDataUntilInvalidated) {
 }
 
 TEST_F(AssetManagerTest, MissingMeshCanBeRetriedAfterInvalidation) {
-    const vulcal::asset::AssetID id{ 2 };
+    const vulcal::asset::MeshAssetID id{ 2 };
     vulcal::asset::AssetManager assets(directory_);
     EXPECT_FALSE(assets.load_mesh(id));
     write_mesh(directory_, id, 3.0f);
@@ -85,7 +85,8 @@ TEST_F(AssetManagerTest, MissingMeshCanBeRetriedAfterInvalidation) {
 }
 
 TEST_F(AssetManagerTest, ChangingDirectoryDropsCachedDataAndFailures) {
-    const vulcal::asset::AssetID loaded{ 1 }, missing{ 2 }, loaded_material{ 3 };
+    const vulcal::asset::MeshAssetID loaded{ 1 }, missing{ 2 };
+    const vulcal::asset::MaterialAssetID loaded_material{ 3 };
     const auto other = directory_ / "other";
     write_mesh(directory_, loaded, 1.0f);
     write_mesh(other, loaded, 2.0f);
@@ -114,6 +115,70 @@ TEST_F(AssetManagerTest, ChangingDirectoryDropsCachedDataAndFailures) {
     EXPECT_FLOAT_EQ(replacement_material->shininess_, 24.0f);
     EXPECT_FLOAT_EQ(old->vertices_[0].position.x, 1.0f);
     EXPECT_FLOAT_EQ(old_material->shininess_, 12.0f);
+}
+
+TEST_F(AssetManagerTest, InvalidatingOneCategoryKeepsOthersWithTheSameNumericId) {
+    const vulcal::asset::MeshAssetID mesh_id{ 7 };
+    const vulcal::asset::MaterialAssetID material_id{ 7 };
+    const vulcal::asset::TextureAssetID texture_id{ 7 };
+    write_mesh(directory_, mesh_id, 1.0f);
+    write_material_file(directory_ / (material_id.to_string() + ".vmatc"), {});
+    write_texture_file(directory_ / (texture_id.to_string() + ".vtex"), 10, 255);
+
+    vulcal::asset::AssetManager assets(directory_);
+    auto mesh     = assets.load_mesh(mesh_id);
+    auto material = assets.load_material(material_id);
+    auto texture  = assets.load_texture(texture_id);
+    ASSERT_TRUE(mesh);
+    ASSERT_TRUE(material);
+    ASSERT_TRUE(texture);
+
+    assets.invalidate(mesh_id);
+    const auto new_mesh = assets.load_mesh(mesh_id);
+    ASSERT_TRUE(new_mesh);
+    EXPECT_NE(new_mesh, mesh);
+    mesh = new_mesh;
+    EXPECT_EQ(assets.load_material(material_id), material);
+    EXPECT_EQ(assets.load_texture(texture_id), texture);
+
+    assets.invalidate(material_id);
+    const auto new_material = assets.load_material(material_id);
+    ASSERT_TRUE(new_material);
+    EXPECT_NE(new_material, material);
+    material = new_material;
+    EXPECT_EQ(assets.load_mesh(mesh_id), mesh);
+    EXPECT_EQ(assets.load_texture(texture_id), texture);
+
+    assets.invalidate(texture_id);
+    const auto new_texture = assets.load_texture(texture_id);
+    ASSERT_TRUE(new_texture);
+    EXPECT_NE(new_texture, texture);
+    EXPECT_EQ(assets.load_mesh(mesh_id), mesh);
+    EXPECT_EQ(assets.load_material(material_id), material);
+}
+
+TEST_F(AssetManagerTest, InvalidatingOneCategoryKeepsOtherCachedFailuresWithTheSameNumericId) {
+    const vulcal::asset::MeshAssetID mesh_id{ 7 };
+    const vulcal::asset::MaterialAssetID material_id{ 7 };
+    const vulcal::asset::TextureAssetID texture_id{ 7 };
+    vulcal::asset::AssetManager assets(directory_);
+    EXPECT_FALSE(assets.load_mesh(mesh_id));
+    EXPECT_FALSE(assets.load_material(material_id));
+    EXPECT_FALSE(assets.load_texture(texture_id));
+
+    write_mesh(directory_, mesh_id, 1.0f);
+    write_material_file(directory_ / (material_id.to_string() + ".vmatc"), {});
+    write_texture_file(directory_ / (texture_id.to_string() + ".vtex"), 10, 255);
+    assets.invalidate(mesh_id);
+    EXPECT_TRUE(assets.load_mesh(mesh_id));
+    EXPECT_FALSE(assets.load_material(material_id));
+    EXPECT_FALSE(assets.load_texture(texture_id));
+
+    assets.invalidate(material_id);
+    EXPECT_TRUE(assets.load_material(material_id));
+    EXPECT_FALSE(assets.load_texture(texture_id));
+    assets.invalidate(texture_id);
+    EXPECT_TRUE(assets.load_texture(texture_id));
 }
 
 TEST(AssetManager, RegistersProceduralDataWithoutRenderer) {
@@ -153,12 +218,12 @@ TEST(AssetManager, SharesDefaultMaterialOnlyForNilId) {
     const auto first = assets.load_material({});
     ASSERT_TRUE(first);
     EXPECT_EQ(assets.load_material({}), first);
-    EXPECT_FALSE(assets.load_material(vulcal::asset::AssetID{ 123 }));
+    EXPECT_FALSE(assets.load_material(vulcal::asset::MaterialAssetID{ 123 }));
     EXPECT_FALSE(assets.load_mesh({}));
 }
 
 TEST_F(AssetManagerTest, LoadsCompiledMaterialCachesUntilInvalidated) {
-    const vulcal::asset::AssetID id{ 31 };
+    const vulcal::asset::MaterialAssetID id{ 31 };
     const auto path = directory_ / (id.to_string() + ".vmatc");
 
     vulcal::render::Material material;
@@ -182,7 +247,7 @@ TEST_F(AssetManagerTest, LoadsCompiledMaterialCachesUntilInvalidated) {
 }
 
 TEST_F(AssetManagerTest, MissingMaterialCanBeRetriedAfterInvalidation) {
-    const vulcal::asset::AssetID id{ 32 };
+    const vulcal::asset::MaterialAssetID id{ 32 };
     vulcal::asset::AssetManager assets(directory_);
 
     EXPECT_FALSE(assets.load_material(id));
@@ -198,7 +263,7 @@ TEST_F(AssetManagerTest, MissingMaterialCanBeRetriedAfterInvalidation) {
 }
 
 TEST_F(AssetManagerTest, LoadsCompiledTextureCachesUntilInvalidated) {
-    const vulcal::asset::AssetID id{ 41 };
+    const vulcal::asset::TextureAssetID id{ 41 };
     const auto path = directory_ / (id.to_string() + ".vtex");
     write_texture_file(path, 10, 255);
 
@@ -219,7 +284,7 @@ TEST_F(AssetManagerTest, LoadsCompiledTextureCachesUntilInvalidated) {
 }
 
 TEST_F(AssetManagerTest, MissingTextureCanBeRetriedAfterInvalidation) {
-    const vulcal::asset::AssetID id{ 42 };
+    const vulcal::asset::TextureAssetID id{ 42 };
     vulcal::asset::AssetManager assets(directory_);
     EXPECT_FALSE(assets.load_texture(id));
 

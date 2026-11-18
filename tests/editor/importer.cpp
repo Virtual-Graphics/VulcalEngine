@@ -92,7 +92,7 @@ TEST(ObjAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMesh) {
     ASSERT_EQ(first_id, second_id);
     EXPECT_TRUE(std::filesystem::exists(source.string() + ".meta"));
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
-    EXPECT_EQ(metadata.id, first_id);
+    EXPECT_EQ(metadata.id.value(), first_id.value());
     EXPECT_EQ(metadata.format_version, apps::asset_import::metadata_format_version);
 
     const auto mesh = vulcal::asset::AssetLibrary{ library }.load_mesh(first_id);
@@ -121,8 +121,12 @@ TEST(AssetImporter, DispatchesObjAndVmatSourcesByExtension) {
         output << "format_version: 1\ndiffuse: [0.2, 0.3, 0.4]\nspecular: [0.05, 0.06, 0.07]\nshininess: 8\n";
     }
 
-    const auto mesh_id     = apps::asset_import::AssetImporter::import(mesh_source, directory.path(), library);
-    const auto material_id = apps::asset_import::AssetImporter::import(material_source, directory.path(), library);
+    const auto mesh_result     = apps::asset_import::AssetImporter::import(mesh_source, directory.path(), library);
+    const auto material_result = apps::asset_import::AssetImporter::import(material_source, directory.path(), library);
+    ASSERT_TRUE(std::holds_alternative<vulcal::asset::MeshAssetID>(mesh_result));
+    ASSERT_TRUE(std::holds_alternative<vulcal::asset::MaterialAssetID>(material_result));
+    const auto mesh_id     = std::get<vulcal::asset::MeshAssetID>(mesh_result);
+    const auto material_id = std::get<vulcal::asset::MaterialAssetID>(material_result);
 
     EXPECT_TRUE(std::filesystem::exists(library / (mesh_id.to_string() + ".vmesh")));
     EXPECT_TRUE(std::filesystem::exists(library / (material_id.to_string() + ".vmatc")));
@@ -140,7 +144,9 @@ TEST(AssetImporter, DispatchesTextureSourcesByExtension) {
     const auto source = assets / "sprite.BMP";
     write_bmp(source, 10, 20, 30);
 
-    const auto id = apps::asset_import::AssetImporter::import(source, directory.path(), library);
+    const auto result = apps::asset_import::AssetImporter::import(source, directory.path(), library);
+    ASSERT_TRUE(std::holds_alternative<vulcal::asset::TextureAssetID>(result));
+    const auto id = std::get<vulcal::asset::TextureAssetID>(result);
 
     EXPECT_TRUE(std::filesystem::exists(library / (id.to_string() + ".vtex")));
     EXPECT_EQ(apps::asset_import::read_metadata(apps::asset_import::metadata_path(source)).type, vulcal::asset::AssetType::Texture);
@@ -156,7 +162,9 @@ TEST(AssetImporter, ImportsSourcesOutsideAssetsButInsideProject) {
         output << "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
     }
 
-    const auto id = apps::asset_import::AssetImporter::import(source, directory.path(), library);
+    const auto result = apps::asset_import::AssetImporter::import(source, directory.path(), library);
+    ASSERT_TRUE(std::holds_alternative<vulcal::asset::MeshAssetID>(result));
+    const auto id = std::get<vulcal::asset::MeshAssetID>(result);
 
     EXPECT_TRUE(std::filesystem::exists(library / (id.to_string() + ".vmesh")));
     EXPECT_TRUE(std::filesystem::exists(apps::asset_import::metadata_path(source)));
@@ -176,7 +184,7 @@ TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
     ASSERT_EQ(first_id, second_id);
 
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
-    EXPECT_EQ(metadata.id, first_id);
+    EXPECT_EQ(metadata.id.value(), first_id.value());
     EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Texture);
     EXPECT_TRUE(std::filesystem::exists(library / (first_id.to_string() + ".vtex")));
 
@@ -189,6 +197,17 @@ TEST(TextureAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedTexture) {
     EXPECT_EQ(texture.pixels_[1], 50u);
     EXPECT_EQ(texture.pixels_[2], 60u);
     EXPECT_EQ(texture.pixels_[3], 255u);
+}
+
+TEST(TextureAssetImporter, RejectsSupportedImageDataWithUnsupportedExtension) {
+    TemporaryDirectory directory;
+    const auto library = directory.path() / ".vulcal_engine";
+    const auto source  = directory.path() / "sprite.txt";
+    write_bmp(source, 10, 20, 30);
+
+    EXPECT_THROW(apps::asset_import::TextureAssetImporter::import(source, directory.path(), library), std::invalid_argument);
+    EXPECT_FALSE(std::filesystem::exists(apps::asset_import::metadata_path(source)));
+    EXPECT_FALSE(std::filesystem::exists(library));
 }
 
 TEST(AssetImporter, RejectsSourcesOutsideProjectAndUnsupportedExtensions) {
@@ -240,7 +259,7 @@ TEST(MaterialAssetImporter, ReimportKeepsIdAndAssetLibraryLoadsCookedMaterial) {
     ASSERT_EQ(first_id, second_id);
 
     const auto metadata = apps::asset_import::read_metadata(apps::asset_import::metadata_path(source));
-    EXPECT_EQ(metadata.id, first_id);
+    EXPECT_EQ(metadata.id.value(), first_id.value());
     EXPECT_EQ(metadata.type, vulcal::asset::AssetType::Material);
     EXPECT_TRUE(std::filesystem::exists(library / (first_id.to_string() + ".vmatc")));
 
@@ -263,7 +282,7 @@ TEST(MaterialAssetImporter, RejectsSourceWhoseMetadataDeclaresAnotherType) {
         output << "format_version: 1\ndiffuse: [0.9, 0.9, 0.9]\nspecular: [0.08, 0.08, 0.08]\nshininess: 8\n";
     }
     apps::asset_import::write_metadata(apps::asset_import::metadata_path(source),
-                                       { .id = vulcal::asset::AssetID{ 99 }, .type = vulcal::asset::AssetType::Mesh });
+                                       { .id = base::UUID{ 99 }, .type = vulcal::asset::AssetType::Mesh });
 
     EXPECT_THROW(apps::asset_import::MaterialAssetImporter::import(source, directory.path(), library), std::invalid_argument);
     EXPECT_FALSE(std::filesystem::exists(library / "99.vmatc"));
@@ -293,7 +312,7 @@ TEST(AssetMetadata, RejectsUnsupportedFormatVersion) {
 
 TEST(AssetLibrary, RejectsCorruptCookedMesh) {
     TemporaryDirectory directory;
-    const base::UUID id{ 1311768467463790320ull };
+    const vulcal::asset::MeshAssetID id{ 1311768467463790320ull };
     const auto path = directory.path() / (id.to_string() + ".vmesh");
     {
         std::ofstream output(path, std::ios::binary);

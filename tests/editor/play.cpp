@@ -38,7 +38,7 @@ TEST(EditorPlay, ClonesSpriteRendererComponent) {
     context.new_scene();
     auto edit    = context.create_entity();
     auto& sprite = edit.add_component<vulcal::scene::SpriteRendererComponent>();
-    sprite.texture_asset_id_ = base::UUID{ 123 };
+    sprite.texture_asset_id_ = vulcal::asset::TextureAssetID{ 123 };
     sprite.sorting_order_    = 7;
     const auto id            = edit.get_component<vulcal::scene::IDComponent>().id_;
 
@@ -49,7 +49,7 @@ TEST(EditorPlay, ClonesSpriteRendererComponent) {
     });
     ASSERT_TRUE(runtime.valid());
     ASSERT_TRUE(runtime.has_component<vulcal::scene::SpriteRendererComponent>());
-    EXPECT_EQ(runtime.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, base::UUID{ 123 });
+    EXPECT_EQ(runtime.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_, vulcal::asset::TextureAssetID{ 123 });
     EXPECT_EQ(runtime.get_component<vulcal::scene::SpriteRendererComponent>().sorting_order_, 7);
     context.end_play();
 }

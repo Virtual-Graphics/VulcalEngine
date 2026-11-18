@@ -19,25 +19,27 @@ public:
     AssetManager(const AssetManager&)            = delete;
     AssetManager& operator=(const AssetManager&) = delete;
 
-    std::shared_ptr<const render::MeshData> load_mesh(AssetID id);
+    std::shared_ptr<const render::MeshData> load_mesh(MeshAssetID id);
     // Nil selects the shared default. Other IDs resolve from memory or the runtime library.
-    std::shared_ptr<const render::Material> load_material(AssetID id);
-    std::shared_ptr<const render::TextureData> load_texture(AssetID id);
+    std::shared_ptr<const render::Material> load_material(MaterialAssetID id);
+    std::shared_ptr<const render::TextureData> load_texture(TextureAssetID id);
 
     // Procedural IDs are valid until invalidation, clear, or directory change.
-    AssetID add_mesh(render::MeshData mesh);
-    AssetID add_material(render::Material material);
-    AssetID add_texture(render::TextureData texture);
+    MeshAssetID add_mesh(render::MeshData mesh);
+    MaterialAssetID add_material(render::Material material);
+    TextureAssetID add_texture(render::TextureData texture);
 
-    void invalidate(AssetID id);
+    void invalidate(MeshAssetID id);
+    void invalidate(MaterialAssetID id);
+    void invalidate(TextureAssetID id);
     void clear();
     void set_directory(std::filesystem::path directory);
 
 private:
     AssetLibrary library_;
-    AssetCache<render::MeshData> meshes_;
-    AssetCache<render::Material> materials_;
-    AssetCache<render::TextureData> textures_;
+    AssetCache<render::MeshData, MeshAssetID> meshes_;
+    AssetCache<render::Material, MaterialAssetID> materials_;
+    AssetCache<render::TextureData, TextureAssetID> textures_;
     std::shared_ptr<const render::Material> default_material_;
 };
 

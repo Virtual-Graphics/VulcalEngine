@@ -74,7 +74,7 @@ std::optional<BoundEnvironment> BoundEntity::environment() const {
 BoundSprite BoundEntity::add_sprite() { return add_sprite({}); }
 
 BoundSprite BoundEntity::add_sprite(const std::string& texture_id) {
-    const auto id            = texture_id.empty() ? base::UUID{} : parse_uuid(texture_id);
+    const asset::TextureAssetID id{ texture_id.empty() ? base::UUID{} : parse_uuid(texture_id) };
     auto& sprite             = entity_.add_component<scene::SpriteRendererComponent>();
     sprite.texture_asset_id_ = id;
     return BoundSprite{ entity_ };
@@ -91,8 +91,8 @@ BoundLight BoundEntity::add_light() {
 }
 
 BoundMesh BoundEntity::add_mesh(const std::string& mesh_id, const std::string& material_id) {
-    const auto parsed_mesh     = parse_uuid(mesh_id);
-    const auto parsed_material = parse_uuid(material_id);
+    const asset::MeshAssetID parsed_mesh{ parse_uuid(mesh_id) };
+    const asset::MaterialAssetID parsed_material{ parse_uuid(material_id) };
     auto& mesh                 = entity_.add_component<scene::MeshRendererComponent>();
     mesh.mesh_asset_id_        = parsed_mesh;
     mesh.material_asset_id_    = parsed_material;

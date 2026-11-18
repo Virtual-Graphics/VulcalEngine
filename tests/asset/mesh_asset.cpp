@@ -44,7 +44,7 @@ TEST_F(MeshAssetTest, WritesReadableMeshWithoutAssetPipeline) {
 }
 
 TEST_F(MeshAssetTest, RewritesEditedMeshAndReloadsAfterInvalidation) {
-    const vulcal::asset::AssetID id{ 7 };
+    const vulcal::asset::MeshAssetID id{ 7 };
     const auto path = directory_ / (id.to_string() + ".vmesh");
     vulcal::asset::MeshAsset::write(path, triangle());
     vulcal::asset::AssetManager assets(directory_);

@@ -16,7 +16,7 @@ RenderAssetCache::RenderAssetCache(AssetManager& assets, render::Renderer& rende
 
 RenderAssetCache::~RenderAssetCache() { clear(); }
 
-render::MeshHandle RenderAssetCache::resolve_mesh(AssetID id) {
+render::MeshHandle RenderAssetCache::resolve_mesh(MeshAssetID id) {
     auto source = assets_.load_mesh(id);
     auto it     = meshes_.find(id);
     if (it != meshes_.end()) {
@@ -39,7 +39,7 @@ render::MeshHandle RenderAssetCache::resolve_mesh(AssetID id) {
     return handle;
 }
 
-render::MaterialHandle RenderAssetCache::resolve_material(AssetID id) {
+render::MaterialHandle RenderAssetCache::resolve_material(MaterialAssetID id) {
     auto source = assets_.load_material(id);
     auto it     = materials_.find(id);
     if (it != materials_.end()) {
@@ -62,7 +62,7 @@ render::MaterialHandle RenderAssetCache::resolve_material(AssetID id) {
     return handle;
 }
 
-render::TextureHandle RenderAssetCache::resolve_texture(AssetID id) {
+render::TextureHandle RenderAssetCache::resolve_texture(TextureAssetID id) {
     auto source = assets_.load_texture(id);
     auto it     = textures_.find(id);
     if (it != textures_.end()) {
@@ -85,17 +85,23 @@ render::TextureHandle RenderAssetCache::resolve_texture(AssetID id) {
     return handle;
 }
 
-void RenderAssetCache::invalidate(AssetID id) {
+void RenderAssetCache::invalidate(MeshAssetID id) {
     if (const auto it = meshes_.find(id); it != meshes_.end()) {
         base::log::debug("RenderAssetCache: invalidating mesh {} (handle {})", id.to_string(), it->second.handle_.value_);
         renderer_.destroy_mesh(it->second.handle_);
         meshes_.erase(it);
     }
+}
+
+void RenderAssetCache::invalidate(MaterialAssetID id) {
     if (const auto it = materials_.find(id); it != materials_.end()) {
         base::log::debug("RenderAssetCache: invalidating material {} (handle {})", id.to_string(), it->second.handle_.value_);
         renderer_.destroy_material(it->second.handle_);
         materials_.erase(it);
     }
+}
+
+void RenderAssetCache::invalidate(TextureAssetID id) {
     if (const auto it = textures_.find(id); it != textures_.end()) {
         base::log::debug("RenderAssetCache: invalidating texture {} (handle {})", id.to_string(), it->second.handle_.value_);
         renderer_.destroy_texture(it->second.handle_);

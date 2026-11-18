@@ -2,7 +2,9 @@
 
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
-#include "asset_import/asset_importer.h"
+#include "asset_import/importers/material_asset_importer.h"
+#include "asset_import/importers/obj_asset_importer.h"
+#include "asset_import/importers/texture_asset_importer.h"
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
@@ -123,7 +125,7 @@ void EditorActions::import_mesh_asset() {
     const auto target = require_selected_mesh_renderer("mesh");
     if (auto path = dialogs_.open_file(obj_filter, context_.assets_directory())) {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during mesh import");
-        const auto id = apps::asset_import::AssetImporter::import(*path, context_.project_directory(), context_.library_directory());
+        const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
         target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
         base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
@@ -137,7 +139,8 @@ void EditorActions::import_material_asset() {
     const auto target = require_selected_mesh_renderer("material");
     if (auto path = dialogs_.open_file(material_filter, context_.assets_directory())) {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during material import");
-        const auto id = apps::asset_import::AssetImporter::import(*path, context_.project_directory(), context_.library_directory());
+        const auto id =
+                apps::asset_import::MaterialAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
         target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
         base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
@@ -151,7 +154,7 @@ void EditorActions::import_texture_asset() {
     const auto target = require_selected_sprite_renderer("texture");
     if (auto path = dialogs_.open_file(texture_filter, context_.assets_directory())) {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during texture import");
-        const auto id = apps::asset_import::AssetImporter::import(*path, context_.project_directory(), context_.library_directory());
+        const auto id = apps::asset_import::TextureAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
         target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = id;
         base::log::debug("Editor: assigned texture asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,

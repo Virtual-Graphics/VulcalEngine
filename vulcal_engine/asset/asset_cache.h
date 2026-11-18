@@ -10,26 +10,26 @@
 
 namespace vulcal::asset {
 
-template<typename T>
+template<typename T, typename ID>
 class AssetCache {
 public:
     using Pointer = std::shared_ptr<const T>;
 
-    Pointer find(AssetID id) const {
+    Pointer find(ID id) const {
         const auto it = assets_.find(id);
         return it == assets_.end() ? Pointer{} : it->second;
     }
 
-    bool failed(AssetID id) const { return failed_.contains(id); }
+    bool failed(ID id) const { return failed_.contains(id); }
 
-    void store(AssetID id, Pointer asset) {
+    void store(ID id, Pointer asset) {
         assets_.insert_or_assign(id, std::move(asset));
         failed_.erase(id);
     }
 
-    void mark_failed(AssetID id) { failed_.insert(id); }
+    void mark_failed(ID id) { failed_.insert(id); }
 
-    bool erase(AssetID id) {
+    bool erase(ID id) {
         const bool cached = assets_.erase(id) != 0;
         const bool failed = failed_.erase(id) != 0;
         return cached || failed;
@@ -45,8 +45,8 @@ public:
     }
 
 private:
-    std::unordered_map<AssetID, Pointer> assets_;
-    std::unordered_set<AssetID> failed_;
+    std::unordered_map<ID, Pointer> assets_;
+    std::unordered_set<ID> failed_;
 };
 
 } // namespace vulcal::asset

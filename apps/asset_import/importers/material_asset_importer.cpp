@@ -33,9 +33,9 @@ vulcal::render::Material read_source(const std::filesystem::path& path) {
 
 } // namespace
 
-vulcal::asset::AssetID MaterialAssetImporter::import(const std::filesystem::path& source_file,
-                                                     const std::filesystem::path& project_directory,
-                                                     const std::filesystem::path& library_directory) {
+vulcal::asset::MaterialAssetID MaterialAssetImporter::import(const std::filesystem::path& source_file,
+                                                             const std::filesystem::path& project_directory,
+                                                             const std::filesystem::path& library_directory) {
     base::log::debug("MaterialAssetImporter: importing {} (project: {}, runtime: {})", source_file.string(), project_directory.string(),
                      library_directory.string());
     validate_source_file(source_file, project_directory, ".vmat", "material");
@@ -45,7 +45,7 @@ vulcal::asset::AssetID MaterialAssetImporter::import(const std::filesystem::path
     const auto has_metadata = std::filesystem::exists(meta);
     const auto metadata     = metadata_for_source(source_file, vulcal::asset::AssetType::Material);
 
-    const auto id           = metadata.id;
+    const vulcal::asset::MaterialAssetID id{ metadata.id };
     std::filesystem::create_directories(library_directory);
     const auto runtime_file = vulcal::asset::AssetLibrary{ library_directory }.material_path(id);
     vulcal::asset::MaterialAsset::write(runtime_file, material);

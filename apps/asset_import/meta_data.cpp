@@ -52,7 +52,7 @@ Metadata read_metadata(const std::filesystem::path& metadata_file_path) {
             throw std::runtime_error("Unsupported asset metadata: " + metadata_file_path.string());
         }
 
-        const vulcal::asset::AssetID id{ metadata["id"].as<std::uint64_t>() };
+        const base::UUID id{ metadata["id"].as<std::uint64_t>() };
         if (id.is_nil()) {
             throw std::runtime_error("Asset metadata has an empty ID: " + metadata_file_path.string());
         }
@@ -92,8 +92,8 @@ void write_metadata(const std::filesystem::path& metadata_file_path, const Metad
 
 Metadata metadata_for_source(const std::filesystem::path& source_file, vulcal::asset::AssetType expected_type) {
     const auto meta     = metadata_path(source_file);
-    const auto metadata = std::filesystem::exists(meta) ? read_metadata(meta)
-                                                        : Metadata{ .id = vulcal::asset::AssetID::generate(), .type = expected_type };
+    const auto metadata =
+            std::filesystem::exists(meta) ? read_metadata(meta) : Metadata{ .id = base::UUID::generate(), .type = expected_type };
     if (metadata.type != expected_type) {
         throw std::invalid_argument("Asset metadata type does not match source file: " + meta.string());
     }
