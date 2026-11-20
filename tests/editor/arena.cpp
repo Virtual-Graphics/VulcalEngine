@@ -1,8 +1,9 @@
 #include "editor/project/project.h"
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 #include "scene/components.h"
 #include "scene/scene.h"
 #include "script/script_runtime.h"
+#include "resource/directory_provider.h"
 
 #include <filesystem>
 #include <gtest/gtest.h>
@@ -27,7 +28,7 @@ TEST(ArenaProject, RealBindingsCreateUpdateStopAndRestartWithoutLeaking) {
     ASSERT_TRUE(editor::load_project_info(project_root / "arena.vproj", info));
     EXPECT_EQ(info.name, "arena");
     EXPECT_EQ(info.assets_path, "assets");
-    auto scene = editor::SceneSerializer::deserialize(project_root / info.last_edited_scene);
+    auto scene = vulcal::scene::SceneSerializer::deserialize(project_root / info.last_edited_scene);
     ASSERT_TRUE(scene);
     const auto initial_count = scene->registry().view<vulcal::scene::TagComponent>().size();
     EXPECT_EQ(initial_count, 3u);
@@ -56,6 +57,26 @@ TEST(ArenaProject, RealBindingsCreateUpdateStopAndRestartWithoutLeaking) {
         EXPECT_EQ(find_by_name(*scene, "Camera").get_component<vulcal::scene::TransformComponent>().translation_,
                   glm::vec3(0.0f, 0.0f, 10.0f));
     }
+}
+
+TEST(ScriptRuntime, LoadsLuaSourceFromResourceProvider) {
+    const auto root = std::filesystem::temp_directory_path() / "vulcal_script_provider_test";
+    std::filesystem::create_directories(root / "assets/scripts");
+    {
+        std::ofstream script(root / "assets/scripts/provider.lua");
+        script << "function on_create() entity:set_translation(3, 4, 5) end\n";
+    }
+
+    vulcal::scene::Scene scene;
+    auto entity = scene.create_entity("ProviderScript");
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/scripts/provider.lua";
+    auto resources = std::make_shared<vulcal::resource::DirectoryProvider>(root);
+    vulcal::script::ScriptRuntime runtime;
+    runtime.start(scene, *resources);
+
+    EXPECT_EQ(entity.get_component<vulcal::scene::TransformComponent>().translation_, (glm::vec3{ 3.0f, 4.0f, 5.0f }));
+    runtime.stop();
+    std::filesystem::remove_all(root);
 }
 
 class ArenaLogic : public testing::TestWithParam<const char*> {

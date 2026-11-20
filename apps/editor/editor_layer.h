@@ -47,6 +47,7 @@ private:
     void draw_workspace();
     void draw_file_menu();
     void draw_new_project_dialog();
+    void draw_build_settings_dialog();
     void draw_error_dialog();
 
     void handle_shortcuts();
@@ -77,6 +78,11 @@ private:
     std::string new_project_name_;
     std::filesystem::path new_project_directory_;
     std::string new_project_error_;
+
+    bool build_settings_requested_ = false;
+    std::filesystem::path build_scene_file_;
+    std::filesystem::path build_output_directory_;
+    std::string build_settings_error_;
 
     bool error_requested_ = false;
     std::string error_message_;

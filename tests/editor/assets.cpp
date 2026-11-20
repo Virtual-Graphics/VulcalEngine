@@ -1,4 +1,5 @@
-#include "editor/project/scene/scene_serializer.h"
+#include "resource/directory_provider.h"
+#include "scene/scene_serializer.h"
 #include "scene/components.h"
 
 #include <chrono>
@@ -36,8 +37,8 @@ TEST(SceneSerializer, PersistsStableAssetIds) {
     mesh.material_asset_id_ = vulcal::asset::MaterialAssetID{ 1147797409030816545ull };
 
     const auto path         = directory.path() / "scene.vscene";
-    editor::SceneSerializer::serialize(scene, path);
-    auto loaded      = editor::SceneSerializer::deserialize(path);
+    vulcal::scene::SceneSerializer::serialize(scene, path);
+    auto loaded      = vulcal::scene::SceneSerializer::deserialize(path);
     auto loaded_mesh = loaded->registry().view<vulcal::scene::MeshRendererComponent>();
     ASSERT_EQ(loaded_mesh.size(), 1u);
     const auto& component = loaded_mesh.get<vulcal::scene::MeshRendererComponent>(loaded_mesh.front());
@@ -61,8 +62,8 @@ TEST(SceneSerializer, PersistsSpriteRendererComponent) {
     sprite.visible_          = false;
 
     const auto path          = directory.path() / "scene.vscene";
-    editor::SceneSerializer::serialize(scene, path);
-    auto loaded     = editor::SceneSerializer::deserialize(path);
+    vulcal::scene::SceneSerializer::serialize(scene, path);
+    auto loaded     = vulcal::scene::SceneSerializer::deserialize(path);
     const auto view = loaded->registry().view<vulcal::scene::SpriteRendererComponent>();
     ASSERT_EQ(view.size(), 1u);
     const auto& component = view.get<vulcal::scene::SpriteRendererComponent>(view.front());
@@ -84,8 +85,8 @@ TEST(SceneSerializer, PersistsScriptComponentPath) {
     entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "Assets/Scripts/player.lua";
 
     const auto path                                                      = directory.path() / "scene.vscene";
-    editor::SceneSerializer::serialize(scene, path);
-    auto loaded     = editor::SceneSerializer::deserialize(path);
+    vulcal::scene::SceneSerializer::serialize(scene, path);
+    auto loaded     = vulcal::scene::SceneSerializer::deserialize(path);
     const auto view = loaded->registry().view<vulcal::scene::ScriptComponent>();
     ASSERT_EQ(view.size(), 1u);
     EXPECT_EQ(view.get<vulcal::scene::ScriptComponent>(view.front()).script_path_, "Assets/Scripts/player.lua");
@@ -110,7 +111,7 @@ TEST(SceneSerializer, RejectsLegacySceneSchema) {
                   "      visible: true\n";
     }
 
-    EXPECT_THROW(editor::SceneSerializer::deserialize(path), std::runtime_error);
+    EXPECT_THROW(vulcal::scene::SceneSerializer::deserialize(path), std::runtime_error);
 }
 
 TEST(SceneSerializer, RejectsUnsupportedFormatVersion) {
@@ -122,7 +123,23 @@ TEST(SceneSerializer, RejectsUnsupportedFormatVersion) {
                   "entities: []\n";
     }
 
-    EXPECT_THROW(editor::SceneSerializer::deserialize(path), std::runtime_error);
+    EXPECT_THROW(vulcal::scene::SceneSerializer::deserialize(path), std::runtime_error);
+}
+
+TEST(SceneSerializer, LoadsSceneFromDirectoryProvider) {
+    TemporaryDirectory directory;
+    vulcal::scene::Scene scene;
+    scene.create_entity("Provider Scene");
+    const auto path = directory.path() / "provider.vscene";
+    vulcal::scene::SceneSerializer::serialize(scene, path);
+
+    const vulcal::resource::DirectoryProvider resources(directory.path());
+    auto loaded = vulcal::scene::SceneSerializer::deserialize(resources, "provider.vscene");
+    ASSERT_EQ(loaded->registry().view<vulcal::scene::TagComponent>().size(), 1u);
+    EXPECT_EQ(loaded->registry().get<vulcal::scene::TagComponent>(
+                      loaded->registry().view<vulcal::scene::TagComponent>().front())
+                      .name_,
+              "Provider Scene");
 }
 
 } // namespace

@@ -1,5 +1,6 @@
 #include "asset/asset_manager.h"
 #include "base/binary_io.h"
+#include "resource/directory_provider.h"
 
 #include <filesystem>
 #include <fstream>
@@ -211,6 +212,18 @@ TEST(AssetManager, RegistersProceduralDataWithoutRenderer) {
     const auto loaded_texture = assets.load_texture(texture_id);
     ASSERT_TRUE(loaded_texture);
     EXPECT_EQ(loaded_texture->pixels_, (std::vector<std::uint8_t>{ 10, 20, 30, 40 }));
+}
+
+TEST_F(AssetManagerTest, LoadsCookedAssetsThroughResourceProvider) {
+    const vulcal::asset::MeshAssetID id{ 71 };
+    write_mesh(directory_, id, 4.0f);
+    auto resources = std::make_shared<vulcal::resource::DirectoryProvider>(directory_);
+    vulcal::asset::AssetManager assets(resources);
+
+    const auto mesh = assets.load_mesh(id);
+    ASSERT_TRUE(mesh);
+    ASSERT_EQ(mesh->vertices_.size(), 1u);
+    EXPECT_FLOAT_EQ(mesh->vertices_[0].position.x, 4.0f);
 }
 
 TEST(AssetManager, SharesDefaultMaterialOnlyForNilId) {

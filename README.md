@@ -107,6 +107,12 @@ ctest --test-dir build -C Debug --output-on-failure
 
 也可以使用 `CMakePresets.json` 中的预设；其中 `msvc` 预设要求 Visual Studio 2026，`clang-debug` 预设使用 PATH 中的 `clang-cl` 和 Ninja。
 
+### 编辑器项目构建
+
+在编辑器中打开项目，通过 **File → Build Settings...** 选择开启场景与可选输出目录，保存后点击 **File → Build**。
+同目录的 `vulcal_build` 与 `vulcal_player` 会用于生成游戏包；也支持从 `PATH` 查找这两个程序。
+命令行用法、打包范围和发布限制见 [Building System v1](docs/building_system_v1.md)。
+
 ### Tracy 性能分析
 
 通过 CMake 开关接入 Tracy `v0.15.0`，默认关闭。关闭时不下载或链接 Tracy，埋点参数也不会被求值。

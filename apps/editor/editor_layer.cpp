@@ -96,6 +96,16 @@ void EditorLayer::draw_file_menu() {
     ImGui::Separator();
 
     ImGui::BeginDisabled(!context_.has_project());
+    if (ImGui::MenuItem("Build Settings...", nullptr, false, context_.has_project())) {
+        const auto& build_info = context_.project_info().build_info;
+        build_scene_file_ = build_info ? context_.project_directory() / build_info->open_scene : std::filesystem::path{};
+        build_output_directory_ = build_info ? build_info->build_dir : std::filesystem::path{};
+        build_settings_error_.clear();
+        build_settings_requested_ = true;
+    }
+    if (ImGui::MenuItem("Build", nullptr, false, context_.has_project() && !context_.playing()))
+        actions_->run_guarded([this] { actions_->build_project(); });
+    ImGui::Separator();
     if (ImGui::MenuItem("New Scene", "Ctrl+N")) actions_->run_guarded([this] { actions_->new_scene(); });
     if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) actions_->run_guarded([this] { actions_->open_scene(); });
 
@@ -265,12 +275,73 @@ void EditorLayer::on_update(base::Timestep dt) {
     inspector_.draw(context_, inspector_open_, actions_.get());
     viewport_.draw(viewport_open_, application().get_graphics_context().limits());
     draw_new_project_dialog();
+    draw_build_settings_dialog();
     if (!context_.playing()) {
         viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
     }
     handle_shortcuts();
     draw_error_dialog();
     imgui_->end_frame();
+}
+
+void EditorLayer::draw_build_settings_dialog() {
+    if (build_settings_requested_) {
+        ImGui::OpenPopup("Build Settings");
+        build_settings_requested_ = false;
+    }
+    const auto center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
+    if (!ImGui::BeginPopupModal("Build Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+
+    ImGui::TextUnformatted("Open scene");
+    ImGui::TextWrapped("%s", build_scene_file_.empty() ? "Choose a scene" : to_utf8(build_scene_file_).c_str());
+    ImGui::SameLine();
+    if (ImGui::Button("Browse scene...")) {
+        try {
+            if (auto path = apps::nfd::open_file(apps::nfd::FileFilter{ "Vulcal Scene", "vscene" }, context_.assets_directory()))
+                build_scene_file_ = *path;
+        } catch (const std::exception& error) {
+            build_settings_error_ = error.what();
+        }
+    }
+
+    ImGui::TextUnformatted("Output directory");
+    ImGui::TextWrapped("%s", build_output_directory_.empty() ? "Default: project/build" : to_utf8(build_output_directory_).c_str());
+    ImGui::SameLine();
+    if (ImGui::Button("Browse output...")) {
+        try {
+            if (auto path = apps::nfd::pick_folder(build_output_directory_.empty() ? context_.build_directory() : build_output_directory_))
+                build_output_directory_ = *path;
+        } catch (const std::exception& error) {
+            build_settings_error_ = error.what();
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Use default")) build_output_directory_.clear();
+
+    if (!build_settings_error_.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 440.0f);
+        ImGui::TextColored({ 1.0f, 0.4f, 0.3f, 1.0f }, "%s", build_settings_error_.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
+    ImGui::BeginDisabled(context_.playing() || build_scene_file_.empty());
+    if (ImGui::Button("Save")) {
+        try {
+            actions_->set_build_settings(build_scene_file_, build_output_directory_);
+            build_settings_error_.clear();
+            ImGui::CloseCurrentPopup();
+        } catch (const std::exception& error) {
+            build_settings_error_ = error.what();
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+        build_settings_error_.clear();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
 }
 
 void EditorLayer::on_render() {

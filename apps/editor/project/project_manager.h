@@ -22,6 +22,7 @@ public:
     bool has_project() const;
     void create_project(const std::filesystem::path& directory, const std::string& name);
     void open_project(const std::filesystem::path& project_file);
+    void set_build_info(BuildInfo build_info);
     void save_project(const std::filesystem::path& project_file);
     void save_project();
 

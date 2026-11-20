@@ -13,6 +13,18 @@ std::filesystem::path normalized(const std::filesystem::path& path) {
 
 } // namespace
 
+std::string path_to_utf8(const std::filesystem::path& path) {
+    const auto encoded = path.generic_u8string();
+    return { reinterpret_cast<const char*>(encoded.data()), encoded.size() };
+}
+
+std::filesystem::path path_from_utf8(std::string_view path) {
+    std::u8string encoded;
+    encoded.reserve(path.size());
+    for (const char character: path) encoded.push_back(static_cast<char8_t>(character));
+    return std::filesystem::path{ encoded };
+}
+
 std::filesystem::path relative_to(const std::filesystem::path& path, const std::filesystem::path& root) {
     const auto relative = normalized(path).lexically_relative(normalized(root));
     if (relative.empty() || relative.is_absolute() || *relative.begin() == "..") return {};

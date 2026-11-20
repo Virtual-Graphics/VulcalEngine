@@ -127,9 +127,17 @@ void EditorContext::open_project(const std::filesystem::path& project_file) {
 
 std::filesystem::path EditorContext::project_directory() const { return project_manager_.current_project_dir(); }
 
+std::filesystem::path EditorContext::project_file() const { return project_manager_.current_project_file(); }
+
 std::filesystem::path EditorContext::assets_directory() const { return project_manager_.current_assets_dir(); }
 
 std::filesystem::path EditorContext::library_directory() const { return project_manager_.current_library_dir(); }
+
+std::filesystem::path EditorContext::build_directory() const { return project_manager_.current_build_dir(); }
+
+const ProjectInfo& EditorContext::project_info() const { return project_manager_.current_project_info(); }
+
+void EditorContext::set_build_info(BuildInfo build_info) { project_manager_.set_build_info(std::move(build_info)); }
 
 std::filesystem::path EditorContext::scene_dialog_directory() const {
     auto directory = project_manager_.current_scene_file().parent_path();

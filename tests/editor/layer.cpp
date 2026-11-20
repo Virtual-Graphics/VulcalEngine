@@ -218,6 +218,8 @@ TEST(EditorPlayLifecycle, LayerDestructionStopsScriptsWhileRuntimeEntitiesAreAli
 }
 
 TEST_F(EditorLayerTest, SceneMenuStartsAndStopsPlay) {
+    ASSERT_FALSE(layer_->context().has_project());
+    ASSERT_TRUE(layer_->context().scene().registry().view<vulcal::scene::ScriptComponent>().empty());
     click({ 60.0f, ImGui::GetFontSize() * 0.5f });
     frame();
     ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);

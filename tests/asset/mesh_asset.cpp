@@ -1,5 +1,6 @@
 #include "asset/res/mesh_asset.h"
 #include "asset/asset_manager.h"
+#include "resource/directory_provider.h"
 
 #include <filesystem>
 #include <gtest/gtest.h>
@@ -41,6 +42,17 @@ TEST_F(MeshAssetTest, WritesReadableMeshWithoutAssetPipeline) {
     EXPECT_EQ(mesh.vertices_[2].position, (glm::vec3{ 0.0f, 1.0f, 0.0f }));
     for (const auto& vertex: mesh.vertices_) EXPECT_EQ(vertex.normal, (glm::vec3{ 0.0f, 0.0f, 1.0f }));
     EXPECT_EQ(mesh.indices_, (std::vector<std::uint32_t>{ 0, 2, 1 }));
+}
+
+TEST_F(MeshAssetTest, ReadsMeshFromProviderBytes) {
+    const auto path = directory_ / "triangle.vmesh";
+    vulcal::asset::MeshAsset::write(path, triangle());
+    const vulcal::resource::DirectoryProvider resources(directory_);
+
+    const auto bytes = resources.read_binary("triangle.vmesh");
+    const auto mesh = vulcal::asset::MeshAsset::read(bytes);
+    EXPECT_EQ(mesh.indices_, (std::vector<std::uint32_t>{ 0, 2, 1 }));
+    EXPECT_EQ(mesh.vertices_.size(), 3u);
 }
 
 TEST_F(MeshAssetTest, RewritesEditedMeshAndReloadsAfterInvalidation) {

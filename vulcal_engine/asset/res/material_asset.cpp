@@ -2,12 +2,14 @@
 
 #include "base/binary_io.h"
 #include "base/logger.h"
+#include "resource/directory_provider.h"
 
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 namespace vulcal::asset {
@@ -16,6 +18,11 @@ namespace {
 constexpr std::array<char, 8> magic{ 'V', 'U', 'L', 'M', 'A', 'T', 'C', '\0' };
 constexpr std::uint32_t version   = 1;
 constexpr std::uint64_t file_size = magic.size() + sizeof(std::uint32_t) + 7 * sizeof(float);
+
+std::string path_to_utf8(const std::filesystem::path& path) {
+    const auto text = path.u8string();
+    return { reinterpret_cast<const char*>(text.data()), text.size() };
+}
 
 void validate(const render::Material& material) {
     for (const float value: { material.diffuse_.x, material.diffuse_.y, material.diffuse_.z, material.specular_.x, material.specular_.y,
@@ -29,26 +36,34 @@ void validate(const render::Material& material) {
 
 render::Material MaterialAsset::read(const std::filesystem::path& path) {
     base::log::debug("MaterialAsset: reading {}", path.string());
-    std::ifstream input(path, std::ios::binary);
-    if (!input) throw std::runtime_error("Could not open runtime material file: " + path.string());
+    const auto absolute = std::filesystem::absolute(path);
+    const resource::DirectoryProvider resources(absolute.parent_path());
+    return read(resources.read_binary(path_to_utf8(absolute.filename())));
+}
+
+render::Material MaterialAsset::read(std::span<const std::byte> data) {
+    const std::string bytes(reinterpret_cast<const char*>(data.data()), data.size());
+    std::istringstream input(bytes, std::ios::binary);
+    if (!input) throw std::runtime_error("Could not read runtime material data");
 
     std::array<char, magic.size()> file_magic{};
     input.read(file_magic.data(), static_cast<std::streamsize>(file_magic.size()));
-    if (!input || file_magic != magic) throw std::runtime_error("Invalid runtime material file: " + path.string());
-    if (base::binary::read_u32_le(input) != version) throw std::runtime_error("Unsupported runtime material version: " + path.string());
+    if (!input || file_magic != magic) throw std::runtime_error("Invalid runtime material data");
+    if (base::binary::read_u32_le(input) != version) throw std::runtime_error("Unsupported runtime material version");
 
     render::Material material;
     material.diffuse_   = { base::binary::read_float_le(input), base::binary::read_float_le(input), base::binary::read_float_le(input) };
     material.specular_  = { base::binary::read_float_le(input), base::binary::read_float_le(input), base::binary::read_float_le(input) };
     material.shininess_ = base::binary::read_float_le(input);
-    if (input.peek() != std::char_traits<char>::eof()) throw std::runtime_error("Invalid runtime material size: " + path.string());
+    if (input.peek() != std::char_traits<char>::eof() || data.size() != file_size)
+        throw std::runtime_error("Invalid runtime material size");
 
     try {
         validate(material);
     } catch (const std::invalid_argument& error) {
-        throw std::runtime_error("Invalid runtime material values in " + path.string() + ": " + error.what());
+        throw std::runtime_error("Invalid runtime material values: " + std::string(error.what()));
     }
-    base::log::debug("MaterialAsset: read {} (version {}, {} bytes)", path.string(), version, file_size);
+    base::log::debug("MaterialAsset: read runtime data (version {}, {} bytes)", version, file_size);
     return material;
 }
 

@@ -1,7 +1,7 @@
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
 #include "base/window.h"
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 #include "gfx/context.h"
 #include "gfx/render_target.h"
 #include "render/renderer.h"
@@ -33,7 +33,7 @@ protected:
         cache_    = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
         target_   = std::make_unique<vulcal::gfx::RenderTarget>(vulcal::gfx::RenderTarget::Spec{ .width = 960, .height = 720 });
         const auto project = std::filesystem::path{ VULCAL_TEST_SOURCE_DIR } / "projects" / "arena";
-        scene_             = editor::SceneSerializer::deserialize(project / "assets" / "scenes" / "arena.vscene");
+        scene_             = vulcal::scene::SceneSerializer::deserialize(project / "assets" / "scenes" / "arena.vscene");
         ASSERT_TRUE(scene_);
         SDL_RaiseWindow(window_->handle());
         SDL_SyncWindow(window_->handle());

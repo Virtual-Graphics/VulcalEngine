@@ -3,3 +3,5 @@ description: ""
 author: ""
 assets_path: assets
 last_edited_scene: assets/scenes/snake.vscene
+build_info:
+  open_scene: assets/scenes/snake.vscene

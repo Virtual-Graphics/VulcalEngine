@@ -2,10 +2,12 @@
 
 #include "base/binary_io.h"
 #include "base/logger.h"
+#include "resource/directory_provider.h"
 
 #include <array>
 #include <cstdint>
 #include <fstream>
+#include <sstream>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -18,6 +20,11 @@ constexpr std::uint32_t version     = 1;
 constexpr std::uint64_t header_size = 28;
 constexpr std::uint64_t vertex_size = 24;
 constexpr std::uint64_t index_size  = 4;
+
+std::string path_to_utf8(const std::filesystem::path& path) {
+    const auto text = path.u8string();
+    return { reinterpret_cast<const char*>(text.data()), text.size() };
+}
 
 std::uint64_t expected_file_size(std::uint64_t vertex_count, std::uint64_t index_count) {
 
@@ -37,34 +44,36 @@ std::uint64_t expected_file_size(std::uint64_t vertex_count, std::uint64_t index
 } // namespace
 
 render::MeshData MeshAsset::read(const std::filesystem::path& path) {
-
     base::log::debug("MeshAsset: reading {}", path.string());
-    std::ifstream input(path, std::ios::binary);
+    const auto absolute = std::filesystem::absolute(path);
+    const resource::DirectoryProvider resources(absolute.parent_path());
+    return read(resources.read_binary(path_to_utf8(absolute.filename())));
+}
+
+render::MeshData MeshAsset::read(std::span<const std::byte> data) {
+    const std::string bytes(reinterpret_cast<const char*>(data.data()), data.size());
+    std::istringstream input(bytes, std::ios::binary);
     std::array<char, magic.size()> file_magic{};
-    // 预处理 begin
     if (!input) {
-        throw std::runtime_error("Could not open runtime mesh file: " + path.string());
+        throw std::runtime_error("Could not read runtime mesh data");
     }
 
     input.read(file_magic.data(), static_cast<std::streamsize>(file_magic.size()));
     if (!input || file_magic != magic) {
-        throw std::runtime_error("Invalid runtime mesh file: " + path.string());
+        throw std::runtime_error("Invalid runtime mesh data");
     }
 
     if (base::binary::read_u32_le(input) != version) {
-        throw std::runtime_error("Unsupported runtime mesh version: " + path.string());
+        throw std::runtime_error("Unsupported runtime mesh version");
     }
-    // 预处理 end
 
     const auto vertex_count  = base::binary::read_u64_le(input);
     const auto index_count   = base::binary::read_u64_le(input);
     const auto expected_size = expected_file_size(vertex_count, index_count);
 
-    std::error_code error;
-    const auto actual_size = std::filesystem::file_size(path, error);
-    if (error || actual_size != expected_size || vertex_count > std::numeric_limits<std::size_t>::max() ||
+    if (data.size() != expected_size || vertex_count > std::numeric_limits<std::size_t>::max() ||
         index_count > std::numeric_limits<std::size_t>::max()) {
-        throw std::runtime_error("Invalid runtime mesh size: " + path.string());
+        throw std::runtime_error("Invalid runtime mesh size");
     }
 
     render::MeshData mesh;
@@ -85,7 +94,7 @@ render::MeshData MeshAsset::read(const std::filesystem::path& path) {
 
         mesh.indices_.push_back(index);
     }
-    base::log::debug("MeshAsset: read {} (version {}, {} bytes, {} vertices, {} indices)", path.string(), version, expected_size,
+    base::log::debug("MeshAsset: read runtime data (version {}, {} bytes, {} vertices, {} indices)", version, expected_size,
                      mesh.vertices_.size(), mesh.indices_.size());
     return mesh;
 }

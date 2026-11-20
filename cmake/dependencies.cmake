@@ -7,6 +7,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/third_party_entt.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/third_party_lua.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/third_party_sol2.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/third_party_yamlcpp.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/third_party_miniz.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/third_party_nfd.cmake)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../third_party/glad glad)

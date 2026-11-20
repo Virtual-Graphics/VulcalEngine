@@ -9,6 +9,10 @@
 #include <unordered_map>
 #include <vector>
 
+namespace vulcal::resource {
+class ResourceProvider;
+}
+
 namespace vulcal::script {
 
 class ScriptRuntime {
@@ -20,6 +24,7 @@ public:
 
     void register_backend(std::unique_ptr<ScriptBackend> backend);
     void start(scene::Scene& scene, const std::filesystem::path& project_root);
+    void start(scene::Scene& scene, const resource::ResourceProvider& resources);
     void update(float delta_time);
     void stop();
     bool running() const { return scene_ != nullptr; }

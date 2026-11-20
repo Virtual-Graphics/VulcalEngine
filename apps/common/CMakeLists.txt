@@ -1,6 +1,8 @@
 include("${PROJECT_SOURCE_DIR}/cmake/third_party_imgui.cmake")
 
 add_library(vulcal_app_imgui STATIC
+    application_paths.cpp
+    process.cpp
     imgui/imgui_integration.cpp
     imgui/imgui_render_target.cpp
     nfd/file_dialog.cpp
