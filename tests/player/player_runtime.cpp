@@ -1,4 +1,5 @@
 #include "vulcal_player/player_runtime.h"
+#include "base/path_utils.h"
 #include "resource/directory_provider.h"
 
 #include <chrono>
@@ -46,8 +47,7 @@ TEST(PlayerRuntime, AcceptsUtf8PackageArgument) {
     TemporaryDirectory directory;
     const auto pak = directory.path() / std::filesystem::path{ u8"\u6e38\u620f_\U0001f680.vpak" };
     std::ofstream(pak).put('x');
-    const auto encoded = pak.generic_u8string();
-    const std::string argument{ reinterpret_cast<const char*>(encoded.data()), encoded.size() };
+    const std::string argument = base::path_to_utf8(pak);
     EXPECT_EQ(vulcal::player::select_pak_file({ argument }, directory.path()), std::filesystem::canonical(pak));
 }
 

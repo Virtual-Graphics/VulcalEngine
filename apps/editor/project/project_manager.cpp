@@ -5,6 +5,7 @@
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
+#include "common/project_paths.h"
 #include "editor/project/scene/default_scene.h"
 #include "scene/scene_serializer.h"
 #include "scene/scene.h"
@@ -16,12 +17,18 @@
 namespace editor {
 namespace {
 
+void ensure_project_directories(const std::filesystem::path& directory, const std::filesystem::path& assets_path) {
+    std::filesystem::create_directories(directory / assets_path);
+    std::filesystem::create_directories(directory / ".vulcal_engine");
+    std::filesystem::create_directories(directory / "build");
+}
+
 void validate_build_info(const BuildInfo& info, const std::filesystem::path& project_dir, const std::filesystem::path& assets_dir) {
-    const auto& scene = info.open_scene;
-    if (scene.empty() || scene.is_absolute() || scene.has_root_name() || scene.has_root_directory() ||
-        !base::has_extension(scene, ".vscene") || !base::is_within(project_dir / scene, assets_dir)) {
-        throw std::invalid_argument("Build open_scene must be a project-relative .vscene inside the assets directory");
+    const auto assets_relative = base::relative_to(assets_dir, project_dir);
+    if (assets_relative.empty()) {
+        throw std::invalid_argument("Build assets directory must be inside the project directory");
     }
+    apps::project_paths::validate_scene_path(info.open_scene, assets_relative, "Build open_scene");
     if (!info.build_dir.empty() && !info.build_dir.is_absolute()) {
         throw std::invalid_argument("Build output directory must be absolute");
     }
@@ -52,9 +59,7 @@ void ProjectManager::create_project(const std::filesystem::path& directory, cons
     ProjectInfo info;
     info.name        = name;
     info.assets_path = "assets";
-    std::filesystem::create_directories(directory / info.assets_path);
-    std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "build");
+    ensure_project_directories(directory, info.assets_path);
     if (!save_project_info(project_file, info)) {
         throw std::runtime_error("Failed to create project file at " + project_file.string());
     }
@@ -88,9 +93,7 @@ void ProjectManager::open_project(const std::filesystem::path& project_file) {
     if (info.build_info) validate_build_info(*info.build_info, directory, directory / info.assets_path);
     base::log::debug("ProjectManager: preparing project directories (assets: {}, runtime: {}, build: {})",
                      (directory / info.assets_path).string(), (directory / ".vulcal_engine").string(), (directory / "build").string());
-    std::filesystem::create_directories(directory / info.assets_path);
-    std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "build");
+    ensure_project_directories(directory, info.assets_path);
     current_project_file_ = project_file;
     current_project_info_ = std::move(info);
     base::log::info("Opened project '{}' from {}", current_project_info_.name, project_file.string());

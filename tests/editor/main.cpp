@@ -2,6 +2,8 @@
 #include "editor/editor_context.h"
 #include "editor/project/project.h"
 
+#include "base/path_utils.h"
+
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -206,9 +208,8 @@ TEST(ProjectInfo, RoundTripsUtf8BuildPathsAndProjectFilename) {
     std::ifstream input(project_file);
     const auto yaml = YAML::Load(input);
     input.close();
-    const auto expected_utf8 = info.build_info->build_dir.generic_u8string();
-    EXPECT_EQ(yaml["build_info"]["build_dir"].as<std::string>(),
-              (std::string{ reinterpret_cast<const char*>(expected_utf8.data()), expected_utf8.size() }));
+    const auto expected_utf8 = base::path_to_utf8(info.build_info->build_dir);
+    EXPECT_EQ(yaml["build_info"]["build_dir"].as<std::string>(), expected_utf8);
 
     editor::ProjectInfo loaded;
     ASSERT_TRUE(editor::load_project_info(project_file, loaded));

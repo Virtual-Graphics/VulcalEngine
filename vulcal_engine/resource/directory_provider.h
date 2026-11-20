@@ -14,7 +14,9 @@ public:
     std::vector<std::byte> read_binary(std::string_view path) const override;
     std::string read_text(std::string_view path) const override;
 
-    const std::filesystem::path& root() const { return root_; }
+    const std::filesystem::path& root() const { 
+        return root_; 
+    }
 
 private:
     std::filesystem::path resolve(std::string_view path) const;

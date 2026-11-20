@@ -61,6 +61,14 @@ Entity Scene::create_entity(const std::string& name) {
 
 bool Scene::contains(Entity entity) const { return entity.scene_ == this && registry_.valid(entity.handle_); }
 
+Entity Scene::find_by_id(const base::UUID& id) {
+    const auto view = registry_.view<const IDComponent>();
+    for (const auto handle: view) {
+        if (view.get<const IDComponent>(handle).id_ == id) return Entity{ handle, *this };
+    }
+    return {};
+}
+
 void Scene::require_entity(Entity entity) const {
     if (!contains(entity)) {
         base::log::error("Entity is invalid or belongs to another scene");

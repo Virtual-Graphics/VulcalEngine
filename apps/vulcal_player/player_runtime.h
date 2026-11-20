@@ -18,7 +18,7 @@ struct Manifest {
     std::string open_scene;
 };
 
-std::filesystem::path select_pak_file(const std::vector<std::string>& arguments, const std::filesystem::path& executable_directory);
+std::filesystem::path select_pak_file(const std::vector<std::string>& arguments, const std::filesystem::path& running_executable_directory);
 Manifest load_manifest(const resource::ResourceProvider& resources);
 
 } // namespace vulcal::player

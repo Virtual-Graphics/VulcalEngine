@@ -11,6 +11,7 @@
 #include "common/application_paths.h"
 #include "common/nfd/file_dialog.h"
 #include "common/process.h"
+#include "common/project_paths.h"
 #include "editor/editor_context.h"
 #include "scene/components.h"
 
@@ -28,11 +29,6 @@ const apps::nfd::FileFilter material_filter{ "Vulcal Material", "vmat" };
 const apps::nfd::FileFilter texture_filter{ "Image", "png,jpg,jpeg,bmp,tga" };
 const apps::nfd::FileFilter script_filter{ "Lua Script", "lua" };
 
-std::string path_to_utf8(const std::filesystem::path& path) {
-    const auto text = path.u8string();
-    return { reinterpret_cast<const char*>(text.data()), text.size() };
-}
-
 std::filesystem::path absolute_path(const std::filesystem::path& path) {
     std::error_code error;
     const auto absolute = std::filesystem::absolute(path, error);
@@ -48,7 +44,7 @@ EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager
                             .open_file = [](const auto& filter, const auto& directory) { return apps::nfd::open_file(filter, directory); },
                             .save_file = [](const auto& filter, const auto& directory,
                                             const auto& name) { return apps::nfd::save_file(filter, directory, name); },
-                            .find_executable = [](std::string_view name) { return apps::application_paths::find_executable(name); },
+                            .find_executable = [](std::string_view name) { return apps::app_paths::find_executable(name); },
                             .run_process = [](const auto& executable, const auto& arguments) {
                                 return apps::process::run_and_wait(executable, arguments);
                             },
@@ -87,8 +83,8 @@ void EditorActions::build_project() {
     if (player.empty()) throw std::runtime_error("Could not find vulcal_player beside the editor or on PATH");
 
     const std::vector<std::string> arguments{
-        path_to_utf8(absolute_path(context_.project_file())),
-        path_to_utf8(absolute_path(player)),
+        base::path_to_utf8(absolute_path(context_.project_file())),
+        base::path_to_utf8(absolute_path(player)),
     };
     const auto exit_code = dialogs_.run_process(absolute_path(build_tool), arguments);
     if (exit_code != 0) throw std::runtime_error("Build failed with exit code " + std::to_string(exit_code));
@@ -99,8 +95,7 @@ void EditorActions::set_build_settings(const std::filesystem::path& scene_file, 
     if (!context_.has_project()) throw std::logic_error("Open a project before configuring build settings");
     std::error_code error;
     const auto scene = std::filesystem::canonical(scene_file, error);
-    if (error || !std::filesystem::is_regular_file(scene) || !base::has_extension(scene, ".vscene") ||
-        !base::is_within(scene, context_.assets_directory())) {
+    if (error || !std::filesystem::is_regular_file(scene)) {
         throw std::invalid_argument("Select an existing .vscene inside the project assets directory");
     }
 
@@ -108,8 +103,12 @@ void EditorActions::set_build_settings(const std::filesystem::path& scene_file, 
     if (!build_dir.empty()) {
         resolved_build_dir = absolute_path(build_dir);
     }
-    const auto relative_scene = base::relative_to(scene, context_.project_directory());
-    if (relative_scene.empty()) throw std::invalid_argument("Build scene must be inside the project directory");
+    const auto relative_scene  = base::relative_to(scene, context_.project_directory());
+    const auto relative_assets = base::relative_to(context_.assets_directory(), context_.project_directory());
+    if (relative_scene.empty() || relative_assets.empty()) {
+        throw std::invalid_argument("Build scene must be inside the project directory");
+    }
+    apps::project_paths::validate_scene_path(relative_scene, relative_assets, "Build scene");
     context_.set_build_info(BuildInfo{ .open_scene = relative_scene, .build_dir = resolved_build_dir });
 }
 

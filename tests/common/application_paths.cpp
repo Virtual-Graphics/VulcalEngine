@@ -43,7 +43,7 @@ TEST(ApplicationPaths, PrefersTheApplicationDirectoryToPath) {
     create_executable(application_dir, "vulcal_build");
     create_executable(path_dir, "vulcal_build");
 
-    const auto found = apps::application_paths::find_executable("vulcal_build", application_dir, path_dir.string());
+    const auto found = apps::app_paths::find_executable("vulcal_build", application_dir, path_dir.string());
     EXPECT_EQ(found, application_dir / executable_name("vulcal_build"));
 }
 
@@ -53,13 +53,13 @@ TEST(ApplicationPaths, FindsExecutableInPathWhenItIsNotBesideTheApplication) {
     const auto path_dir        = directory.path() / "tools";
     create_executable(path_dir, "vulcal_player");
 
-    const auto found = apps::application_paths::find_executable("vulcal_player", application_dir, path_dir.string());
+    const auto found = apps::app_paths::find_executable("vulcal_player", application_dir, path_dir.string());
     EXPECT_EQ(found, path_dir / executable_name("vulcal_player"));
 }
 
 TEST(ApplicationPaths, ReturnsAnEmptyPathWhenTheExecutableCannotBeFound) {
     TemporaryDirectory directory;
-    EXPECT_TRUE(apps::application_paths::find_executable("missing", directory.path(), {}).empty());
+    EXPECT_TRUE(apps::app_paths::find_executable("missing", directory.path(), {}).empty());
 }
 
 TEST(ApplicationPaths, FindsExecutableOnUtf8Path) {
@@ -68,7 +68,7 @@ TEST(ApplicationPaths, FindsExecutableOnUtf8Path) {
     create_executable(tools, "vulcal_player");
     const auto encoded = tools.generic_u8string();
     const std::string search_path{ reinterpret_cast<const char*>(encoded.data()), encoded.size() };
-    EXPECT_EQ(apps::application_paths::find_executable("vulcal_player", directory.path(), search_path),
+    EXPECT_EQ(apps::app_paths::find_executable("vulcal_player", directory.path(), search_path),
               tools / executable_name("vulcal_player"));
 }
 

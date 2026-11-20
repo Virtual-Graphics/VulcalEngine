@@ -2,13 +2,12 @@
 
 #include "base/path_utils.h"
 #include "base/string_utils.h"
+#include "common/project_paths.h"
 #include "editor/project/project.h"
-#include "resource/resource_provider.h"
 
 #include <miniz.h>
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <fstream>
 #include <limits>
@@ -19,10 +18,10 @@
 #include <yaml-cpp/yaml.h>
 
 #ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <windows.h>
 #endif
 
 namespace apps::vulcal_build {
@@ -31,73 +30,78 @@ namespace {
 constexpr std::string_view engine_version = "0.0.5";
 constexpr std::string_view manifest_name  = "vulcal_game.vmanifest";
 
-std::string path_to_utf8(const std::filesystem::path& path) {
-    const auto text = path.generic_u8string();
-    return { reinterpret_cast<const char*>(text.data()), text.size() };
-}
 
 bool valid_project_name(std::string_view name) {
-    if (name.empty() || name.back() == '.' || name.back() == ' ' || name.find_first_of("<>:\"/\\|?*") != std::string_view::npos)
+    // 拒绝 空名、结尾字符、非法字符
+    if (name.empty() || name.back() == '.' || name.back() == ' ' || name.find_first_of("<>:\"/\\|?*") != std::string_view::npos) {
         return false;
-    if (std::any_of(name.begin(), name.end(), [](unsigned char value) { return value < 32 || value == 127; })) return false;
+    }
+
+    // 拒绝 ASCII 小于 32 和 127 的控制字符
+    if (std::any_of(name.begin(), name.end(), [](unsigned char value) { return value < 32 || value == 127; })) {
+        return false;
+    }
+
+    // 拒绝 Windows 设备保留名
     auto stem = std::string(name.substr(0, name.find('.')));
     while (!stem.empty() && stem.back() == ' ') stem.pop_back();
-    std::transform(stem.begin(), stem.end(), stem.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || stem == "CONIN$" || stem == "CONOUT$") return false;
+    stem = base::to_upper(stem);
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || stem == "CONIN$" || stem == "CONOUT$") {
+        return false;
+    }
     if (stem.starts_with("COM") || stem.starts_with("LPT")) {
         const auto suffix = std::string_view(stem).substr(3);
         if ((suffix.size() == 1 && suffix.front() >= '1' && suffix.front() <= '9') || suffix == "\xc2\xb9" || suffix == "\xc2\xb2" ||
-            suffix == "\xc2\xb3")
+            suffix == "\xc2\xb3") {
             return false;
+        }
     }
     return true;
 }
 
+// 确保构建输出目标不存在或目标普通文件。拒绝目录与符号链接。
 void validate_output_target(const std::filesystem::path& target) {
     std::error_code error;
     const auto status = std::filesystem::symlink_status(target, error);
-    if (error == std::errc::no_such_file_or_directory) return;
-    if (error) throw std::runtime_error("Could not inspect build output: " + error.message());
+
+    if (error == std::errc::no_such_file_or_directory) {
+        return;
+    }
+    if (error) { 
+        throw std::runtime_error("Could not inspect build output: " + error.message());
+    }
     if (status.type() != std::filesystem::file_type::not_found && !std::filesystem::is_regular_file(status)) {
         throw std::invalid_argument("Existing build output must be a regular file, not a directory or symlink: " + target.string());
     }
 }
 
-bool paths_alias(const std::filesystem::path& first, const std::filesystem::path& second) {
-    if (first == second) return true;
+bool is_same_file(const std::filesystem::path& first, const std::filesystem::path& second) {
+    if (first == second) {
+        return true;
+    }
+
 #ifdef _WIN32
     const auto& first_native  = first.native();
     const auto& second_native = second.native();
-    if (first_native.size() <= static_cast<std::size_t>(std::numeric_limits<int>::max()) &&
-        second_native.size() <= static_cast<std::size_t>(std::numeric_limits<int>::max()) &&
-        CompareStringOrdinal(first_native.c_str(), static_cast<int>(first_native.size()), second_native.c_str(),
-                             static_cast<int>(second_native.size()), TRUE) == CSTR_EQUAL)
-        return true;
+
+    const auto max_int = static_cast<std::size_t>(std::numeric_limits<int>::max());
+    const bool fits_int = first_native.size() <= max_int && second_native.size() <= max_int;
+
+    if (fits_int) {
+        const auto result = CompareStringOrdinal(first_native.c_str(), static_cast<int>(first_native.size()),
+                                                 second_native.c_str(), static_cast<int>(second_native.size()), TRUE);
+        if (result == CSTR_EQUAL) {
+            return true;
+        }
+    }
 #endif
+
     std::error_code error;
     const bool equivalent = std::filesystem::equivalent(first, second, error);
     if (error && error != std::errc::no_such_file_or_directory) {
         throw std::runtime_error("Could not compare build output files: " + error.message());
     }
     return !error && equivalent;
-}
-
-std::filesystem::path validate_relative_path(const std::filesystem::path& path, const char* field) {
-    if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory()) {
-        throw std::invalid_argument(std::string(field) + " must be a project-relative path");
-    }
-    for (const auto& component: path) {
-        if (component.empty() || component == "." || component == "..") {
-            throw std::invalid_argument(std::string(field) + " contains an unsafe path component");
-        }
-    }
-    const auto text = path_to_utf8(path);
-    try {
-        vulcal::resource::detail::normalize_logical_path(text);
-    } catch (const std::invalid_argument&) {
-        throw std::invalid_argument(std::string(field) + " must use a UTF-8 relative path with '/' separators");
-    }
-    return path;
 }
 
 struct InputFile {
@@ -110,27 +114,35 @@ void collect_tree(const std::filesystem::path& root, const std::filesystem::path
     if (std::filesystem::is_symlink(std::filesystem::symlink_status(root))) {
         throw std::runtime_error("Resource directory symlinks are not supported: " + root.string());
     }
-    if (!std::filesystem::exists(root)) return;
+    if (!std::filesystem::exists(root)) {
+        return;
+    }
+
     std::error_code error;
     const auto canonical_root = std::filesystem::canonical(root, error);
-    if (error || !std::filesystem::is_directory(canonical_root))
+    if (error || !std::filesystem::is_directory(canonical_root)) {
         throw std::runtime_error("Resource directory is unavailable: " + root.string());
+    }
 
     for (std::filesystem::recursive_directory_iterator it(canonical_root), end; it != end; ++it) {
         const auto status = it->symlink_status();
         if (std::filesystem::is_symlink(status)) {
             throw std::runtime_error("Resource symlinks are not supported: " + it->path().string());
         }
-        if (!std::filesystem::is_regular_file(status)) continue;
+        if (!std::filesystem::is_regular_file(status)) {
+            continue;
+        }
         if (filter_extensions) {
-            auto extension = it->path().extension().string();
-            std::transform(extension.begin(), extension.end(), extension.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (extension != ".vscene" && extension != ".lua") continue;
+            const auto extension = base::lowercase_extension(it->path());
+            if (extension != ".vscene" && extension != ".lua") {
+                continue;
+            }
         }
         const auto relative = base::relative_to(it->path(), project_root);
-        if (relative.empty()) throw std::runtime_error("Resource file is outside project: " + it->path().string());
-        const auto archive_path = path_to_utf8(validate_relative_path(relative, "packaged resource path"));
+        if (relative.empty()) {
+            throw std::runtime_error("Resource file is outside project: " + it->path().string());
+        }
+        const auto archive_path = base::path_to_utf8(apps::project_paths::validate_relative_path(relative, "packaged resource path"));
         output.push_back({ it->path(), archive_path });
     }
 }
@@ -161,21 +173,19 @@ void collect_project_scripts(const std::filesystem::path& project_root, const st
         }
         if (!std::filesystem::is_regular_file(status)) continue;
 
-        auto extension = it->path().extension().string();
-        std::transform(extension.begin(), extension.end(), extension.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const auto extension = base::lowercase_extension(it->path());
         if (extension != ".lua") continue;
 
         const auto relative = base::relative_to(it->path(), project_root);
         if (relative.empty()) throw std::runtime_error("Project script is outside project: " + it->path().string());
-        const auto archive_path = path_to_utf8(validate_relative_path(relative, "packaged script path"));
+        const auto archive_path = base::path_to_utf8(apps::project_paths::validate_relative_path(relative, "packaged script path"));
         output.push_back({ it->path(), archive_path });
     }
     if (error) throw std::runtime_error("Could not scan project scripts: " + error.message());
 }
 
 void add_file(mz_zip_archive& archive, const InputFile& file) {
-    const auto source = path_to_utf8(file.path);
+    const auto source = base::path_to_utf8(file.path);
     if (!mz_zip_writer_add_file(&archive, file.archive_path.c_str(), source.c_str(), nullptr, 0, MZ_DEFAULT_COMPRESSION)) {
         throw std::runtime_error("Could not add resource to package: " + file.archive_path);
     }
@@ -260,18 +270,20 @@ void publish(TempOutputs& staged, const std::filesystem::path& pak_target, const
 } // namespace
 
 BuildResult build_project(const std::filesystem::path& project_file, const std::filesystem::path& player_executable) {
+   
+    // 预处理 begin
     editor::ProjectInfo info;
-    if (!editor::load_project_info(project_file, info)) throw std::runtime_error("Could not load project file: " + project_file.string());
-    if (!info.build_info) throw std::invalid_argument("Project has no build_info configuration");
-    if (!valid_project_name(info.name)) throw std::invalid_argument("Project name cannot be used as an output filename");
-    if (info.assets_path.empty() || info.assets_path.is_absolute() || info.assets_path.has_root_name() ||
-        info.assets_path.has_root_directory()) {
-        throw std::invalid_argument("Project assets_path must be project-relative");
+    if (!editor::load_project_info(project_file, info)) { 
+        throw std::runtime_error("Could not load project file: " + project_file.string());
     }
-    validate_relative_path(info.assets_path, "assets_path");
-    const auto scene_relative = validate_relative_path(info.build_info->open_scene, "build_info.open_scene");
-    if (!base::has_extension(scene_relative, ".vscene")) throw std::invalid_argument("Build open_scene must reference a .vscene file");
-    if (!base::is_within(scene_relative, info.assets_path)) throw std::invalid_argument("Build open_scene must be inside assets_path");
+    if (!info.build_info) { 
+        throw std::invalid_argument("Project has no build_info configuration");
+    }
+    if (!valid_project_name(info.name)) { 
+        throw std::invalid_argument("Project name cannot be used as an output filename");
+    }
+    apps::project_paths::validate_relative_path(info.assets_path, "assets_path");
+    const auto scene_relative = apps::project_paths::validate_scene_path(info.build_info->open_scene, info.assets_path, "build_info.open_scene");
 
     const auto project_root = std::filesystem::canonical(project_file).parent_path();
     auto assets_component   = project_root;
@@ -298,6 +310,8 @@ BuildResult build_project(const std::filesystem::path& project_file, const std::
     if (base::is_within(build_dir, cooked_root)) {
         throw std::invalid_argument("Build output directory cannot be inside cooked resources");
     }
+    // 预处理 end
+
     std::filesystem::create_directories(build_dir);
     build_dir                = std::filesystem::canonical(build_dir);
 
@@ -305,8 +319,10 @@ BuildResult build_project(const std::filesystem::path& project_file, const std::
     const auto player_target = build_dir / player_source.filename();
     validate_output_target(pak_target);
     validate_output_target(player_target);
-    if (paths_alias(pak_target, player_target)) throw std::invalid_argument("Build package and Player outputs refer to the same file");
-    if (paths_alias(pak_target, player_source) || paths_alias(player_target, player_source)) {
+    if (is_same_file(pak_target, player_target)) { 
+        throw std::invalid_argument("Build package and Player outputs refer to the same file");
+    }
+    if (is_same_file(pak_target, player_source) || is_same_file(player_target, player_source)) {
         throw std::invalid_argument("Build outputs cannot overwrite the source Player executable");
     }
     const auto staged_pak    = unique_sibling(pak_target, "tmp");
@@ -327,7 +343,7 @@ BuildResult build_project(const std::filesystem::path& project_file, const std::
         if (files[i - 1].archive_path == files[i].archive_path)
             throw std::runtime_error("Duplicate packaged path: " + files[i].archive_path);
     }
-    const auto scene_archive_path = path_to_utf8(scene_relative);
+    const auto scene_archive_path = base::path_to_utf8(scene_relative);
     if (std::none_of(files.begin(), files.end(), [&](const auto& file) { return file.archive_path == scene_archive_path; })) {
         throw std::runtime_error("Build open_scene is not among the packaged scene files");
     }
@@ -339,7 +355,7 @@ BuildResult build_project(const std::filesystem::path& project_file, const std::
     if (!manifest.good()) throw std::runtime_error("Could not serialize game manifest");
 
     mz_zip_archive archive{};
-    if (!mz_zip_writer_init_file(&archive, path_to_utf8(staged.pak).c_str(), 0)) {
+    if (!mz_zip_writer_init_file(&archive, base::path_to_utf8(staged.pak).c_str(), 0)) {
         throw std::runtime_error("Could not create temporary game package");
     }
     bool archive_open = true;
@@ -349,8 +365,12 @@ BuildResult build_project(const std::filesystem::path& project_file, const std::
         if (!mz_zip_writer_add_mem(&archive, manifest_name.data(), manifest_text.data(), manifest_text.size(), MZ_DEFAULT_COMPRESSION)) {
             throw std::runtime_error("Could not add manifest to game package");
         }
-        if (!mz_zip_writer_finalize_archive(&archive)) throw std::runtime_error("Could not finalize game package");
-        if (!mz_zip_writer_end(&archive)) throw std::runtime_error("Could not close game package");
+        if (!mz_zip_writer_finalize_archive(&archive)) { 
+            throw std::runtime_error("Could not finalize game package");
+        }
+        if (!mz_zip_writer_end(&archive)) { 
+            throw std::runtime_error("Could not close game package");
+        }
         archive_open = false;
     } catch (...) {
         if (archive_open) mz_zip_writer_end(&archive);

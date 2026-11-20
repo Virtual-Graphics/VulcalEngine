@@ -9,6 +9,9 @@ namespace base {
 // ASCII-only lowercase conversion.
 std::string to_lower(std::string_view value);
 
+// ASCII-only uppercase conversion.
+std::string to_upper(std::string_view value);
+
 // Returns the lowercased extension including the leading dot, or an empty string.
 std::string lowercase_extension(const std::filesystem::path& path);
 

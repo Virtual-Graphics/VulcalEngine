@@ -10,6 +10,7 @@ add_subdirectory(ecs)
 add_subdirectory(editor)
 add_subdirectory(input)
 add_subdirectory(render)
+include(GoogleTest)
 
 add_executable(common_process_test
     common/application_paths.cpp
@@ -17,7 +18,6 @@ add_executable(common_process_test
 )
 target_include_directories(common_process_test PRIVATE ../apps)
 target_link_libraries(common_process_test PRIVATE vulcal_engine GTest::gtest_main)
-include(GoogleTest)
 gtest_discover_tests(common_process_test)
 
 add_executable(player_runtime_test

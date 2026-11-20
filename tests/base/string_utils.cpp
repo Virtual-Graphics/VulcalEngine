@@ -10,6 +10,13 @@ TEST(StringUtils, ToLowerConvertsAsciiLetters) {
     EXPECT_EQ(base::to_lower("1234._-"), "1234._-");
 }
 
+TEST(StringUtils, ToUpperConvertsAsciiLetters) {
+    EXPECT_EQ(base::to_upper("HeLLo"), "HELLO");
+    EXPECT_EQ(base::to_upper("already_upper"), "ALREADY_UPPER");
+    EXPECT_EQ(base::to_upper(""), "");
+    EXPECT_EQ(base::to_upper("1234._-"), "1234._-");
+}
+
 TEST(StringUtils, LowercasesFileExtensions) {
     EXPECT_EQ(base::lowercase_extension("Hero.PNG"), ".png");
     EXPECT_EQ(base::lowercase_extension("archive.TAR.GZ"), ".gz");

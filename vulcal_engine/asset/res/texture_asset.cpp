@@ -2,6 +2,7 @@
 
 #include "base/binary_io.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "resource/directory_provider.h"
 
 #include <array>
@@ -18,11 +19,6 @@ namespace {
 constexpr std::array<char, 8> magic{ 'V', 'U', 'L', 'T', 'E', 'X', '\0', '\0' };
 constexpr std::uint32_t version     = 1;
 constexpr std::uint64_t header_size = magic.size() + sizeof(std::uint32_t) + 3 * sizeof(std::uint32_t) + sizeof(std::uint64_t);
-
-std::string path_to_utf8(const std::filesystem::path& path) {
-    const auto text = path.u8string();
-    return { reinterpret_cast<const char*>(text.data()), text.size() };
-}
 
 std::uint64_t expected_data_size(std::uint32_t width, std::uint32_t height) {
     if (width == 0 || height == 0) {
@@ -53,7 +49,7 @@ render::TextureData TextureAsset::read(const std::filesystem::path& path) {
     base::log::debug("TextureAsset: reading {}", path.string());
     const auto absolute = std::filesystem::absolute(path);
     const resource::DirectoryProvider resources(absolute.parent_path());
-    return read(resources.read_binary(path_to_utf8(absolute.filename())));
+    return read(resources.read_binary(base::path_to_utf8(absolute.filename())));
 }
 
 render::TextureData TextureAsset::read(std::span<const std::byte> data) {

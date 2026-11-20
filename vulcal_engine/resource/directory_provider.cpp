@@ -17,11 +17,15 @@ DirectoryProvider::DirectoryProvider(std::filesystem::path root) {
     }
 }
 
+// 把逻辑路径解析成磁盘真实的绝对路径
 std::filesystem::path DirectoryProvider::resolve(std::string_view logical_path) const {
     const auto normalized = detail::normalize_logical_path(logical_path);
     std::u8string utf8_path;
     utf8_path.reserve(normalized.size());
-    for (const char character: normalized) utf8_path.push_back(static_cast<char8_t>(character));
+    for (const char character: normalized) { 
+        utf8_path.push_back(static_cast<char8_t>(character));
+    }
+
     const auto requested = std::filesystem::path(utf8_path);
     std::error_code error;
     auto candidate = root_;
@@ -30,8 +34,8 @@ std::filesystem::path DirectoryProvider::resolve(std::string_view logical_path) 
         bool found = false;
         for (std::filesystem::directory_iterator iterator(candidate, error), end; !error && iterator != end; iterator.increment(error)) {
             if (iterator->path().filename().native() == component.native()) {
+                found = true;
                 candidate = iterator->path();
-                found     = true;
                 break;
             }
         }
@@ -59,24 +63,32 @@ std::vector<std::byte> DirectoryProvider::read_binary(std::string_view path) con
     const auto resolved = resolve(path);
     std::error_code error;
     const auto size = std::filesystem::file_size(resolved, error);
-    if (error || size > std::numeric_limits<std::size_t>::max() ||
-        size > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max())) {
+    if (error || 
+        size > std::numeric_limits<std::size_t>::max() ||
+        size > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max())) 
+    {
         throw std::runtime_error("Resource file is too large to read: " + std::string(path));
     }
-
     std::ifstream input(resolved, std::ios::binary);
-    if (!input) throw std::runtime_error("Could not open resource file: " + std::string(path));
+    if (!input) { 
+        throw std::runtime_error("Could not open resource file: " + std::string(path));
+    }
+
     std::vector<std::byte> bytes(static_cast<std::size_t>(size));
     if (!bytes.empty()) {
         input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-        if (!input) throw std::runtime_error("Could not read resource file: " + std::string(path));
+        if (!input) {
+            throw std::runtime_error("Could not read resource file: " + std::string(path));
+        }
     }
     return bytes;
 }
 
 std::string DirectoryProvider::read_text(std::string_view path) const {
     const auto bytes = read_binary(path);
-    if (bytes.empty()) return {};
+    if (bytes.empty()) { 
+        return {};
+    }
     return { reinterpret_cast<const char*>(bytes.data()), bytes.size() };
 }
 

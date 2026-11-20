@@ -27,20 +27,28 @@ struct PakProvider::Impl {
     static std::size_t read_at(void* opaque, mz_uint64 offset, void* output, std::size_t size) {
         auto& self = *static_cast<Impl*>(opaque);
         if (offset > static_cast<mz_uint64>(std::numeric_limits<std::streamoff>::max()) ||
-            size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
+            size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) 
+        {
             return 0;
         }
+
         self.file.clear();
         self.file.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
-        if (!self.file) return 0;
+        if (!self.file) {
+            return 0;
+        }
         self.file.read(static_cast<char*>(output), static_cast<std::streamsize>(size));
         return static_cast<std::size_t>(self.file.gcount());
     }
 
     static std::size_t write_entry(void* opaque, mz_uint64 offset, const void* input, std::size_t size) {
         auto& output = *static_cast<std::vector<std::byte>*>(opaque);
-        if (offset > output.size() || size > output.size() - static_cast<std::size_t>(offset)) return 0;
-        if (size) std::memcpy(output.data() + static_cast<std::size_t>(offset), input, size);
+        if (offset > output.size() || size > output.size() - static_cast<std::size_t>(offset)) {
+            return 0;
+        }
+        if (size) { 
+            std::memcpy(output.data() + static_cast<std::size_t>(offset), input, size);
+        }
         return size;
     }
 
@@ -52,7 +60,9 @@ struct PakProvider::Impl {
 PakProvider::PakProvider(std::filesystem::path pak_file)
         : impl_(std::make_unique<Impl>()) {
     impl_->file.open(pak_file, std::ios::binary);
-    if (!impl_->file) throw std::runtime_error("Could not open pak file: " + pak_file.string());
+    if (!impl_->file) {
+        throw std::runtime_error("Could not open pak file: " + pak_file.string());
+    }
 
     std::error_code error;
     const auto size = std::filesystem::file_size(pak_file, error);

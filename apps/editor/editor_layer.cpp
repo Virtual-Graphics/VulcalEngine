@@ -4,6 +4,7 @@
 
 #include "asset/render_asset_cache.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_actions.h"
@@ -17,14 +18,6 @@
 #include <utility>
 
 namespace editor {
-namespace {
-
-std::string to_utf8(const std::filesystem::path& path) {
-    const auto text = path.u8string();
-    return std::string(reinterpret_cast<const char*>(text.data()), text.size());
-}
-
-} // namespace
 
 EditorLayer::EditorLayer()
         : engine::Layer("EditorLayer") {}
@@ -154,12 +147,12 @@ void EditorLayer::draw_new_project_dialog() {
     ImGui::SetNextItemWidth(360.0f);
     ImGui::InputText("Project name", &new_project_name_);
     ImGui::TextUnformatted("Project directory");
-    ImGui::TextWrapped("%s", new_project_directory_.empty() ? "Choose an existing directory" : to_utf8(new_project_directory_).c_str());
+    ImGui::TextWrapped("%s", new_project_directory_.empty() ? "Choose an existing directory" : base::path_to_utf8(new_project_directory_).c_str());
     if (ImGui::Button("Browse...")) {
         try {
             if (auto path = apps::nfd::pick_folder(new_project_directory_)) {
                 new_project_directory_ = *path;
-                if (new_project_name_.empty()) new_project_name_ = to_utf8(new_project_directory_.filename());
+                if (new_project_name_.empty()) new_project_name_ = base::path_to_utf8(new_project_directory_.filename());
             }
         } catch (const std::exception& error) {
             base::log::error("Editor: could not choose project directory: {}", error.what());
@@ -294,7 +287,7 @@ void EditorLayer::draw_build_settings_dialog() {
     if (!ImGui::BeginPopupModal("Build Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
 
     ImGui::TextUnformatted("Open scene");
-    ImGui::TextWrapped("%s", build_scene_file_.empty() ? "Choose a scene" : to_utf8(build_scene_file_).c_str());
+    ImGui::TextWrapped("%s", build_scene_file_.empty() ? "Choose a scene" : base::path_to_utf8(build_scene_file_).c_str());
     ImGui::SameLine();
     if (ImGui::Button("Browse scene...")) {
         try {
@@ -306,7 +299,7 @@ void EditorLayer::draw_build_settings_dialog() {
     }
 
     ImGui::TextUnformatted("Output directory");
-    ImGui::TextWrapped("%s", build_output_directory_.empty() ? "Default: project/build" : to_utf8(build_output_directory_).c_str());
+    ImGui::TextWrapped("%s", build_output_directory_.empty() ? "Default: project/build" : base::path_to_utf8(build_output_directory_).c_str());
     ImGui::SameLine();
     if (ImGui::Button("Browse output...")) {
         try {

@@ -40,12 +40,20 @@ void PlayerLayer::on_detach() {
     resources_.reset();
 }
 
-void PlayerLayer::on_update(base::Timestep timestep) { scripts_.update(timestep.get_seconds()); }
+void PlayerLayer::on_update(base::Timestep timestep) { 
+    scripts_.update(timestep.get_seconds()); 
+}
 
 void PlayerLayer::on_render() {
-    if (!scene_ || !renderer_ || !extractor_) return;
+    if (!scene_ || !renderer_ || !extractor_) {
+        return;
+    }
+
     const auto& window = application().get_window();
-    if (window.width() == 0 || window.height() == 0) return;
+    if (window.width() == 0 || window.height() == 0) {
+        return;
+    }
+    
     renderer_->render(extractor_->extract(*scene_, static_cast<float>(window.width()) / static_cast<float>(window.height())));
     vulcal::gfx::RenderTarget::unbind();
     vulcal::gfx::Command::set_viewport(window.width(), window.height());

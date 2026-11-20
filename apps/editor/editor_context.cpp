@@ -13,14 +13,6 @@ base::UUID selection_id(vulcal::scene::Entity entity) {
     return entity ? entity.get_component<vulcal::scene::IDComponent>().id_ : base::UUID{};
 }
 
-vulcal::scene::Entity find_entity(vulcal::scene::Scene& scene, base::UUID id) {
-    vulcal::scene::Entity found;
-    if (!id.is_nil()) scene.each<vulcal::scene::IDComponent>([&](auto entity, const auto& component) {
-        if (component.id_ == id) found = entity;
-    });
-    return found;
-}
-
 } // namespace
 
 void EditorContext::require_edit_mode() const {
@@ -40,14 +32,14 @@ void EditorContext::begin_play() {
     if (playing()) return;
     const auto id = selection_id(selected_entity());
     auto copy = std::make_unique<vulcal::scene::Scene>(scene());
-    selected_ = find_entity(*copy, id);
+    selected_ = copy->find_by_id(id);
     runtime_scene_ = std::move(copy);
 }
 
 void EditorContext::end_play() {
     if (!playing()) return;
     const auto id = selection_id(selected_entity());
-    selected_ = find_entity(*project_manager_.current_scene(), id);
+    selected_ = project_manager_.current_scene()->find_by_id(id);
     runtime_scene_.reset();
 }
 

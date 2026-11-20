@@ -23,6 +23,9 @@ public:
     void destroy_entity(Entity entity);
     bool contains(Entity entity) const;
 
+    // Returns an invalid entity when no IDComponent matches.
+    Entity find_by_id(const base::UUID& id);
+
     // Component/entity removal must be deferred until traversal has finished.
     template<typename... Components, typename Function>
     void each(Function&& function) {

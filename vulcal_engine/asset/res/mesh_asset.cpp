@@ -2,6 +2,7 @@
 
 #include "base/binary_io.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "resource/directory_provider.h"
 
 #include <array>
@@ -20,11 +21,6 @@ constexpr std::uint32_t version     = 1;
 constexpr std::uint64_t header_size = 28;
 constexpr std::uint64_t vertex_size = 24;
 constexpr std::uint64_t index_size  = 4;
-
-std::string path_to_utf8(const std::filesystem::path& path) {
-    const auto text = path.u8string();
-    return { reinterpret_cast<const char*>(text.data()), text.size() };
-}
 
 std::uint64_t expected_file_size(std::uint64_t vertex_count, std::uint64_t index_count) {
 
@@ -47,7 +43,7 @@ render::MeshData MeshAsset::read(const std::filesystem::path& path) {
     base::log::debug("MeshAsset: reading {}", path.string());
     const auto absolute = std::filesystem::absolute(path);
     const resource::DirectoryProvider resources(absolute.parent_path());
-    return read(resources.read_binary(path_to_utf8(absolute.filename())));
+    return read(resources.read_binary(base::path_to_utf8(absolute.filename())));
 }
 
 render::MeshData MeshAsset::read(std::span<const std::byte> data) {

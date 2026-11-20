@@ -18,11 +18,6 @@ namespace vulcal::scene {
 namespace {
 constexpr std::uint32_t scene_format_version = 1;
 
-std::string path_to_utf8(const std::filesystem::path& path) {
-    const auto text = path.u8string();
-    return { reinterpret_cast<const char*>(text.data()), text.size() };
-}
-
 template<typename T>
 void field(YAML::Node node, const char* key, T& value, bool loading) {
     if (loading) value = node[key].as<T>();
@@ -163,7 +158,7 @@ std::unique_ptr<Scene> SceneSerializer::deserialize(const std::filesystem::path&
     base::log::debug("SceneSerializer: reading {}", base::path_to_utf8(path));
     const auto absolute = std::filesystem::absolute(path);
     const resource::DirectoryProvider resources(absolute.parent_path());
-    return deserialize(resources, path_to_utf8(absolute.filename()));
+    return deserialize(resources, base::path_to_utf8(absolute.filename()));
 }
 
 std::unique_ptr<Scene> SceneSerializer::deserialize(const resource::ResourceProvider& resources, std::string_view logical_path) {
