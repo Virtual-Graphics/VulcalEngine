@@ -42,6 +42,19 @@
       }
     },
     {
+      "name": "release-static",
+      "inherits": "base",
+      "displayName": "Release + statically linked dependencies",
+      "description": "Builds the bundled dependencies from source so the resulting binaries do not need SDL3, spdlog or fmt on the target machine.",
+      "binaryDir": "${sourceDir}/build/release-static",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VULCAL_STATIC_DEPS": "ON",
+        "VULCAL_ENABLE_PROFILING": "OFF",
+        "BUILD_TESTS": "OFF"
+      }
+    },
+    {
       "name": "msvc",
       "inherits": "base",
       "displayName": "MSVC (Visual Studio 18 2026)",
@@ -71,6 +84,10 @@
     {
       "name": "clang-release",
       "configurePreset": "clang-release"
+    },
+    {
+      "name": "release-static",
+      "configurePreset": "release-static"
     },
     {
       "name": "msvc",

@@ -11,6 +11,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 option(VULCAL_ENABLE_PROFILING "Enable Tracy performance profiling" OFF)
 option(VULCAL_ENABLE_GPU_PROFILING "Include OpenGL GPU timings when profiling is enabled" ON)
+option(VULCAL_STATIC_DEPS "Build bundled dependencies from source for distributable binaries" OFF)
 
 include(cmake/dependencies.cmake)
 

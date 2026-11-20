@@ -19,10 +19,12 @@ jobs:
         profiling: ["OFF", "ON"]
 
     steps:
-      - name: Checkout
+      - &checkout
+        name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - &install-dependencies
+        name: Install dependencies
         timeout-minutes: 5
         shell: bash
         run: |
@@ -82,3 +84,27 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
+
+  static-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - *checkout
+      - *install-dependencies
+
+      - name: Configure
+        run: cmake --preset release-static
+
+      - name: Build
+        run: cmake --build --preset release-static --parallel
+
+      # The shipped Player must not depend on system copies of the vendored
+      # dependencies, otherwise packaged games fail to start on clean machines.
+      - name: Verify vendored dependencies are linked statically
+        run: |
+          ldd build/release-static/bin/vulcal_player
+          if ldd build/release-static/bin/vulcal_player | grep -Eq 'libSDL3|libspdlog|libfmt'; then
+            echo "::error::vulcal_player still links SDL3/spdlog/fmt dynamically; static release builds are broken"
+            exit 1
+          fi
