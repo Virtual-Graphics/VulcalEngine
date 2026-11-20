@@ -313,6 +313,61 @@ TEST(SceneCopy, PreservesSpriteRendererComponent) {
     EXPECT_FALSE(copied_sprite.visible_);
 }
 
+TEST(ScriptRuntime, StartsAndStopsSceneWithoutScriptsOrProjectDirectory) {
+    vulcal::scene::Scene scene;
+    scene.create_entity("NoScript");
+    vulcal::script::ScriptRuntime runtime;
+    const auto missing = std::filesystem::temp_directory_path() / ("vulcal_missing_project_" + base::UUID::generate().to_string());
+
+    for (const auto& root: { std::filesystem::path{}, missing }) {
+        ASSERT_NO_THROW(runtime.start(scene, root));
+        EXPECT_TRUE(runtime.running());
+        EXPECT_NO_THROW(runtime.update(0.1f));
+        runtime.stop();
+        EXPECT_FALSE(runtime.running());
+    }
+}
+
+TEST(ScriptRuntime, ScriptlessSceneStartDestroysPreviousScripts) {
+    const auto root = std::filesystem::temp_directory_path() / ("vulcal_scriptless_restart_" + base::UUID::generate().to_string());
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "lifecycle.lua") << "function on_destroy() entity:set_translation(7, 0, 0) end\n";
+    vulcal::scene::Scene scripted;
+    auto entity = scripted.create_entity("Scripted");
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "lifecycle.lua";
+    vulcal::scene::Scene scriptless;
+    vulcal::script::ScriptRuntime runtime;
+    runtime.start(scripted, root);
+
+    EXPECT_NO_THROW(runtime.start(scriptless, std::filesystem::path{}));
+    EXPECT_TRUE(runtime.running());
+    EXPECT_FLOAT_EQ(entity.get_component<vulcal::scene::TransformComponent>().translation_.x, 7.0f);
+    runtime.stop();
+    EXPECT_FALSE(runtime.running());
+    std::filesystem::remove_all(root);
+}
+
+TEST(ScriptRuntime, RejectsInvalidProjectDirectoryWhenSceneHasScripts) {
+    vulcal::scene::Scene scene;
+    auto entity = scene.create_entity("Scripted");
+    entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "script.lua";
+    vulcal::script::ScriptRuntime runtime;
+    const auto missing = std::filesystem::temp_directory_path() / ("vulcal_missing_project_" + base::UUID::generate().to_string());
+
+    for (const auto& root: { std::filesystem::path{}, missing }) {
+        try {
+            runtime.start(scene, root);
+            ADD_FAILURE() << "A scripted scene requires a valid project directory";
+        } catch (const std::invalid_argument& error) {
+            const std::string diagnostic = error.what();
+            EXPECT_FALSE(diagnostic.empty());
+            if (!root.empty()) EXPECT_NE(diagnostic.find(root.string()), std::string::npos);
+        }
+        EXPECT_FALSE(runtime.running());
+        EXPECT_FLOAT_EQ(entity.get_component<vulcal::scene::TransformComponent>().translation_.x, 0.0f);
+    }
+}
+
 TEST(ScriptRuntime, LuaCallbacksUseBindingsAndIsolatedEnvironments) {
     const auto root   = std::filesystem::temp_directory_path() / ("vulcal_script_runtime_lua_test_" + base::UUID::generate().to_string());
     const auto assets = root / "Assets";

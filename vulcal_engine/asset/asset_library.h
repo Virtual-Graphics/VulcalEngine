@@ -6,6 +6,12 @@
 #include "render/resources/texture_data.h"
 
 #include <filesystem>
+#include <memory>
+#include <string>
+
+namespace vulcal::resource {
+class ResourceProvider;
+}
 
 namespace vulcal::asset {
 
@@ -14,6 +20,7 @@ namespace vulcal::asset {
 class AssetLibrary {
 public:
     explicit AssetLibrary(std::filesystem::path directory);
+    explicit AssetLibrary(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory = {});
 
     render::MeshData load_mesh(MeshAssetID id) const;
     render::Material load_material(MaterialAssetID id) const;
@@ -23,9 +30,12 @@ public:
     std::filesystem::path texture_path(TextureAssetID id) const;
 
     const std::filesystem::path& directory() const { return directory_; }
+    bool has_provider() const { return static_cast<bool>(provider_); }
 
 private:
     std::filesystem::path directory_;
+    std::shared_ptr<const resource::ResourceProvider> provider_;
+    std::string logical_directory_;
 };
 
 } // namespace vulcal::asset

@@ -5,8 +5,9 @@
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
+#include "common/project_paths.h"
 #include "editor/project/scene/default_scene.h"
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 #include "scene/scene.h"
 
 #include <stdexcept>
@@ -14,6 +15,26 @@
 #include <utility>
 
 namespace editor {
+namespace {
+
+void ensure_project_directories(const std::filesystem::path& directory, const std::filesystem::path& assets_path) {
+    std::filesystem::create_directories(directory / assets_path);
+    std::filesystem::create_directories(directory / ".vulcal_engine");
+    std::filesystem::create_directories(directory / "build");
+}
+
+void validate_build_info(const BuildInfo& info, const std::filesystem::path& project_dir, const std::filesystem::path& assets_dir) {
+    const auto assets_relative = base::relative_to(assets_dir, project_dir);
+    if (assets_relative.empty()) {
+        throw std::invalid_argument("Build assets directory must be inside the project directory");
+    }
+    apps::project_paths::validate_scene_path(info.open_scene, assets_relative, "Build open_scene");
+    if (!info.build_dir.empty() && !info.build_dir.is_absolute()) {
+        throw std::invalid_argument("Build output directory must be absolute");
+    }
+}
+
+} // namespace
 
 ProjectManager::ProjectManager()  = default;
 
@@ -38,9 +59,7 @@ void ProjectManager::create_project(const std::filesystem::path& directory, cons
     ProjectInfo info;
     info.name        = name;
     info.assets_path = "assets";
-    std::filesystem::create_directories(directory / info.assets_path);
-    std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "build");
+    ensure_project_directories(directory, info.assets_path);
     if (!save_project_info(project_file, info)) {
         throw std::runtime_error("Failed to create project file at " + project_file.string());
     }
@@ -71,14 +90,25 @@ void ProjectManager::open_project(const std::filesystem::path& project_file) {
         base::log::warn("Ignoring last edited scene outside the project directory: {}", info.last_edited_scene.string());
         info.last_edited_scene.clear();
     }
+    if (info.build_info) validate_build_info(*info.build_info, directory, directory / info.assets_path);
     base::log::debug("ProjectManager: preparing project directories (assets: {}, runtime: {}, build: {})",
                      (directory / info.assets_path).string(), (directory / ".vulcal_engine").string(), (directory / "build").string());
-    std::filesystem::create_directories(directory / info.assets_path);
-    std::filesystem::create_directories(directory / ".vulcal_engine");
-    std::filesystem::create_directories(directory / "build");
+    ensure_project_directories(directory, info.assets_path);
     current_project_file_ = project_file;
     current_project_info_ = std::move(info);
     base::log::info("Opened project '{}' from {}", current_project_info_.name, project_file.string());
+}
+
+void ProjectManager::set_build_info(BuildInfo build_info) {
+    if (!has_project()) throw std::logic_error("No project is currently open");
+    validate_build_info(build_info, current_project_dir(), current_assets_dir());
+
+    auto updated = current_project_info_;
+    updated.build_info = std::move(build_info);
+    if (!save_project_info(current_project_file_, updated)) {
+        throw std::runtime_error("Failed to save project build info to " + current_project_file_.string());
+    }
+    current_project_info_ = std::move(updated);
 }
 
 void ProjectManager::save_project(const std::filesystem::path& project_file) {
@@ -121,7 +151,7 @@ void ProjectManager::open_scene(const std::filesystem::path& scene_file) {
     }
     std::unique_ptr<vulcal::scene::Scene> scene;
     try {
-        scene = SceneSerializer::deserialize(scene_file);
+        scene = vulcal::scene::SceneSerializer::deserialize(scene_file);
     } catch (const std::exception& error) {
         base::log::error("Failed to deserialize scene file from {}: {}", scene_file.string(), error.what());
         throw std::runtime_error("Failed to deserialize scene file from " + scene_file.string() + ": " + error.what());
@@ -147,7 +177,7 @@ void ProjectManager::save_scene(const std::filesystem::path& scene_file) {
         throw std::invalid_argument("Scene must be saved inside the project directory");
     }
     try {
-        SceneSerializer::serialize(*opened_scene_, scene_file);
+        vulcal::scene::SceneSerializer::serialize(*opened_scene_, scene_file);
     } catch (const std::exception& error) {
         base::log::error("Failed to serialize scene to {}: {}", scene_file.string(), error.what());
         throw std::runtime_error("Failed to serialize scene to " + scene_file.string() + ": " + error.what());
@@ -190,7 +220,10 @@ std::filesystem::path ProjectManager::current_library_dir() const {
 }
 
 std::filesystem::path ProjectManager::current_build_dir() const {
-    return has_project() ? current_project_dir() / "build" : std::filesystem::path{};
+    if (!has_project()) return {};
+    return current_project_info_.build_info && !current_project_info_.build_info->build_dir.empty()
+                   ? current_project_info_.build_info->build_dir
+                   : current_project_dir() / "build";
 }
 
 const ProjectInfo& ProjectManager::current_project_info() const { return current_project_info_; }

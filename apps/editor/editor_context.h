@@ -41,8 +41,12 @@ public:
     void open_project(const std::filesystem::path& project_file);
     bool has_project() const { return project_manager_.has_project(); }
     std::filesystem::path project_directory() const;
+    std::filesystem::path project_file() const;
     std::filesystem::path assets_directory() const;
     std::filesystem::path library_directory() const;
+    std::filesystem::path build_directory() const;
+    const ProjectInfo& project_info() const;
+    void set_build_info(BuildInfo build_info);
 
     std::filesystem::path scene_dialog_directory() const;
     std::filesystem::path suggested_scene_name() const;

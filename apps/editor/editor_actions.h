@@ -5,6 +5,9 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 #include "scene/entity.h"
 
@@ -29,6 +32,8 @@ public:
         std::function<std::optional<std::filesystem::path>(const apps::nfd::FileFilter&, const std::filesystem::path&,
                                                            const std::filesystem::path&)>
                 save_file;
+        std::function<std::filesystem::path(std::string_view)> find_executable;
+        std::function<int(const std::filesystem::path&, const std::vector<std::string>&)> run_process;
     };
 
     EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets);
@@ -37,6 +42,8 @@ public:
 
     void create_project(const std::filesystem::path& directory, const std::string& name);
     void open_project();
+    void build_project();
+    void set_build_settings(const std::filesystem::path& scene_file, const std::filesystem::path& build_dir);
     void new_scene();
     void open_scene();
     void save_scene();

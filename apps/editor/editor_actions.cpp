@@ -8,7 +8,10 @@
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
+#include "common/application_paths.h"
 #include "common/nfd/file_dialog.h"
+#include "common/process.h"
+#include "common/project_paths.h"
 #include "editor/editor_context.h"
 #include "scene/components.h"
 
@@ -26,6 +29,13 @@ const apps::nfd::FileFilter material_filter{ "Vulcal Material", "vmat" };
 const apps::nfd::FileFilter texture_filter{ "Image", "png,jpg,jpeg,bmp,tga" };
 const apps::nfd::FileFilter script_filter{ "Lua Script", "lua" };
 
+std::filesystem::path absolute_path(const std::filesystem::path& path) {
+    std::error_code error;
+    const auto absolute = std::filesystem::absolute(path, error);
+    if (error) throw std::runtime_error("Could not resolve absolute path: " + path.string());
+    return absolute.lexically_normal();
+}
+
 } // namespace
 
 EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets)
@@ -34,6 +44,10 @@ EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager
                             .open_file = [](const auto& filter, const auto& directory) { return apps::nfd::open_file(filter, directory); },
                             .save_file = [](const auto& filter, const auto& directory,
                                             const auto& name) { return apps::nfd::save_file(filter, directory, name); },
+                            .find_executable = [](std::string_view name) { return apps::app_paths::find_executable(name); },
+                            .run_process = [](const auto& executable, const auto& arguments) {
+                                return apps::process::run_and_wait(executable, arguments);
+                            },
                         }) {}
 
 EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets,
@@ -54,6 +68,48 @@ void EditorActions::open_project() {
         context_.open_project(*path);
         reset_project_resources();
     }
+}
+
+void EditorActions::build_project() {
+    context_.require_edit_mode();
+    if (!context_.has_project()) throw std::logic_error("Open a project before building");
+    const auto& build_info = context_.project_info().build_info;
+    if (!build_info || build_info->open_scene.empty()) throw std::logic_error("Configure Build Settings before building");
+    if (!dialogs_.find_executable || !dialogs_.run_process) throw std::logic_error("Build process services are unavailable");
+
+    const auto build_tool = dialogs_.find_executable("vulcal_build");
+    if (build_tool.empty()) throw std::runtime_error("Could not find vulcal_build beside the editor or on PATH");
+    const auto player = dialogs_.find_executable("vulcal_player");
+    if (player.empty()) throw std::runtime_error("Could not find vulcal_player beside the editor or on PATH");
+
+    const std::vector<std::string> arguments{
+        base::path_to_utf8(absolute_path(context_.project_file())),
+        base::path_to_utf8(absolute_path(player)),
+    };
+    const auto exit_code = dialogs_.run_process(absolute_path(build_tool), arguments);
+    if (exit_code != 0) throw std::runtime_error("Build failed with exit code " + std::to_string(exit_code));
+}
+
+void EditorActions::set_build_settings(const std::filesystem::path& scene_file, const std::filesystem::path& build_dir) {
+    context_.require_edit_mode();
+    if (!context_.has_project()) throw std::logic_error("Open a project before configuring build settings");
+    std::error_code error;
+    const auto scene = std::filesystem::canonical(scene_file, error);
+    if (error || !std::filesystem::is_regular_file(scene)) {
+        throw std::invalid_argument("Select an existing .vscene inside the project assets directory");
+    }
+
+    std::filesystem::path resolved_build_dir;
+    if (!build_dir.empty()) {
+        resolved_build_dir = absolute_path(build_dir);
+    }
+    const auto relative_scene  = base::relative_to(scene, context_.project_directory());
+    const auto relative_assets = base::relative_to(context_.assets_directory(), context_.project_directory());
+    if (relative_scene.empty() || relative_assets.empty()) {
+        throw std::invalid_argument("Build scene must be inside the project directory");
+    }
+    apps::project_paths::validate_scene_path(relative_scene, relative_assets, "Build scene");
+    context_.set_build_info(BuildInfo{ .open_scene = relative_scene, .build_dir = resolved_build_dir });
 }
 
 void EditorActions::new_scene() { context_.new_scene(); }
@@ -117,7 +173,7 @@ void EditorActions::assign_script() {
         if (relative.empty()) {
             throw std::invalid_argument("The selected script is outside the project directory");
         }
-        target.get_component<vulcal::scene::ScriptComponent>().script_path_ = relative.generic_string();
+        target.get_component<vulcal::scene::ScriptComponent>().script_path_ = base::path_to_utf8(relative);
     }
 }
 

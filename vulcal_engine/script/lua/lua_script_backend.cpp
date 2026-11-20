@@ -4,6 +4,8 @@
 
 #include <sol/sol.hpp>
 
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -13,7 +15,7 @@ namespace {
 
 class LuaInstance final : public ScriptInstance {
 public:
-    LuaInstance(const ScriptContext& context, const std::filesystem::path& path) {
+    LuaInstance(const ScriptContext& context, std::string_view source, std::string_view source_name) {
         lua_.open_libraries(sol::lib::base, sol::lib::coroutine, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::utf8);
         lua_["dofile"]         = sol::lua_nil;
         lua_["loadfile"]       = sol::lua_nil;
@@ -23,7 +25,7 @@ public:
         LuaBindingContext bindings{ lua_, context.scene, context.entity, time_ };
         bind_all(bindings);
 
-        const auto result = lua_.safe_script_file(path.string(), sol::script_pass_on_error);
+        const auto result = lua_.safe_script(source, sol::script_pass_on_error, std::string(source_name));
         if (!result.valid()) throw std::runtime_error(result.template get<sol::error>().what());
     }
 
@@ -57,7 +59,15 @@ private:
 std::string_view LuaScriptBackend::extension() const { return ".lua"; }
 
 std::unique_ptr<ScriptInstance> LuaScriptBackend::create(const ScriptContext& context, const std::filesystem::path& script_path) {
-    return std::make_unique<LuaInstance>(context, script_path);
+    std::ifstream input(script_path, std::ios::binary);
+    if (!input) throw std::runtime_error("Could not open Lua script: " + script_path.string());
+    const std::string source{ std::istreambuf_iterator<char>{ input }, std::istreambuf_iterator<char>{} };
+    return std::make_unique<LuaInstance>(context, source, script_path.string());
+}
+
+std::unique_ptr<ScriptInstance> LuaScriptBackend::create_source(const ScriptContext& context, std::string_view source,
+                                                                 std::string_view source_name) {
+    return std::make_unique<LuaInstance>(context, source, source_name);
 }
 
 } // namespace vulcal::script::lua

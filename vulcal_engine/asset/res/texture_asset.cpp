@@ -2,12 +2,15 @@
 
 #include "base/binary_io.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
+#include "resource/directory_provider.h"
 
 #include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <sstream>
 #include <stdexcept>
 
 namespace vulcal::asset {
@@ -44,13 +47,20 @@ void validate(const render::TextureData& texture) {
 
 render::TextureData TextureAsset::read(const std::filesystem::path& path) {
     base::log::debug("TextureAsset: reading {}", path.string());
-    std::ifstream input(path, std::ios::binary);
-    if (!input) throw std::runtime_error("Could not open runtime texture file: " + path.string());
+    const auto absolute = std::filesystem::absolute(path);
+    const resource::DirectoryProvider resources(absolute.parent_path());
+    return read(resources.read_binary(base::path_to_utf8(absolute.filename())));
+}
+
+render::TextureData TextureAsset::read(std::span<const std::byte> data) {
+    const std::string bytes(reinterpret_cast<const char*>(data.data()), data.size());
+    std::istringstream input(bytes, std::ios::binary);
+    if (!input) throw std::runtime_error("Could not read runtime texture data");
 
     std::array<char, magic.size()> file_magic{};
     input.read(file_magic.data(), static_cast<std::streamsize>(file_magic.size()));
-    if (!input || file_magic != magic) throw std::runtime_error("Invalid runtime texture file: " + path.string());
-    if (base::binary::read_u32_le(input) != version) throw std::runtime_error("Unsupported runtime texture version: " + path.string());
+    if (!input || file_magic != magic) throw std::runtime_error("Invalid runtime texture data");
+    if (base::binary::read_u32_le(input) != version) throw std::runtime_error("Unsupported runtime texture version");
 
     const auto width     = base::binary::read_u32_le(input);
     const auto height    = base::binary::read_u32_le(input);
@@ -58,23 +68,21 @@ render::TextureData TextureAsset::read(const std::filesystem::path& path) {
     const auto data_size = base::binary::read_u64_le(input);
 
     if (format != static_cast<std::uint32_t>(render::TextureFormat::RGBA8)) {
-        throw std::runtime_error("Unsupported runtime texture format: " + path.string());
+        throw std::runtime_error("Unsupported runtime texture format");
     }
 
     std::uint64_t expected_size = 0;
     try {
         expected_size = expected_data_size(width, height);
     } catch (const std::exception& error) {
-        throw std::runtime_error("Invalid runtime texture dimensions in " + path.string() + ": " + error.what());
+        throw std::runtime_error("Invalid runtime texture dimensions: " + std::string(error.what()));
     }
     if (data_size != expected_size) {
-        throw std::runtime_error("Invalid runtime texture data size: " + path.string());
+        throw std::runtime_error("Invalid runtime texture data size");
     }
 
-    std::error_code error;
-    const auto actual_size = std::filesystem::file_size(path, error);
-    if (error || actual_size < header_size || actual_size - header_size != data_size) {
-        throw std::runtime_error("Invalid runtime texture file size: " + path.string());
+    if (data.size() < header_size || data.size() - header_size != data_size || data_size > std::numeric_limits<std::size_t>::max()) {
+        throw std::runtime_error("Invalid runtime texture file size");
     }
 
     render::TextureData texture;
@@ -83,9 +91,9 @@ render::TextureData TextureAsset::read(const std::filesystem::path& path) {
     texture.format_ = render::TextureFormat::RGBA8;
     texture.pixels_.resize(static_cast<std::size_t>(data_size));
     input.read(reinterpret_cast<char*>(texture.pixels_.data()), static_cast<std::streamsize>(data_size));
-    if (!input) throw std::runtime_error("Could not read runtime texture pixels: " + path.string());
+    if (!input) throw std::runtime_error("Could not read runtime texture pixels");
 
-    base::log::debug("TextureAsset: read {} (version {}, {}x{}, {} bytes)", path.string(), version, texture.width_, texture.height_,
+    base::log::debug("TextureAsset: read runtime data (version {}, {}x{}, {} bytes)", version, texture.width_, texture.height_,
                      data_size);
     return texture;
 }

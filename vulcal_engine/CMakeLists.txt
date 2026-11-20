@@ -35,6 +35,7 @@ target_link_libraries(vulcal_engine PUBLIC
     PRIVATE
     Lua::Lua
     sol2::sol2
+    vulcal::miniz
 )
 
 if (VULCAL_ENABLE_PROFILING)

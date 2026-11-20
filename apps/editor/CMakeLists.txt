@@ -10,7 +10,6 @@ add_library(vulcal_editor STATIC
     panels/hierarchy_panel.cpp
     panels/inspector_panel.cpp
     project/project_manager.cpp
-    project/scene/scene_serializer.cpp
     "${IMGUI_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp"
 )
 target_compile_definitions(vulcal_editor PRIVATE ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")

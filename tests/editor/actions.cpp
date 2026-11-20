@@ -4,7 +4,7 @@
 #include "common/nfd/file_dialog.h"
 #include "editor/editor_actions.h"
 #include "editor/editor_context.h"
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 #include "gfx/context.h"
 #include "render/renderer.h"
 #include "scene/components.h"
@@ -17,6 +17,10 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 namespace {
 
@@ -50,6 +54,16 @@ protected:
                                 return open_path_;
                             },
                     .save_file = [this](const auto&, const auto&, const auto&) { return save_path_; },
+                    .find_executable = [this](std::string_view name) {
+                        find_requests_.emplace_back(name);
+                        const auto it = executables_.find(std::string(name));
+                        return it == executables_.end() ? std::filesystem::path{} : it->second;
+                    },
+                    .run_process = [this](const auto& executable, const auto& arguments) {
+                        launched_executable_ = executable;
+                        launched_arguments_ = arguments;
+                        return process_exit_code_;
+                    },
                 });
         actions_->create_project(directory_ / "project", "Test");
     }
@@ -137,7 +151,69 @@ protected:
     std::optional<std::filesystem::path> save_path_;
     std::string last_filter_;
     std::filesystem::path last_directory_;
+    std::vector<std::string> find_requests_;
+    std::unordered_map<std::string, std::filesystem::path> executables_;
+    std::filesystem::path launched_executable_;
+    std::vector<std::string> launched_arguments_;
+    int process_exit_code_ = 0;
 };
+
+TEST_F(EditorActionsTest, BuildRequiresSavedBuildInfo) {
+    EXPECT_THROW(actions_->build_project(), std::logic_error);
+    EXPECT_TRUE(find_requests_.empty());
+    EXPECT_TRUE(launched_executable_.empty());
+}
+
+TEST_F(EditorActionsTest, BuildPassesAbsoluteProjectAndPlayerPaths) {
+    const auto scene = context_.assets_directory() / "scenes" / "main.vscene";
+    std::filesystem::create_directories(scene.parent_path());
+    std::ofstream(scene) << "format_version: 1\nentities: []\n";
+    context_.set_build_info(editor::BuildInfo{ .open_scene = "assets/scenes/main.vscene" });
+    executables_["vulcal_build"] = directory_ / "tools" / "vulcal_build.exe";
+    executables_["vulcal_player"] = directory_ / "tools" / "vulcal_player.exe";
+
+    actions_->build_project();
+
+    EXPECT_EQ(find_requests_, (std::vector<std::string>{ "vulcal_build", "vulcal_player" }));
+    EXPECT_EQ(launched_executable_, std::filesystem::absolute(executables_["vulcal_build"]));
+    ASSERT_EQ(launched_arguments_.size(), 2u);
+    EXPECT_EQ(std::filesystem::path{ launched_arguments_[0] }, std::filesystem::absolute(context_.project_file()));
+    EXPECT_EQ(std::filesystem::path{ launched_arguments_[1] }, std::filesystem::absolute(executables_["vulcal_player"]));
+}
+
+TEST_F(EditorActionsTest, BuildReportsWhenBuildToolCannotBeFound) {
+    const auto scene = context_.assets_directory() / "scenes" / "main.vscene";
+    std::filesystem::create_directories(scene.parent_path());
+    std::ofstream(scene) << "format_version: 1\nentities: []\n";
+    context_.set_build_info(editor::BuildInfo{ .open_scene = "assets/scenes/main.vscene" });
+    EXPECT_THROW(actions_->build_project(), std::runtime_error);
+    EXPECT_TRUE(launched_executable_.empty());
+}
+
+TEST_F(EditorActionsTest, BuildReportsNonzeroExitCode) {
+    const auto scene = context_.assets_directory() / "scenes" / "main.vscene";
+    std::filesystem::create_directories(scene.parent_path());
+    std::ofstream(scene) << "format_version: 1\nentities: []\n";
+    context_.set_build_info(editor::BuildInfo{ .open_scene = "assets/scenes/main.vscene" });
+    executables_["vulcal_build"] = directory_ / "tools" / "vulcal_build.exe";
+    executables_["vulcal_player"] = directory_ / "tools" / "vulcal_player.exe";
+    process_exit_code_ = 7;
+
+    EXPECT_THROW(actions_->build_project(), std::runtime_error);
+    EXPECT_EQ(launched_arguments_.size(), 2u);
+}
+
+TEST_F(EditorActionsTest, SavesOnlyExistingSceneWithinAssetsDirectory) {
+    const auto scene = context_.assets_directory() / "scenes" / "main.vscene";
+    std::filesystem::create_directories(scene.parent_path());
+    std::ofstream(scene) << "format_version: 1\nentities: []\n";
+
+    actions_->set_build_settings(scene, directory_ / "release");
+    ASSERT_TRUE(context_.project_info().build_info);
+    EXPECT_EQ(context_.project_info().build_info->open_scene, "assets/scenes/main.vscene");
+    EXPECT_EQ(context_.project_info().build_info->build_dir, std::filesystem::absolute(directory_ / "release"));
+    EXPECT_THROW(actions_->set_build_settings(directory_ / "outside.vscene", {}), std::invalid_argument);
+}
 
 TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
     const auto entity = context_.create_entity();
@@ -149,7 +225,7 @@ TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
     entity.get_component<vulcal::scene::TagComponent>().name_ = "Saved again";
     save_path_.reset();
     actions_->save_scene();
-    const auto loaded = editor::SceneSerializer::deserialize(scene);
+    const auto loaded = vulcal::scene::SceneSerializer::deserialize(scene);
     bool found        = false;
     for (const auto e: loaded->registry().view<vulcal::scene::TagComponent>()) {
         found |= loaded->registry().get<vulcal::scene::TagComponent>(e).name_ == "Saved again";

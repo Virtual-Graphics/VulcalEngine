@@ -5,6 +5,8 @@
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "base/string_utils.h"
+#include "resource/directory_provider.h"
+#include "resource/resource_provider.h"
 #include "scene/components.h"
 #include "script/lua/lua_script_backend.h"
 
@@ -17,21 +19,6 @@ std::string extension_key(std::string_view extension) {
     auto key = base::to_lower(extension);
     if (!key.empty() && key.front() != '.') key.insert(key.begin(), '.');
     return key;
-}
-
-std::filesystem::path checked_script_path(const std::string& script_path, const std::filesystem::path& project_root) {
-    const std::filesystem::path relative{ script_path };
-    if (relative.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) {
-        throw std::runtime_error("Script path must be project-relative");
-    }
-
-    std::error_code error;
-    const auto project = std::filesystem::canonical(project_root, error);
-    if (error || !std::filesystem::is_directory(project)) throw std::runtime_error("Project root does not exist");
-    const auto script = std::filesystem::canonical(project / relative, error);
-    if (error || !std::filesystem::is_regular_file(script)) throw std::runtime_error("Script file does not exist");
-    if (!base::is_within(script, project)) throw std::runtime_error("Script resolves outside the project root");
-    return script;
 }
 
 } // namespace
@@ -48,6 +35,16 @@ void ScriptRuntime::register_backend(std::unique_ptr<ScriptBackend> backend) {
 }
 
 void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& project_root) {
+    if (scene.registry().view<scene::ScriptComponent>().empty()) {
+        stop();
+        scene_ = &scene;
+        return;
+    }
+    const resource::DirectoryProvider resources(project_root);
+    start(scene, resources);
+}
+
+void ScriptRuntime::start(scene::Scene& scene, const resource::ResourceProvider& resources) {
     VULCAL_PROFILE_SCOPE();
     stop();
     scene_ = &scene;
@@ -55,28 +52,35 @@ void ScriptRuntime::start(scene::Scene& scene, const std::filesystem::path& proj
         const auto entity_id      = entity.get_component<scene::IDComponent>().id_.to_string();
         const auto requested_path = component.script_path_;
         try {
-            const auto path    = checked_script_path(requested_path, project_root);
-            const auto backend = backends_.find(extension_key(path.extension().string()));
+            const auto logical_path = base::path_from_utf8(requested_path);
+            if (requested_path.empty() || logical_path.is_absolute() || logical_path.has_root_name() || logical_path.has_root_directory() ||
+                requested_path.find('\\') != std::string::npos || requested_path.find(':') != std::string::npos) {
+                throw std::runtime_error("Script path must be project-relative");
+            }
+            const auto backend = backends_.find(extension_key(logical_path.extension().string()));
             if (backend == backends_.end()) {
                 throw std::runtime_error("No backend for script extension");
             }
 
+            if (!resources.contains(requested_path)) throw std::runtime_error("Script file does not exist");
+            const auto source = resources.read_text(requested_path);
+
             VULCAL_PROFILE_SCOPE_NAMED("Script create");
             VULCAL_PROFILE_TEXT(requested_path.data(), requested_path.size());
-            auto instance = backend->second->create(ScriptContext{ scene, entity }, path);
+            auto instance = backend->second->create_source(ScriptContext{ scene, entity }, source, requested_path);
             if (!instance) {
                 throw std::runtime_error("Backend returned an empty script instance");
             }
 
-            entries_.push_back(Entry{ entity, std::move(instance), entity_id, path.string(), true });
+            entries_.push_back(Entry{ entity, std::move(instance), entity_id, requested_path, true });
             try {
                 entries_.back().instance->on_create();
             } catch (const std::exception& error) {
                 entries_.back().active = false;
-                base::log::error("Script on_create failed for entity {} at '{}': {}", entity_id, path.string(), error.what());
+                base::log::error("Script on_create failed for entity {} at '{}': {}", entity_id, requested_path, error.what());
             } catch (...) {
                 entries_.back().active = false;
-                base::log::error("Script on_create failed for entity {} at '{}'", entity_id, path.string());
+                base::log::error("Script on_create failed for entity {} at '{}'", entity_id, requested_path);
             }
         } catch (const std::exception& error) {
             base::log::error("Could not start script for entity {} at '{}': {}", entity_id, requested_path, error.what());

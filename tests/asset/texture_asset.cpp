@@ -1,5 +1,6 @@
 #include "asset/res/texture_asset.h"
 #include "base/uuid.h"
+#include "resource/directory_provider.h"
 
 #include <filesystem>
 #include <fstream>
@@ -45,6 +46,17 @@ TEST(TextureAsset, WritesReadableTextureWithoutAssetPipeline) {
     EXPECT_EQ(loaded.height_, 1u);
     EXPECT_EQ(loaded.format_, vulcal::render::TextureFormat::RGBA8);
     EXPECT_EQ(loaded.pixels_, texture.pixels_);
+}
+
+TEST(TextureAsset, ReadsTextureFromProviderBytes) {
+    TemporaryDirectory directory;
+    const auto path = directory.path() / "texture.vtex";
+    vulcal::asset::TextureAsset::write(path, test_texture());
+    const vulcal::resource::DirectoryProvider resources(directory.path());
+
+    const auto bytes = resources.read_binary("texture.vtex");
+    const auto loaded = vulcal::asset::TextureAsset::read(bytes);
+    EXPECT_EQ(loaded.pixels_, test_texture().pixels_);
 }
 
 TEST(TextureAsset, RejectsInvalidPixelDataBeforeOverwritingFile) {

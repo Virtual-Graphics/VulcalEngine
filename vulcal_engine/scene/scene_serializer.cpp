@@ -1,19 +1,23 @@
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 
 #include "base/profiler.h"
 
 #include "base/logger.h"
+#include "base/path_utils.h"
+#include "resource/directory_provider.h"
+#include "resource/resource_provider.h"
 #include "base/yaml.h"
 #include "scene/components.h"
 
 #include <cstdint>
 #include <fstream>
+#include <string>
 #include <yaml-cpp/yaml.h>
 
-namespace editor {
+namespace vulcal::scene {
 namespace {
-using namespace vulcal::scene;
 constexpr std::uint32_t scene_format_version = 1;
+
 template<typename T>
 void field(YAML::Node node, const char* key, T& value, bool loading) {
     if (loading) value = node[key].as<T>();
@@ -121,7 +125,7 @@ void load_component(const YAML::Node& node, const char* key, Entity entity) {
 }
 } // namespace
 
-void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::filesystem::path& path) {
+void SceneSerializer::serialize(const Scene& scene, const std::filesystem::path& path) {
     VULCAL_PROFILE_SCOPE();
     YAML::Node root;
     root["format_version"] = scene_format_version;
@@ -142,20 +146,29 @@ void SceneSerializer::serialize(const vulcal::scene::Scene& scene, const std::fi
         }
         entities.push_back(node);
     }
-    base::log::debug("SceneSerializer: writing {} (version {}, {} entities)", path.string(), scene_format_version, entities.size());
+    base::log::debug("SceneSerializer: writing {} (version {}, {} entities)", base::path_to_utf8(path), scene_format_version, entities.size());
     std::ofstream output(path, std::ios::binary);
     output << root;
+    output.close();
+    if (!output) throw std::runtime_error("Could not write scene: " + base::path_to_utf8(path));
 }
 
-std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::filesystem::path& path) {
+std::unique_ptr<Scene> SceneSerializer::deserialize(const std::filesystem::path& path) {
     VULCAL_PROFILE_SCOPE();
-    base::log::debug("SceneSerializer: reading {}", path.string());
-    std::ifstream input(path, std::ios::binary);
-    const auto root    = YAML::Load(input);
+    base::log::debug("SceneSerializer: reading {}", base::path_to_utf8(path));
+    const auto absolute = std::filesystem::absolute(path);
+    const resource::DirectoryProvider resources(absolute.parent_path());
+    return deserialize(resources, base::path_to_utf8(absolute.filename()));
+}
+
+std::unique_ptr<Scene> SceneSerializer::deserialize(const resource::ResourceProvider& resources, std::string_view logical_path) {
+    VULCAL_PROFILE_SCOPE();
+    base::log::debug("SceneSerializer: reading {}", logical_path);
+    const auto root    = YAML::Load(resources.read_text(logical_path));
     const auto version = root["format_version"].as<std::uint32_t>();
     if (version != scene_format_version) throw std::runtime_error("Unsupported scene format version");
     const auto entities = root["entities"];
-    auto scene          = std::make_unique<vulcal::scene::Scene>();
+    auto scene          = std::make_unique<Scene>();
     for (const auto& node: entities) {
         const auto id                           = node["id"].as<std::uint64_t>();
         auto entity                             = scene->create_entity(node["name"].as<std::string>());
@@ -167,10 +180,10 @@ std::unique_ptr<vulcal::scene::Scene> SceneSerializer::deserialize(const std::fi
         load_component<LightComponent>(node, "light", entity);
         load_component<EnvironmentComponent>(node, "environment", entity);
         if (const auto script = node["script"]) {
-            entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = script["path"].as<std::string>();
+            entity.add_component<ScriptComponent>().script_path_ = script["path"].as<std::string>();
         }
     }
-    base::log::debug("SceneSerializer: read {} (version {}, {} entities)", path.string(), version, entities.size());
+    base::log::debug("SceneSerializer: read {} (version {}, {} entities)", logical_path, version, entities.size());
     return scene;
 }
-} // namespace editor
+} // namespace vulcal::scene

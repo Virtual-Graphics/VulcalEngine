@@ -9,6 +9,11 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
+
+namespace vulcal::resource {
+class ResourceProvider;
+}
 
 namespace vulcal::asset {
 
@@ -16,6 +21,7 @@ namespace vulcal::asset {
 class AssetManager {
 public:
     explicit AssetManager(std::filesystem::path directory = {});
+    explicit AssetManager(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory = {});
     AssetManager(const AssetManager&)            = delete;
     AssetManager& operator=(const AssetManager&) = delete;
 
@@ -34,6 +40,7 @@ public:
     void invalidate(TextureAssetID id);
     void clear();
     void set_directory(std::filesystem::path directory);
+    void set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory = {});
 
 private:
     AssetLibrary library_;

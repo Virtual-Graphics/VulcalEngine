@@ -1,4 +1,4 @@
-#include "editor/project/scene/scene_serializer.h"
+#include "scene/scene_serializer.h"
 #include "scene/components.h"
 #include "scene/scene.h"
 #include "script/script_runtime.h"
@@ -21,7 +21,7 @@ vulcal::scene::Entity find_by_name(vulcal::scene::Scene& scene, const std::strin
 
 TEST(SnakeProject, SceneAndScriptCreateBoardAndGameOver) {
     const auto project = std::filesystem::path{ VULCAL_TEST_SOURCE_DIR } / "projects" / "snake";
-    auto scene         = editor::SceneSerializer::deserialize(project / "assets" / "scenes" / "snake.vscene");
+    auto scene         = vulcal::scene::SceneSerializer::deserialize(project / "assets" / "scenes" / "snake.vscene");
     ASSERT_TRUE(scene);
 
     vulcal::script::ScriptRuntime runtime;

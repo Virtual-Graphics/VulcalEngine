@@ -2,6 +2,8 @@
 #include "editor/editor_context.h"
 #include "editor/project/project.h"
 
+#include "base/path_utils.h"
+
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -156,6 +158,82 @@ TEST(ProjectInfo, RoundTripsLastEditedScene) {
     editor::ProjectInfo loaded;
     ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", loaded));
     EXPECT_EQ(loaded.last_edited_scene, info.last_edited_scene);
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(ProjectInfo, RoundTripsBuildInfoAndKeepsItOptionalForOlderProjects) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::ProjectInfo info;
+    info.name = "Demo";
+    info.assets_path = "assets";
+    info.build_info = editor::BuildInfo{
+        .open_scene = "assets/scenes/main.vscene",
+        .build_dir = std::filesystem::absolute(directory / "release"),
+    };
+    ASSERT_TRUE(editor::save_project_info(directory / "Demo.vproj", info));
+
+    editor::ProjectInfo loaded;
+    ASSERT_TRUE(editor::load_project_info(directory / "Demo.vproj", loaded));
+    ASSERT_TRUE(loaded.build_info.has_value());
+    EXPECT_EQ(loaded.build_info->open_scene, info.build_info->open_scene);
+    EXPECT_EQ(loaded.build_info->build_dir, info.build_info->build_dir);
+
+    {
+        std::ofstream old_project(directory / "Old.vproj");
+        old_project << "name: Old\ndescription: ''\nauthor: ''\nassets_path: assets\nlast_edited_scene: ''\n";
+    }
+    editor::ProjectInfo old_info;
+    ASSERT_TRUE(editor::load_project_info(directory / "Old.vproj", old_info));
+    EXPECT_FALSE(old_info.build_info.has_value());
+
+    std::filesystem::remove_all(directory);
+}
+
+TEST(ProjectInfo, RoundTripsUtf8BuildPathsAndProjectFilename) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    editor::ProjectInfo info;
+    info.name = "Unicode";
+    info.assets_path = std::filesystem::path{ u8"\u8d44\u6e90" };
+    info.last_edited_scene = info.assets_path / std::filesystem::path{ u8"\u5f00\u573a.vscene" };
+    info.build_info = editor::BuildInfo{
+        .open_scene = info.last_edited_scene,
+        .build_dir = directory / std::filesystem::path{ u8"\u53d1\u5e03_\U0001f680" },
+    };
+    const auto project_file = directory / std::filesystem::path{ u8"\u6e38\u620f.vproj" };
+    ASSERT_TRUE(editor::save_project_info(project_file, info));
+    std::ifstream input(project_file);
+    const auto yaml = YAML::Load(input);
+    input.close();
+    const auto expected_utf8 = base::path_to_utf8(info.build_info->build_dir);
+    EXPECT_EQ(yaml["build_info"]["build_dir"].as<std::string>(), expected_utf8);
+
+    editor::ProjectInfo loaded;
+    ASSERT_TRUE(editor::load_project_info(project_file, loaded));
+    ASSERT_TRUE(loaded.build_info);
+    EXPECT_EQ(loaded.assets_path, info.assets_path);
+    EXPECT_EQ(loaded.last_edited_scene, info.last_edited_scene);
+    EXPECT_EQ(loaded.build_info->open_scene, info.build_info->open_scene);
+    EXPECT_EQ(loaded.build_info->build_dir, info.build_info->build_dir);
+    std::filesystem::remove_all(directory);
+}
+
+TEST(ProjectManager, ResolvesConfiguredBuildDirectoryOrProjectDefault) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+
+    editor::ProjectManager project;
+    project.create_project(directory, "Demo");
+    EXPECT_EQ(project.current_build_dir(), directory / "build");
+
+    project.set_build_info(editor::BuildInfo{
+        .open_scene = "assets/scenes/main.vscene",
+        .build_dir = std::filesystem::absolute(directory / "release"),
+    });
+    EXPECT_EQ(project.current_build_dir(), std::filesystem::absolute(directory / "release"));
 
     std::filesystem::remove_all(directory);
 }

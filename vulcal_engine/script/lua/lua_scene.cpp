@@ -23,15 +23,9 @@ std::optional<BoundEntity> BoundScene::find(const std::string& name) const {
 
 std::optional<BoundEntity> BoundScene::find_by_id(const std::string& id) const {
     const auto expected = parse_uuid(id);
-    const auto view     = scene_.registry().view<const scene::IDComponent>();
-    for (const auto handle: view) {
-        if (view.get<const scene::IDComponent>(handle).id_ == expected) {
-            return BoundEntity{
-                scene::Entity{ handle, scene_ }
-            };
-        }
-    }
-    return std::nullopt;
+    const auto entity   = scene_.find_by_id(expected);
+    if (!entity) return std::nullopt;
+    return BoundEntity{ entity };
 }
 
 BoundEntity BoundScene::create_entity(const std::string& name) { return BoundEntity{ scene_.create_entity(name) }; }

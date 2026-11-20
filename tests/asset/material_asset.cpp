@@ -2,6 +2,7 @@
 
 #include "base/binary_io.h"
 #include "base/uuid.h"
+#include "resource/directory_provider.h"
 
 #include <filesystem>
 #include <fstream>
@@ -35,6 +36,20 @@ TEST_F(MaterialAssetTest, WritesReadableMaterialWithoutAssetPipeline) {
 
     EXPECT_EQ(loaded.diffuse_, material.diffuse_);
     EXPECT_EQ(loaded.specular_, material.specular_);
+    EXPECT_FLOAT_EQ(loaded.shininess_, material.shininess_);
+}
+
+TEST_F(MaterialAssetTest, ReadsMaterialFromProviderBytes) {
+    const auto path = directory_ / "surface.vmatc";
+    vulcal::render::Material material;
+    material.diffuse_ = { 0.2f, 0.3f, 0.4f };
+    material.shininess_ = 32.0f;
+    vulcal::asset::MaterialAsset::write(path, material);
+    const vulcal::resource::DirectoryProvider resources(directory_);
+
+    const auto bytes = resources.read_binary("surface.vmatc");
+    const auto loaded = vulcal::asset::MaterialAsset::read(bytes);
+    EXPECT_EQ(loaded.diffuse_, material.diffuse_);
     EXPECT_FLOAT_EQ(loaded.shininess_, material.shininess_);
 }
 
