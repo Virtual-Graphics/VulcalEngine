@@ -41,10 +41,6 @@ fix(core): prevent double free in Buffer destructor
 docs(contributing): clarify commit message rules
 ```
 
-## 代码注释
-
-应该使用简单易懂且**简短**的英文描述。
-
 ## 提交 Issue
 
 我们的 issue 规范很简单：只要你能把问题说清楚就行。不限语言，什么语言都行，只要是 AI 能翻译的。

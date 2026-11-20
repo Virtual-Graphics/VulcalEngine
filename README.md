@@ -111,7 +111,6 @@ ctest --test-dir build -C Debug --output-on-failure
 
 在编辑器中打开项目，通过 **File → Build Settings...** 选择开启场景与可选输出目录，保存后点击 **File → Build**。
 同目录的 `vulcal_build` 与 `vulcal_player` 会用于生成游戏包；也支持从 `PATH` 查找这两个程序。
-命令行用法、打包范围和发布限制见 [Building System v1](docs/building_system_v1.md)。
 
 ### Tracy 性能分析
 
