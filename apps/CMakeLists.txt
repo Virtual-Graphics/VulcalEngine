@@ -1,5 +1,5 @@
 add_subdirectory(common)
-add_subdirectory(editor)
+add_subdirectory(vulcal_editor)
 add_subdirectory(model_viewer)
 add_subdirectory(asset_import)
 add_subdirectory(vulcal_player)

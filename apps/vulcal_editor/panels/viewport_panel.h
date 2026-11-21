@@ -1,6 +1,6 @@
 #pragma once
 
-#include "editor/editor_camera.h"
+#include "vulcal_editor/editor_camera.h"
 #include "gfx/context.h"
 #include "gfx/render_target.h"
 

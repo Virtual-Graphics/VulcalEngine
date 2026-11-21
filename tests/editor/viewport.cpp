@@ -1,6 +1,6 @@
 #include "base/input.h"
 #include "base/window.h"
-#include "editor/panels/viewport_panel.h"
+#include "vulcal_editor/panels/viewport_panel.h"
 #include "gfx/context.h"
 
 #include <SDL3/SDL.h>

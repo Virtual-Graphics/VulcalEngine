@@ -1,4 +1,4 @@
-#include "editor/project/scene/default_scene.h"
+#include "vulcal_editor/project/scene/default_scene.h"
 
 #include "scene/scene.h"
 

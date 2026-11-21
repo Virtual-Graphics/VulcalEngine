@@ -1,4 +1,4 @@
-#include "editor/editor_camera.h"
+#include "vulcal_editor/editor_camera.h"
 #include "base/input.h"
 
 #include <algorithm>

@@ -1,8 +1,8 @@
-#include "editor/panels/inspector_panel.h"
+#include "vulcal_editor/panels/inspector_panel.h"
 
 #include "base/logger.h"
-#include "editor/editor_actions.h"
-#include "editor/editor_context.h"
+#include "vulcal_editor/editor_actions.h"
+#include "vulcal_editor/editor_context.h"
 #include "scene/components.h"
 
 #include <algorithm>

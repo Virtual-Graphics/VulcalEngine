@@ -1,6 +1,6 @@
 #include "vulcal_build/build_pipeline.h"
 #include "base/path_utils.h"
-#include "editor/project/project.h"
+#include "vulcal_editor/project/project.h"
 #include "resource/pak_provider.h"
 #include "scene/scene_serializer.h"
 #include "script/script_runtime.h"

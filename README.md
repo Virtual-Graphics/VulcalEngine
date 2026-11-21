@@ -88,7 +88,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 
-./build/bin/editor                    # 编辑器，可打开 projects/ 下的 .vproj
+./build/bin/vulcal_editor              # 编辑器，可打开 projects/ 下的 .vproj
 ./build/bin/model_viewer model.obj    # 查看 OBJ 模型
 ```
 
@@ -101,7 +101,7 @@ cmake -S . -B build -A x64
 cmake --build build --config Debug --parallel
 ctest --test-dir build -C Debug --output-on-failure
 
-.\build\bin\Debug\editor.exe
+.\build\bin\Debug\vulcal_editor.exe
 .\build\bin\Debug\model_viewer.exe model.obj
 ```
 
@@ -120,10 +120,10 @@ ctest --test-dir build -C Debug --output-on-failure
 ```bash
 cmake -S . -B build/profile -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVULCAL_ENABLE_PROFILING=ON
 cmake --build build/profile --config RelWithDebInfo --parallel
-./build/profile/bin/editor
+./build/profile/bin/vulcal_editor
 ```
 
-Windows 多配置生成器的编辑器路径为 `build/profile/bin/RelWithDebInfo/editor.exe`。
+Windows 多配置生成器的编辑器路径为 `build/profile/bin/RelWithDebInfo/vulcal_editor.exe`。
 启动同版本的 Tracy Profiler，连接 `127.0.0.1`，即可查看时间线、Statistics 和 Plots。
 默认启用 `TRACY_ON_DEMAND`，连接后开始采集；要分析启动和首次加载，配置时加上 `-DTRACY_ON_DEMAND=OFF`，并提前启动 Profiler 等待连接。
 只分析 CPU 时加上 `-DVULCAL_ENABLE_GPU_PROFILING=OFF`。

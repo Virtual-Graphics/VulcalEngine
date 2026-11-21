@@ -1,4 +1,4 @@
-#include "editor/editor_actions.h"
+#include "vulcal_editor/editor_actions.h"
 
 #include "asset/asset_manager.h"
 #include "asset/render_asset_cache.h"
@@ -12,7 +12,7 @@
 #include "common/nfd/file_dialog.h"
 #include "common/process.h"
 #include "common/project_paths.h"
-#include "editor/editor_context.h"
+#include "vulcal_editor/editor_context.h"
 #include "scene/components.h"
 
 #include <stdexcept>

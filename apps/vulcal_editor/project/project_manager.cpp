@@ -1,4 +1,4 @@
-#include "editor/project/project_manager.h"
+#include "vulcal_editor/project/project_manager.h"
 
 #include "base/profiler.h"
 
@@ -6,7 +6,7 @@
 #include "base/path_utils.h"
 #include "base/string_utils.h"
 #include "common/project_paths.h"
-#include "editor/project/scene/default_scene.h"
+#include "vulcal_editor/project/scene/default_scene.h"
 #include "scene/scene_serializer.h"
 #include "scene/scene.h"
 

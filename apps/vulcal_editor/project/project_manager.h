@@ -1,5 +1,5 @@
 #pragma once
-#include "editor/project/project.h"
+#include "vulcal_editor/project/project.h"
 
 #include <filesystem>
 #include <memory>

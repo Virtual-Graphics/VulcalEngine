@@ -1,4 +1,4 @@
-#include "editor/editor_context.h"
+#include "vulcal_editor/editor_context.h"
 #include "scene/components.h"
 
 #include <gtest/gtest.h>

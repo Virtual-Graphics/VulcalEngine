@@ -1,4 +1,4 @@
-#include "editor/editor_layer.h"
+#include "vulcal_editor/editor_layer.h"
 
 #include "base/profiler.h"
 
@@ -7,7 +7,7 @@
 #include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
 #include "common/nfd/file_dialog.h"
-#include "editor/editor_actions.h"
+#include "vulcal_editor/editor_actions.h"
 #include "engine/application.h"
 #include "gfx/command.h"
 #include "render/renderer.h"

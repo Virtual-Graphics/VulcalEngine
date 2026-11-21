@@ -1,6 +1,6 @@
-#include "editor/editor_camera.h"
-#include "editor/editor_context.h"
-#include "editor/project/project.h"
+#include "vulcal_editor/editor_camera.h"
+#include "vulcal_editor/editor_context.h"
+#include "vulcal_editor/project/project.h"
 
 #include "base/path_utils.h"
 

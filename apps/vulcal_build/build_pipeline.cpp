@@ -3,7 +3,7 @@
 #include "base/path_utils.h"
 #include "base/string_utils.h"
 #include "common/project_paths.h"
-#include "editor/project/project.h"
+#include "vulcal_editor/project/project.h"
 
 #include <miniz.h>
 

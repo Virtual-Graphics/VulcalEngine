@@ -1,6 +1,6 @@
 FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 
-add_library(vulcal_editor STATIC
+add_library(vulcal_editor_lib STATIC
     editor_layer.cpp
     editor_actions.cpp
     editor_context.cpp
@@ -12,8 +12,8 @@ add_library(vulcal_editor STATIC
     project/project_manager.cpp
     "${IMGUI_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp"
 )
-target_compile_definitions(vulcal_editor PRIVATE ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
-target_link_libraries(vulcal_editor PUBLIC vulcal_app_imgui PRIVATE vulcal_asset_pipeline yaml-cpp::yaml-cpp)
+target_compile_definitions(vulcal_editor_lib PRIVATE ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
+target_link_libraries(vulcal_editor_lib PUBLIC vulcal_app_imgui PRIVATE vulcal_asset_pipeline yaml-cpp::yaml-cpp)
 
-add_executable(editor main.cpp)
-target_link_libraries(editor PRIVATE vulcal_editor)
+add_executable(vulcal_editor main.cpp)
+target_link_libraries(vulcal_editor PRIVATE vulcal_editor_lib)

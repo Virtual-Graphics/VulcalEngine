@@ -1,4 +1,4 @@
-#include "editor/panels/viewport_panel.h"
+#include "vulcal_editor/panels/viewport_panel.h"
 #include "base/input.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_render_target.h"

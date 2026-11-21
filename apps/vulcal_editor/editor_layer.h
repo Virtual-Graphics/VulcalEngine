@@ -1,10 +1,10 @@
 #pragma once
 
 #include "asset/asset_manager.h"
-#include "editor/editor_context.h"
-#include "editor/panels/hierarchy_panel.h"
-#include "editor/panels/inspector_panel.h"
-#include "editor/panels/viewport_panel.h"
+#include "vulcal_editor/editor_context.h"
+#include "vulcal_editor/panels/hierarchy_panel.h"
+#include "vulcal_editor/panels/inspector_panel.h"
+#include "vulcal_editor/panels/viewport_panel.h"
 #include "engine/layer.h"
 #include "scene/scene_extractor.h"
 #include "script/script_runtime.h"

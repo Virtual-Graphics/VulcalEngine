@@ -1,6 +1,6 @@
-#include "editor/panels/hierarchy_panel.h"
+#include "vulcal_editor/panels/hierarchy_panel.h"
 
-#include "editor/editor_context.h"
+#include "vulcal_editor/editor_context.h"
 
 #include <imgui.h>
 

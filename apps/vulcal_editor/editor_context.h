@@ -1,6 +1,6 @@
 #pragma once
 
-#include "editor/project/project_manager.h"
+#include "vulcal_editor/project/project_manager.h"
 #include "scene/scene.h"
 
 #include <filesystem>
