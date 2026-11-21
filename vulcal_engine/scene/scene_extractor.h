@@ -9,7 +9,7 @@
 #include <stdexcept>
 
 namespace vulcal::asset {
-class RenderAssetCache;
+class GPUResourceRegistry;
 }
 
 namespace vulcal::scene {
@@ -18,9 +18,9 @@ class Scene;
 
 class SceneExtractor {
 public:
-    // Without a cache, extracts camera, light, and environment data only.
+    // Without a GPU resource registry, extracts camera, light, and environment data only.
     SceneExtractor() = default;
-    explicit SceneExtractor(asset::RenderAssetCache& resources);
+    explicit SceneExtractor(asset::GPUResourceRegistry& gpu_resources);
 
     enum class CameraPolicy { Primary, First };
 
@@ -35,7 +35,7 @@ public:
     render::RenderData extract(const Scene& scene, const Options& options) const;
 
 private:
-    asset::RenderAssetCache* resources_ = nullptr;
+    asset::GPUResourceRegistry* gpu_resources_ = nullptr;
 
     static render::DirectionalLight make_directional_light(const LightComponent& light, const TransformComponent& transform) {
         return render::DirectionalLight{

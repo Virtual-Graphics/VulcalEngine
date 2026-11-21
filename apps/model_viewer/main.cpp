@@ -1,5 +1,5 @@
 #include "asset/asset_manager.h"
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "asset_import/loaders/obj_loader.h"
 #include "base/logger.h"
 #include "common/imgui/imgui_integration.h"
@@ -41,8 +41,8 @@ public:
         triangle_count_                = mesh_data.indices_.size() / 3;
 
         renderer_                      = std::make_unique<vulcal::render::Renderer>();
-        render_assets_                 = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-        extractor_                     = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
+        gpu_resources_                 = std::make_unique<vulcal::asset::GPUResourceRegistry>(assets_, *renderer_);
+        extractor_                     = std::make_unique<vulcal::scene::SceneExtractor>(*gpu_resources_);
         const auto model_mesh_asset_id = assets_.add_mesh(std::move(mesh_data));
 
         vulcal::render::Material material;
@@ -138,7 +138,7 @@ public:
         imgui_.reset();
         scene_.reset();
         extractor_.reset();
-        render_assets_.reset();
+        gpu_resources_.reset();
         assets_.clear();
         renderer_.reset();
     }
@@ -211,7 +211,7 @@ private:
     std::filesystem::path model_path_;
     vulcal::asset::AssetManager assets_;
     std::unique_ptr<vulcal::render::Renderer> renderer_;
-    std::unique_ptr<vulcal::asset::RenderAssetCache> render_assets_;
+    std::unique_ptr<vulcal::asset::GPUResourceRegistry> gpu_resources_;
     std::unique_ptr<vulcal::scene::Scene> scene_;
     vulcal::scene::Entity model_entity_;
     vulcal::scene::Entity camera_entity_;

@@ -20,7 +20,7 @@ namespace vulcal::render {
 class Renderer;
 }
 namespace vulcal::asset {
-class RenderAssetCache;
+class GPUResourceRegistry;
 }
 
 namespace editor {
@@ -57,7 +57,7 @@ private:
     vulcal::asset::AssetManager assets_;
 
     std::unique_ptr<vulcal::render::Renderer> renderer_;
-    std::unique_ptr<vulcal::asset::RenderAssetCache> render_assets_;
+    std::unique_ptr<vulcal::asset::GPUResourceRegistry> gpu_resources_;
     std::unique_ptr<vulcal::scene::SceneExtractor> extractor_;
 
     EditorContext context_;

@@ -2,7 +2,7 @@
 
 #include "base/profiler.h"
 
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
@@ -52,9 +52,9 @@ void EditorLayer::on_attach() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     renderer_                            = std::make_unique<vulcal::render::Renderer>();
-    render_assets_                       = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-    extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*render_assets_);
-    actions_                             = std::make_unique<EditorActions>(context_, assets_, *render_assets_);
+    gpu_resources_                       = std::make_unique<vulcal::asset::GPUResourceRegistry>(assets_, *renderer_);
+    extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*gpu_resources_);
+    actions_                             = std::make_unique<EditorActions>(context_, assets_, *gpu_resources_);
 
     actions_->new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
@@ -67,7 +67,7 @@ void EditorLayer::on_detach() {
     actions_.reset();
     imgui_.reset();
     extractor_.reset();
-    render_assets_.reset();
+    gpu_resources_.reset();
     assets_.clear();
     renderer_.reset();
 }

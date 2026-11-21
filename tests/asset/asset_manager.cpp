@@ -106,7 +106,7 @@ TEST_F(AssetManagerTest, ChangingDirectoryDropsCachedDataAndFailures) {
     ASSERT_TRUE(old_material);
     EXPECT_FLOAT_EQ(old_material->shininess_, 12.0f);
 
-    assets.set_directory(other);
+    assets.set_library(other);
     const auto replacement = assets.load_mesh(loaded);
     ASSERT_TRUE(replacement);
     EXPECT_FLOAT_EQ(replacement->vertices_[0].position.x, 2.0f);

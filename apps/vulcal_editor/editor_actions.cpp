@@ -1,7 +1,7 @@
 #include "vulcal_editor/editor_actions.h"
 
 #include "asset/asset_manager.h"
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "asset_import/importers/material_asset_importer.h"
 #include "asset_import/importers/obj_asset_importer.h"
 #include "asset_import/importers/texture_asset_importer.h"
@@ -38,8 +38,8 @@ std::filesystem::path absolute_path(const std::filesystem::path& path) {
 
 } // namespace
 
-EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets)
-        : EditorActions(context, assets, render_assets,
+EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::GPUResourceRegistry& gpu_resources)
+        : EditorActions(context, assets, gpu_resources,
                         Dialogs{
                             .open_file = [](const auto& filter, const auto& directory) { return apps::nfd::open_file(filter, directory); },
                             .save_file = [](const auto& filter, const auto& directory,
@@ -50,11 +50,11 @@ EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager
                             },
                         }) {}
 
-EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets,
+EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::GPUResourceRegistry& gpu_resources,
                              Dialogs dialogs)
         : context_(context),
           assets_(assets),
-          render_assets_(render_assets),
+          gpu_resources_(gpu_resources),
           dialogs_(std::move(dialogs)) {}
 
 void EditorActions::create_project(const std::filesystem::path& directory, const std::string& name) {
@@ -186,7 +186,7 @@ void EditorActions::import_mesh_asset() {
         base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        render_assets_.invalidate(id);
+        gpu_resources_.invalidate(id);
         assets_.invalidate(id);
     }
 }
@@ -201,7 +201,7 @@ void EditorActions::import_material_asset() {
         base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        render_assets_.invalidate(id);
+        gpu_resources_.invalidate(id);
         assets_.invalidate(id);
     }
 }
@@ -215,14 +215,14 @@ void EditorActions::import_texture_asset() {
         base::log::debug("Editor: assigned texture asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
-        render_assets_.invalidate(id);
+        gpu_resources_.invalidate(id);
         assets_.invalidate(id);
     }
 }
 
 void EditorActions::reset_project_resources() {
-    render_assets_.clear();
-    assets_.set_directory(context_.library_directory());
+    gpu_resources_.clear();
+    assets_.set_library(context_.library_directory());
 }
 
 } // namespace editor

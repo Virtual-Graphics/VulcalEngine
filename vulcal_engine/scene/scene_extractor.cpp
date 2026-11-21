@@ -2,7 +2,7 @@
 
 #include "base/profiler.h"
 
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
 #include "scene/components.h"
 #include "scene/scene.h"
@@ -41,7 +41,7 @@ CameraSelection find_camera(const Scene& scene, SceneExtractor::CameraPolicy pol
 
 } // namespace
 
-SceneExtractor::SceneExtractor(asset::RenderAssetCache& resources) : resources_(&resources) {}
+SceneExtractor::SceneExtractor(asset::GPUResourceRegistry& gpu_resources) : gpu_resources_(&gpu_resources) {}
 
 render::RenderData SceneExtractor::extract(const Scene& scene, float aspect) const {
     Options options;
@@ -88,13 +88,13 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
     for (const auto entity: render_view) {
         const auto& transform = render_view.get<const TransformComponent>(entity);
         const auto& renderer  = render_view.get<const MeshRendererComponent>(entity);
-        if (!renderer.visible_ || renderer.mesh_asset_id_.is_nil() || !resources_) {
+        if (!renderer.visible_ || renderer.mesh_asset_id_.is_nil() || !gpu_resources_) {
             continue;
         }
 
-        const auto mesh = resources_->resolve_mesh(renderer.mesh_asset_id_);
+        const auto mesh = gpu_resources_->resolve(renderer.mesh_asset_id_);
         if (mesh.value_ == 0) continue;
-        const auto material = resources_->resolve_material(renderer.material_asset_id_);
+        const auto material = gpu_resources_->resolve(renderer.material_asset_id_);
         if (material.value_ == 0) continue;
         data.items_.push_back(render::RenderItem{ mesh, material, transform.matrix() });
     }
@@ -103,13 +103,13 @@ render::RenderData SceneExtractor::extract(const Scene& scene, const Options& op
     for (const auto entity: sprite_view) {
         const auto& transform = sprite_view.get<const TransformComponent>(entity);
         const auto& sprite    = sprite_view.get<const SpriteRendererComponent>(entity);
-        if (!sprite.visible_ || !resources_) {
+        if (!sprite.visible_ || !gpu_resources_) {
             continue;
         }
 
         render::TextureHandle texture{};
         if (!sprite.texture_asset_id_.is_nil()) {
-            texture = resources_->resolve_texture(sprite.texture_asset_id_);
+            texture = gpu_resources_->resolve(sprite.texture_asset_id_);
             if (texture.value_ == 0) continue;
         }
 

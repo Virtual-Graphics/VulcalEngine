@@ -1,7 +1,7 @@
 #include "asset/asset_id.h"
 #include "asset/asset_library.h"
 #include "asset/asset_manager.h"
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "scene/components.h"
 
 #include <concepts>
@@ -16,7 +16,7 @@ using vulcal::asset::AssetLibrary;
 using vulcal::asset::AssetManager;
 using vulcal::asset::MaterialAssetID;
 using vulcal::asset::MeshAssetID;
-using vulcal::asset::RenderAssetCache;
+using vulcal::asset::GPUResourceRegistry;
 using vulcal::asset::TextureAssetID;
 
 template<typename ID, typename Other>
@@ -38,27 +38,27 @@ static_assert(explicit_storage_conversions<MaterialAssetID>);
 static_assert(explicit_storage_conversions<TextureAssetID>);
 
 template<typename ID>
-concept MeshInput = requires(AssetManager& assets, const AssetLibrary& library, RenderAssetCache& cache, ID id) {
+concept MeshInput = requires(AssetManager& assets, const AssetLibrary& library, GPUResourceRegistry& registry, ID id) {
     assets.load_mesh(id);
     library.load_mesh(id);
     library.mesh_path(id);
-    cache.resolve_mesh(id);
+    registry.resolve(id);
 };
 
 template<typename ID>
-concept MaterialInput = requires(AssetManager& assets, const AssetLibrary& library, RenderAssetCache& cache, ID id) {
+concept MaterialInput = requires(AssetManager& assets, const AssetLibrary& library, GPUResourceRegistry& registry, ID id) {
     assets.load_material(id);
     library.load_material(id);
     library.material_path(id);
-    cache.resolve_material(id);
+    registry.resolve(id);
 };
 
 template<typename ID>
-concept TextureInput = requires(AssetManager& assets, const AssetLibrary& library, RenderAssetCache& cache, ID id) {
+concept TextureInput = requires(AssetManager& assets, const AssetLibrary& library, GPUResourceRegistry& registry, ID id) {
     assets.load_texture(id);
     library.load_texture(id);
     library.texture_path(id);
-    cache.resolve_texture(id);
+    registry.resolve(id);
 };
 
 static_assert(MeshInput<MeshAssetID> && !MeshInput<MaterialAssetID> && !MeshInput<TextureAssetID>);

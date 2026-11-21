@@ -907,7 +907,7 @@ TEST(SceneLight, DirectionUsesRotationWithoutTranslationOrScale) {
     expect_near(data.directional_light_->direction_, { -1.0f, 0.0f, 0.0f });
 }
 
-TEST(SceneExtractor, SkipsMeshDataWithoutBoundCache) {
+TEST(SceneExtractor, SkipsMeshDataWithoutBoundRegistry) {
     vulcal::scene::Scene scene;
     auto entity = scene.create_entity();
     auto& mesh  = entity.add_component<vulcal::scene::MeshRendererComponent>();

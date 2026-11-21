@@ -1,6 +1,6 @@
 #include "asset/asset_manager.h"
 #include "asset/res/mesh_asset.h"
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "common/nfd/file_dialog.h"
 #include "vulcal_editor/editor_actions.h"
 #include "vulcal_editor/editor_context.h"
@@ -41,11 +41,11 @@ protected:
         vulcal::gfx::Context::prepare_attributes();
         window_ = SDL_CreateWindow("Editor actions test", 64, 64, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
         ASSERT_NE(window_, nullptr) << SDL_GetError();
-        graphics_ = std::make_unique<vulcal::gfx::Context>(window_);
-        renderer_ = std::make_unique<vulcal::render::Renderer>();
-        cache_    = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-        actions_  = std::make_unique<editor::EditorActions>(
-                context_, assets_, *cache_,
+        graphics_      = std::make_unique<vulcal::gfx::Context>(window_);
+        renderer_      = std::make_unique<vulcal::render::Renderer>();
+        gpu_resources_ = std::make_unique<vulcal::asset::GPUResourceRegistry>(assets_, *renderer_);
+        actions_       = std::make_unique<editor::EditorActions>(
+                context_, assets_, *gpu_resources_,
                 editor::EditorActions::Dialogs{
                     .open_file =
                             [this](const auto& filter, const auto& directory) {
@@ -70,7 +70,7 @@ protected:
 
     void TearDown() override {
         actions_.reset();
-        cache_.reset();
+        gpu_resources_.reset();
         renderer_.reset();
         graphics_.reset();
         if (window_) SDL_DestroyWindow(window_);
@@ -80,7 +80,7 @@ protected:
 
     void draw(vulcal::render::MeshHandle mesh) {
         vulcal::render::RenderData data;
-        data.items_.push_back({ mesh, cache_->resolve_material({}), glm::mat4{ 1.0f } });
+        data.items_.push_back({ mesh, gpu_resources_->resolve(vulcal::asset::MaterialAssetID{}), glm::mat4{ 1.0f } });
         renderer_->render(data);
     }
 
@@ -144,7 +144,7 @@ protected:
     std::unique_ptr<vulcal::gfx::Context> graphics_;
     std::unique_ptr<vulcal::render::Renderer> renderer_;
     vulcal::asset::AssetManager assets_;
-    std::unique_ptr<vulcal::asset::RenderAssetCache> cache_;
+    std::unique_ptr<vulcal::asset::GPUResourceRegistry> gpu_resources_;
     editor::EditorContext context_;
     std::unique_ptr<editor::EditorActions> actions_;
     std::optional<std::filesystem::path> open_path_;
@@ -239,7 +239,7 @@ TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCac
     entity.add_component<vulcal::scene::ScriptComponent>();
     const auto id = assets_.add_mesh(triangle());
     const auto cpu = assets_.load_mesh(id);
-    const auto gpu = cache_->resolve_mesh(id);
+    const auto gpu = gpu_resources_->resolve(id);
     context_.begin_play();
     EXPECT_THROW(actions_->open_project(), std::logic_error);
     EXPECT_THROW(actions_->open_scene(), std::logic_error);
@@ -253,7 +253,7 @@ TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCac
     EXPECT_THROW(actions_->import_texture_asset(), std::logic_error);
     EXPECT_TRUE(last_filter_.empty());
     EXPECT_EQ(assets_.load_mesh(id), cpu);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
     EXPECT_FALSE(std::filesystem::exists(directory_ / "blocked"));
     context_.end_play();
 }
@@ -270,16 +270,16 @@ TEST_F(EditorActionsTest, CancelledProjectOpenPreservesSceneAndCaches) {
     const auto selected = context_.create_entity();
     const auto id       = assets_.add_mesh(triangle());
     const auto cpu      = assets_.load_mesh(id);
-    const auto gpu      = cache_->resolve_mesh(id);
+    const auto gpu      = gpu_resources_->resolve(id);
     actions_->open_project();
     EXPECT_EQ(context_.selected_entity(), selected);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     const auto old_id = assets_.add_mesh(triangle());
-    const auto gpu    = cache_->resolve_mesh(old_id);
+    const auto gpu    = gpu_resources_->resolve(old_id);
     context_.create_entity();
     editor::EditorContext other;
     std::filesystem::create_directories(directory_ / "other");
@@ -294,19 +294,19 @@ TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     EXPECT_FALSE(assets_.load_mesh(old_id));
     ASSERT_TRUE(assets_.load_mesh(new_id));
     EXPECT_THROW(draw(gpu), std::invalid_argument);
-    EXPECT_NO_THROW(draw(cache_->resolve_mesh(new_id)));
+    EXPECT_NO_THROW(draw(gpu_resources_->resolve(new_id)));
 }
 
 TEST_F(EditorActionsTest, FailedProjectOpenPreservesSceneAndCaches) {
     const auto selected = context_.create_entity();
     const auto id       = assets_.add_mesh(triangle());
     const auto cpu      = assets_.load_mesh(id);
-    const auto gpu      = cache_->resolve_mesh(id);
+    const auto gpu      = gpu_resources_->resolve(id);
     open_path_          = directory_ / "missing.vproj";
     EXPECT_THROW(actions_->open_project(), std::exception);
     EXPECT_EQ(context_.selected_entity(), selected);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, SceneOpenClearsSelectionWithoutResettingAssets) {
@@ -314,12 +314,12 @@ TEST_F(EditorActionsTest, SceneOpenClearsSelectionWithoutResettingAssets) {
     actions_->save_scene_as();
     context_.create_entity();
     const auto id  = assets_.add_mesh(triangle());
-    const auto gpu = cache_->resolve_mesh(id);
+    const auto gpu = gpu_resources_->resolve(id);
     open_path_     = save_path_;
     actions_->open_scene();
     EXPECT_FALSE(context_.selected_entity());
     EXPECT_EQ(context_.scene().registry().view<vulcal::scene::TagComponent>().size(), 3u);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
@@ -334,8 +334,8 @@ TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
     EXPECT_EQ(context_.selected_entity(), target);
     const auto cpu = assets_.load_mesh(id);
     ASSERT_TRUE(cpu);
-    const auto gpu      = cache_->resolve_mesh(id);
-    const auto material = cache_->resolve_material({});
+    const auto gpu      = gpu_resources_->resolve(id);
+    const auto material = gpu_resources_->resolve(vulcal::asset::MaterialAssetID{});
 
     write_obj(-2.0f);
     actions_->import_mesh_asset();
@@ -345,8 +345,8 @@ TEST_F(EditorActionsTest, ReimportRefreshesSelectedEntityCpuAndGpuData) {
     EXPECT_NE(reloaded, cpu);
     EXPECT_FLOAT_EQ(reloaded->vertices_[0].position.x, -2.0f);
     EXPECT_THROW(draw(gpu), std::invalid_argument);
-    EXPECT_NE(cache_->resolve_mesh(id), gpu);
-    EXPECT_EQ(cache_->resolve_material({}), material);
+    EXPECT_NE(gpu_resources_->resolve(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(vulcal::asset::MaterialAssetID{}), material);
 }
 
 TEST_F(EditorActionsTest, ImportTextureRefreshesSelectedEntityTextureCache) {
@@ -366,7 +366,7 @@ TEST_F(EditorActionsTest, ImportTextureRefreshesSelectedEntityTextureCache) {
     EXPECT_EQ(cpu->pixels_[0], 10u);
     EXPECT_EQ(cpu->pixels_[1], 20u);
     EXPECT_EQ(cpu->pixels_[2], 30u);
-    const auto gpu = cache_->resolve_texture(id);
+    const auto gpu = gpu_resources_->resolve(id);
     ASSERT_NE(gpu.value_, 0u);
 
     write_bmp(*open_path_, 40, 50, 60);
@@ -376,7 +376,7 @@ TEST_F(EditorActionsTest, ImportTextureRefreshesSelectedEntityTextureCache) {
     ASSERT_TRUE(reloaded);
     EXPECT_NE(reloaded, cpu);
     EXPECT_EQ(reloaded->pixels_[0], 40u);
-    EXPECT_NE(cache_->resolve_texture(id), gpu);
+    EXPECT_NE(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, ImportTextureRequiresSelectedSpriteRenderer) {
@@ -407,8 +407,8 @@ TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     const auto cpu = assets_.load_material(id);
     ASSERT_TRUE(cpu);
     EXPECT_FLOAT_EQ(cpu->shininess_, 16.0f);
-    const auto mesh = cache_->resolve_mesh(assets_.add_mesh(triangle()));
-    const auto gpu  = cache_->resolve_material(id);
+    const auto mesh = gpu_resources_->resolve(assets_.add_mesh(triangle()));
+    const auto gpu  = gpu_resources_->resolve(id);
     EXPECT_NO_THROW(draw(mesh, gpu));
 
     {
@@ -422,7 +422,7 @@ TEST_F(EditorActionsTest, ImportMaterialRefreshesSelectedEntityMaterialCache) {
     EXPECT_NE(reloaded, cpu);
     EXPECT_FLOAT_EQ(reloaded->shininess_, 32.0f);
     EXPECT_THROW(draw(mesh, gpu), std::invalid_argument);
-    const auto replacement = cache_->resolve_material(id);
+    const auto replacement = gpu_resources_->resolve(id);
     EXPECT_NE(replacement, gpu);
     EXPECT_NO_THROW(draw(mesh, replacement));
 }
@@ -488,13 +488,13 @@ TEST_F(EditorActionsTest, CancelledImportPreservesSelectedMeshAndCaches) {
     const auto id                                                               = assets_.add_mesh(triangle());
     target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
     const auto cpu                                                              = assets_.load_mesh(id);
-    const auto gpu                                                              = cache_->resolve_mesh(id);
+    const auto gpu                                                              = gpu_resources_->resolve(id);
 
     actions_->import_mesh_asset();
     EXPECT_EQ(context_.selected_entity(), target);
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, FailedImportPreservesSelectedMeshAndCaches) {
@@ -503,14 +503,14 @@ TEST_F(EditorActionsTest, FailedImportPreservesSelectedMeshAndCaches) {
     const auto id                                                               = assets_.add_mesh(triangle());
     target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
     const auto cpu                                                              = assets_.load_mesh(id);
-    const auto gpu                                                              = cache_->resolve_mesh(id);
+    const auto gpu                                                              = gpu_resources_->resolve(id);
     open_path_                                                                  = context_.assets_directory() / "missing.obj";
 
     EXPECT_THROW(actions_->import_mesh_asset(), std::invalid_argument);
     EXPECT_EQ(context_.selected_entity(), target);
     EXPECT_EQ(target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_, id);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
-    EXPECT_EQ(cache_->resolve_mesh(id), gpu);
+    EXPECT_EQ(gpu_resources_->resolve(id), gpu);
 }
 
 TEST_F(EditorActionsTest, GuardedOperationRecordsTheLatestError) {

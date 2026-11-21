@@ -55,12 +55,18 @@ render::TextureData TextureAsset::read(const std::filesystem::path& path) {
 render::TextureData TextureAsset::read(std::span<const std::byte> data) {
     const std::string bytes(reinterpret_cast<const char*>(data.data()), data.size());
     std::istringstream input(bytes, std::ios::binary);
-    if (!input) throw std::runtime_error("Could not read runtime texture data");
+    if (!input) {
+        throw std::runtime_error("Could not read runtime texture data");
+    }
 
     std::array<char, magic.size()> file_magic{};
     input.read(file_magic.data(), static_cast<std::streamsize>(file_magic.size()));
-    if (!input || file_magic != magic) throw std::runtime_error("Invalid runtime texture data");
-    if (base::binary::read_u32_le(input) != version) throw std::runtime_error("Unsupported runtime texture version");
+    if (!input || file_magic != magic) {
+        throw std::runtime_error("Invalid runtime texture data");
+    }
+    if (base::binary::read_u32_le(input) != version) {
+        throw std::runtime_error("Unsupported runtime texture version");
+    }
 
     const auto width     = base::binary::read_u32_le(input);
     const auto height    = base::binary::read_u32_le(input);
@@ -91,7 +97,9 @@ render::TextureData TextureAsset::read(std::span<const std::byte> data) {
     texture.format_ = render::TextureFormat::RGBA8;
     texture.pixels_.resize(static_cast<std::size_t>(data_size));
     input.read(reinterpret_cast<char*>(texture.pixels_.data()), static_cast<std::streamsize>(data_size));
-    if (!input) throw std::runtime_error("Could not read runtime texture pixels");
+    if (!input) {
+        throw std::runtime_error("Could not read runtime texture pixels");
+    }
 
     base::log::debug("TextureAsset: read runtime data (version {}, {}x{}, {} bytes)", version, texture.width_, texture.height_,
                      data_size);
@@ -107,7 +115,9 @@ void TextureAsset::write(const std::filesystem::path& path, const render::Textur
     }
 
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
-    if (!output) throw std::runtime_error("Could not create runtime texture file: " + path.string());
+    if (!output) {
+        throw std::runtime_error("Could not create runtime texture file: " + path.string());
+    }
 
     output.write(magic.data(), static_cast<std::streamsize>(magic.size()));
     base::binary::write_u32_le(output, version);
@@ -116,7 +126,9 @@ void TextureAsset::write(const std::filesystem::path& path, const render::Textur
     base::binary::write_u32_le(output, static_cast<std::uint32_t>(texture.format_));
     base::binary::write_u64_le(output, texture.pixels_.size());
     output.write(reinterpret_cast<const char*>(texture.pixels_.data()), static_cast<std::streamsize>(texture.pixels_.size()));
-    if (!output) throw std::runtime_error("Could not write runtime texture file: " + path.string());
+    if (!output) {
+        throw std::runtime_error("Could not write runtime texture file: " + path.string());
+    }
 }
 
 } // namespace vulcal::asset

@@ -11,7 +11,7 @@
 #include <memory>
 
 namespace vulcal::asset {
-class RenderAssetCache;
+class GPUResourceRegistry;
 }
 namespace vulcal::render {
 class Renderer;
@@ -39,7 +39,7 @@ private:
     asset::AssetManager assets_;
     script::ScriptRuntime scripts_;
     std::unique_ptr<render::Renderer> renderer_;
-    std::unique_ptr<asset::RenderAssetCache> render_assets_;
+    std::unique_ptr<asset::GPUResourceRegistry> gpu_resources_;
     std::unique_ptr<scene::SceneExtractor> extractor_;
 };
 

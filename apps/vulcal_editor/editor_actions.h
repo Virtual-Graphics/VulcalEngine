@@ -16,7 +16,7 @@ struct FileFilter;
 }
 namespace vulcal::asset {
 class AssetManager;
-class RenderAssetCache;
+class GPUResourceRegistry;
 } // namespace vulcal::asset
 
 namespace editor {
@@ -36,8 +36,8 @@ public:
         std::function<int(const std::filesystem::path&, const std::vector<std::string>&)> run_process;
     };
 
-    EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets);
-    EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::RenderAssetCache& render_assets,
+    EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::GPUResourceRegistry& gpu_resources);
+    EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::GPUResourceRegistry& gpu_resources,
                   Dialogs dialogs);
 
     void create_project(const std::filesystem::path& directory, const std::string& name);
@@ -78,7 +78,7 @@ private:
 
     EditorContext& context_;
     vulcal::asset::AssetManager& assets_;
-    vulcal::asset::RenderAssetCache& render_assets_;
+    vulcal::asset::GPUResourceRegistry& gpu_resources_;
     Dialogs dialogs_;
     std::optional<std::string> error_;
 };

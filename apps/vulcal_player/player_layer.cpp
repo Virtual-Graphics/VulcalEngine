@@ -1,6 +1,6 @@
 #include "vulcal_player/player_layer.h"
 
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
 #include "base/path_utils.h"
 #include "engine/application.h"
@@ -24,8 +24,8 @@ void PlayerLayer::on_attach() {
     scene_     = scene::SceneSerializer::deserialize(*resources_, manifest_.open_scene);
     assets_.set_provider(resources_, ".vulcal_engine");
     renderer_      = std::make_unique<render::Renderer>();
-    render_assets_ = std::make_unique<asset::RenderAssetCache>(assets_, *renderer_);
-    extractor_     = std::make_unique<scene::SceneExtractor>(*render_assets_);
+    gpu_resources_ = std::make_unique<asset::GPUResourceRegistry>(assets_, *renderer_);
+    extractor_     = std::make_unique<scene::SceneExtractor>(*gpu_resources_);
     scripts_.start(*scene_, *resources_);
     base::log::info("Loaded game '{}' from {}", manifest_.name, base::path_to_utf8(pak_file_));
 }
@@ -33,7 +33,7 @@ void PlayerLayer::on_attach() {
 void PlayerLayer::on_detach() {
     scripts_.stop();
     extractor_.reset();
-    render_assets_.reset();
+    gpu_resources_.reset();
     renderer_.reset();
     assets_.clear();
     scene_.reset();

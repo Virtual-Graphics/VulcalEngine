@@ -12,11 +12,19 @@ namespace vulcal::asset {
 namespace {
 
 template<typename T, typename ID, typename Loader>
-std::shared_ptr<const T> load_runtime_asset(AssetCache<T, ID>& cache, const std::filesystem::path& directory, ID id, std::string_view type,
-                                            bool has_provider, Loader&& loader) {
-    if (id.is_nil()) return {};
-    if (auto data = cache.find(id)) return data;
-    if (!has_provider || cache.failed(id)) return {};
+std::shared_ptr<const T> load_cooked_asset(AssetCache<T, ID>& cache,
+                                           const std::filesystem::path& directory,
+                                           ID id, std::string_view type,
+                                           bool has_provider, Loader&& loader) {
+    if (id.is_nil()) {
+        return {};
+    }
+    if (auto data = cache.find(id)) {
+        return data;
+    }
+    if (!has_provider || cache.failed(id)) {
+        return {};
+    }
 
     VULCAL_PROFILE_SCOPE_NAMED("Load asset from disk");
     VULCAL_PROFILE_TEXT(type.data(), type.size());
@@ -35,35 +43,35 @@ std::shared_ptr<const T> load_runtime_asset(AssetCache<T, ID>& cache, const std:
 
 } // namespace
 
-AssetManager::AssetManager(std::filesystem::path directory)
-        : library_(std::move(directory)),
+AssetManager::AssetManager(std::filesystem::path assets_lib_dir)
+        : library_(std::move(assets_lib_dir)),
           default_material_(std::make_shared<const render::Material>()) {
-    if (library_.has_provider()) base::log::info("AssetManager: runtime directory is {}", library_.directory().string());
+    if (library_.has_provider()) base::log::info("AssetManager: assets cooked library directory is {}", library_.directory().string());
 }
 
-AssetManager::AssetManager(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory)
-        : library_(std::move(provider), std::move(logical_directory)),
+AssetManager::AssetManager(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_dir_for_lib)
+        : library_(std::move(provider), std::move(logical_dir_for_lib)),
           default_material_(std::make_shared<const render::Material>()) {}
 
 std::shared_ptr<const render::MeshData> AssetManager::load_mesh(MeshAssetID id) {
-    return load_runtime_asset<render::MeshData>(meshes_, library_.directory(), id, "mesh", library_.has_provider(),
+    return load_cooked_asset<render::MeshData>(meshes_, library_.directory(), id, "mesh", library_.has_provider(),
                                                 [&] { return library_.load_mesh(id); });
 }
 
 std::shared_ptr<const render::Material> AssetManager::load_material(MaterialAssetID id) {
     if (id.is_nil()) return default_material_;
-    return load_runtime_asset<render::Material>(materials_, library_.directory(), id, "material", library_.has_provider(),
+    return load_cooked_asset<render::Material>(materials_, library_.directory(), id, "material", library_.has_provider(),
                                                 [&] { return library_.load_material(id); });
 }
 
 std::shared_ptr<const render::TextureData> AssetManager::load_texture(TextureAssetID id) {
-    return load_runtime_asset<render::TextureData>(textures_, library_.directory(), id, "texture", library_.has_provider(),
+    return load_cooked_asset<render::TextureData>(textures_, library_.directory(), id, "texture", library_.has_provider(),
                                                    [&] { return library_.load_texture(id); });
 }
 
 MeshAssetID AssetManager::add_mesh(render::MeshData mesh) {
     const auto id = MeshAssetID::generate();
-    auto data     = std::make_shared<const render::MeshData>(std::move(mesh));
+    auto data = std::make_shared<const render::MeshData>(std::move(mesh));
     meshes_.store(id, data);
     base::log::debug("AssetManager: registered procedural mesh {} ({} vertices, {} indices)", id.to_string(), data->vertices_.size(),
                      data->indices_.size());
@@ -114,17 +122,19 @@ void AssetManager::clear() {
     textures_.clear();
 }
 
-void AssetManager::set_directory(std::filesystem::path directory) {
+void AssetManager::set_library(std::filesystem::path assets_lib_dir) {
     clear();
-    library_ = AssetLibrary{ std::move(directory) };
-    base::log::info("AssetManager: runtime directory set to {}",
+    library_ = AssetLibrary{ std::move(assets_lib_dir) };
+
+    base::log::info("AssetManager: assets cooked library directory set to {}",
                     library_.directory().empty() ? "<memory only>" : library_.directory().string());
 }
 
-void AssetManager::set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory) {
+void AssetManager::set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_dir_for_lib) {
     clear();
-    library_ = AssetLibrary{ std::move(provider), std::move(logical_directory) };
-    base::log::info("AssetManager: runtime directory set to {}",
+    library_ = AssetLibrary{ std::move(provider), std::move(logical_dir_for_lib) };
+
+    base::log::info("AssetManager: assets cooked library directory set to {}",
                     library_.directory().empty() ? "<resource provider>" : library_.directory().string());
 }
 

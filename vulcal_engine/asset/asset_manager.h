@@ -20,13 +20,13 @@ namespace vulcal::asset {
 // Caches immutable CPU data; does not require a Renderer or graphics context.
 class AssetManager {
 public:
-    explicit AssetManager(std::filesystem::path directory = {});
-    explicit AssetManager(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory = {});
+    explicit AssetManager(std::filesystem::path assets_lib_dir = {});
+    explicit AssetManager(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_dir_for_lib = {});
     AssetManager(const AssetManager&)            = delete;
     AssetManager& operator=(const AssetManager&) = delete;
 
-    std::shared_ptr<const render::MeshData> load_mesh(MeshAssetID id);
     // Nil selects the shared default. Other IDs resolve from memory or the runtime library.
+    std::shared_ptr<const render::MeshData> load_mesh(MeshAssetID id);
     std::shared_ptr<const render::Material> load_material(MaterialAssetID id);
     std::shared_ptr<const render::TextureData> load_texture(TextureAssetID id);
 
@@ -39,8 +39,8 @@ public:
     void invalidate(MaterialAssetID id);
     void invalidate(TextureAssetID id);
     void clear();
-    void set_directory(std::filesystem::path directory);
-    void set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_directory = {});
+    void set_library(std::filesystem::path assets_lib_dir);
+    void set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_dir_for_lib = {});
 
 private:
     AssetLibrary library_;

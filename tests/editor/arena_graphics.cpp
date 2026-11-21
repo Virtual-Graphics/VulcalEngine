@@ -1,5 +1,5 @@
 #include "asset/asset_manager.h"
-#include "asset/render_asset_cache.h"
+#include "asset/gpu_resource_registry.h"
 #include "base/window.h"
 #include "scene/scene_serializer.h"
 #include "gfx/context.h"
@@ -28,10 +28,10 @@ protected:
     void SetUp() override {
         vulcal::gfx::Context::prepare_attributes();
         window_   = std::make_unique<base::Window>(base::WindowProps{ .title = "Arena graphics test", .width = 960, .height = 720 });
-        graphics_ = std::make_unique<vulcal::gfx::Context>(window_->handle());
-        renderer_ = std::make_unique<vulcal::render::Renderer>();
-        cache_    = std::make_unique<vulcal::asset::RenderAssetCache>(assets_, *renderer_);
-        target_   = std::make_unique<vulcal::gfx::RenderTarget>(vulcal::gfx::RenderTarget::Spec{ .width = 960, .height = 720 });
+        graphics_      = std::make_unique<vulcal::gfx::Context>(window_->handle());
+        renderer_      = std::make_unique<vulcal::render::Renderer>();
+        gpu_resources_ = std::make_unique<vulcal::asset::GPUResourceRegistry>(assets_, *renderer_);
+        target_        = std::make_unique<vulcal::gfx::RenderTarget>(vulcal::gfx::RenderTarget::Spec{ .width = 960, .height = 720 });
         const auto project = std::filesystem::path{ VULCAL_TEST_SOURCE_DIR } / "projects" / "arena";
         scene_             = vulcal::scene::SceneSerializer::deserialize(project / "assets" / "scenes" / "arena.vscene");
         ASSERT_TRUE(scene_);
@@ -50,7 +50,7 @@ protected:
         runtime_.stop();
         scene_.reset();
         target_.reset();
-        cache_.reset();
+        gpu_resources_.reset();
         renderer_.reset();
         graphics_.reset();
         window_.reset();
@@ -87,7 +87,7 @@ protected:
     }
 
     void render(const char* name) {
-        vulcal::scene::SceneExtractor extractor{ *cache_ };
+        vulcal::scene::SceneExtractor extractor{ *gpu_resources_ };
         renderer_->render(extractor.extract(*scene_, 4.0f / 3.0f), target_.get());
         target_->bind();
         std::vector<unsigned char> pixels(960 * 720 * 4);
@@ -117,7 +117,7 @@ protected:
     std::unique_ptr<base::Window> window_;
     std::unique_ptr<vulcal::gfx::Context> graphics_;
     std::unique_ptr<vulcal::render::Renderer> renderer_;
-    std::unique_ptr<vulcal::asset::RenderAssetCache> cache_;
+    std::unique_ptr<vulcal::asset::GPUResourceRegistry> gpu_resources_;
     std::unique_ptr<vulcal::gfx::RenderTarget> target_;
     std::unique_ptr<vulcal::scene::Scene> scene_;
     vulcal::script::ScriptRuntime runtime_;
