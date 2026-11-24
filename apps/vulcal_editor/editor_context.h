@@ -68,6 +68,7 @@ public:
     // Advances for document replacement and successful edits, including edits
     // across frames of an active widget. Selection and Play do not change it.
     std::uint64_t scene_revision() const { return scene_revision_; }
+    bool scene_dirty() const { return scene_revision_ != saved_scene_revision_; }
 
     template<typename Component>
     void set_component(vulcal::scene::Entity entity, Component value) {
@@ -102,12 +103,14 @@ private:
     friend class ProjectSession;
     void activate_project(ProjectManager&& project) noexcept;
     void require_edit_entity(vulcal::scene::Entity entity) const;
+    void reset_scene_document() noexcept;
     void mark_scene_changed() noexcept { ++scene_revision_; }
 
     ProjectManager project_manager_;
     std::unique_ptr<vulcal::scene::Scene> runtime_scene_;
     vulcal::scene::Entity selected_;
     std::uint64_t scene_revision_ = 0;
+    std::uint64_t saved_scene_revision_ = 0;
 };
 
 } // namespace editor

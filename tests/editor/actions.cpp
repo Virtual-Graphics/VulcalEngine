@@ -221,10 +221,13 @@ TEST_F(EditorActionsTest, SavesUnnamedSceneThenReusesItsPath) {
     save_path_        = scene;
     actions_->save_scene();
     ASSERT_TRUE(std::filesystem::exists(scene));
+    EXPECT_FALSE(context_.scene_dirty());
 
-    entity.get_component<vulcal::scene::TagComponent>().name_ = "Saved again";
+    context_.set_component(entity, vulcal::scene::TagComponent{ .name_ = "Saved again" });
+    ASSERT_TRUE(context_.scene_dirty());
     save_path_.reset();
     actions_->save_scene();
+    EXPECT_FALSE(context_.scene_dirty());
     const auto loaded = vulcal::scene::SceneSerializer::deserialize(scene);
     bool found        = false;
     for (const auto e: loaded->registry().view<vulcal::scene::TagComponent>()) {
@@ -261,6 +264,7 @@ TEST_F(EditorActionsTest, PlayingRejectsActionsBeforeOpeningDialogsOrChangingCac
 TEST_F(EditorActionsTest, CancelledSaveLeavesSceneUnnamedAndSelectionUnchanged) {
     const auto selected = context_.create_entity();
     actions_->save_scene();
+    EXPECT_TRUE(context_.scene_dirty());
     EXPECT_EQ(context_.save_scene(), editor::EditorContext::SaveResult::NeedsPath);
     EXPECT_EQ(context_.selected_entity(), selected);
     EXPECT_FALSE(std::filesystem::exists(directory_ / "Untitled.vscene"));

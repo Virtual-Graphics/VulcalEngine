@@ -4,6 +4,7 @@
 
 #include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
 #include "vulcal_editor/dialogs/build_settings_dialog.h"
 #include "vulcal_editor/dialogs/error_dialog.h"
@@ -13,6 +14,7 @@
 #include "gfx/command.h"
 #include "render/renderer.h"
 
+#include <SDL3/SDL_video.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <stdexcept>
@@ -51,6 +53,7 @@ void EditorLayer::stop() {
 }
 
 void EditorLayer::on_attach() {
+    if (const auto* title = SDL_GetWindowTitle(application().get_window().handle())) base_window_title_ = title;
     imgui_   = std::make_unique<apps::ImGuiIntegration>(application().get_window());
     auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -82,6 +85,7 @@ void EditorLayer::on_detach() {
     gpu_resources_.reset();
     assets_.clear();
     renderer_.reset();
+    SDL_SetWindowTitle(application().get_window().handle(), base_window_title_.c_str());
 }
 
 void EditorLayer::draw_file_menu() {
@@ -201,6 +205,19 @@ void EditorLayer::on_update(base::Timestep dt) {
     if (auto error = actions_->take_error()) error_dialog_->open(std::move(*error));
     error_dialog_->draw();
     imgui_->end_frame();
+    update_window_title();
+}
+
+void EditorLayer::update_window_title() {
+    auto title = base_window_title_;
+    if (context_.has_scene()) {
+        title += " - ";
+        title += base::path_to_utf8(context_.suggested_scene_name());
+        if (context_.scene_dirty()) title += " *";
+    }
+    auto* window = application().get_window().handle();
+    const auto* current = SDL_GetWindowTitle(window);
+    if (current && title != current) SDL_SetWindowTitle(window, title.c_str());
 }
 
 void EditorLayer::on_render() {

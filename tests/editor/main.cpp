@@ -121,7 +121,52 @@ TEST(EditorContext, NewSceneCreatesDefaultSceneAndClearsSelection) {
 TEST(EditorContext, SaveWithoutPathRequestsSaveAs) {
     editor::EditorContext context;
     context.new_scene();
+    EXPECT_FALSE(context.scene_dirty());
+    context.create_entity();
     EXPECT_EQ(context.save_scene(), editor::EditorContext::SaveResult::NeedsPath);
+    EXPECT_TRUE(context.scene_dirty());
+}
+
+TEST(EditorContext, SceneDirtyTracksSuccessfulWritesAndDocumentReplacement) {
+    const auto directory = temporary_directory();
+    std::filesystem::create_directories(directory);
+    const auto scene = directory / "level.vscene";
+
+    editor::EditorContext context;
+    context.new_scene();
+    const auto entity = context.create_entity();
+    ASSERT_TRUE(context.scene_dirty());
+    EXPECT_THROW(context.save_scene_as(directory / "missing" / "level.vscene"), std::runtime_error);
+    EXPECT_TRUE(context.scene_dirty());
+    context.save_scene_as(scene);
+    EXPECT_FALSE(context.scene_dirty());
+
+    context.set_component(entity, vulcal::scene::TagComponent{ .name_ = "Changed" });
+    ASSERT_TRUE(context.scene_dirty());
+    context.begin_play();
+    context.end_play();
+    EXPECT_TRUE(context.scene_dirty());
+    EXPECT_THROW(context.open_scene(directory / "missing.vscene"), std::runtime_error);
+    EXPECT_TRUE(context.scene_dirty());
+    const auto backup = directory / "backup.vscene";
+    std::filesystem::rename(scene, backup);
+    std::filesystem::create_directory(scene);
+    EXPECT_THROW(context.save_scene(), std::runtime_error);
+    EXPECT_TRUE(context.scene_dirty());
+    std::filesystem::remove(scene);
+    std::filesystem::rename(backup, scene);
+    EXPECT_EQ(context.save_scene(), editor::EditorContext::SaveResult::Saved);
+    EXPECT_FALSE(context.scene_dirty());
+
+    context.create_entity();
+    ASSERT_TRUE(context.scene_dirty());
+    context.open_scene(scene);
+    EXPECT_FALSE(context.scene_dirty());
+    context.create_entity();
+    context.new_scene();
+    EXPECT_FALSE(context.scene_dirty());
+
+    std::filesystem::remove_all(directory);
 }
 
 TEST(EditorContext, SaveAsAddsSceneExtensionAndRemembersPath) {
@@ -147,8 +192,12 @@ TEST(EditorContext, CreateProjectStartsDefaultScene) {
     editor::EditorContext context;
     vulcal::asset::AssetManager assets;
     editor::ProjectSession projects(context, assets);
+    context.new_scene();
+    context.create_entity();
+    ASSERT_TRUE(context.scene_dirty());
     projects.create(directory, "Demo");
 
+    EXPECT_FALSE(context.scene_dirty());
     EXPECT_TRUE(std::filesystem::exists(directory / "Demo.vproj"));
     EXPECT_TRUE(std::filesystem::is_directory(directory / "assets"));
     EXPECT_TRUE(std::filesystem::is_directory(directory / ".vulcal_engine"));

@@ -58,8 +58,7 @@ const vulcal::scene::Scene& EditorContext::scene() const {
 void EditorContext::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
     require_edit_mode();
     project_manager_.set_scene(std::move(scene));
-    selected_ = {};
-    mark_scene_changed();
+    reset_scene_document();
 }
 
 void EditorContext::new_scene() {
@@ -71,8 +70,7 @@ void EditorContext::new_scene() {
 void EditorContext::open_scene(const std::filesystem::path& scene_file) {
     require_edit_mode();
     project_manager_.open_scene(scene_file);
-    selected_ = {};
-    mark_scene_changed();
+    reset_scene_document();
 }
 
 EditorContext::SaveResult EditorContext::save_scene() {
@@ -83,6 +81,7 @@ EditorContext::SaveResult EditorContext::save_scene() {
         return SaveResult::NeedsPath;
     }
     project_manager_.save_scene();
+    saved_scene_revision_ = scene_revision_;
     return SaveResult::Saved;
 }
 
@@ -90,12 +89,18 @@ void EditorContext::save_scene_as(std::filesystem::path scene_file) {
     require_edit_mode();
     if (!base::has_extension(scene_file, ".vscene")) scene_file.replace_extension(".vscene");
     project_manager_.save_as_scene(scene_file);
+    saved_scene_revision_ = scene_revision_;
 }
 
 void EditorContext::activate_project(ProjectManager&& project) noexcept {
-    selected_ = {};
     project_manager_ = std::move(project);
+    reset_scene_document();
+}
+
+void EditorContext::reset_scene_document() noexcept {
+    selected_ = {};
     mark_scene_changed();
+    saved_scene_revision_ = scene_revision_;
 }
 
 std::filesystem::path EditorContext::project_directory() const { return project_manager_.current_project_dir(); }
