@@ -1,11 +1,15 @@
 #pragma once
 
+#include <filesystem>
 #include <mutex>
 #include <utility>
 
 #include <spdlog/spdlog.h>
 
 namespace base {
+// Configure file output during startup, before other threads start logging.
+void add_file_log(const std::filesystem::path& path);
+
 inline void initLogger() {
     static std::once_flag once;
     std::call_once(once, [] {

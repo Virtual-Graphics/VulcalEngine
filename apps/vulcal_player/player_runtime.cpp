@@ -17,7 +17,7 @@ namespace vulcal::player {
 std::filesystem::path select_pak_file(const std::vector<std::string>& arguments, const std::filesystem::path& running_executable_directory) {
     // 指定了 .vpak
     if (arguments.size() > 1) { 
-        throw std::invalid_argument("Usage: vulcal_player [game.vpak]");
+        throw std::invalid_argument("Usage: vulcal_player [--log] [game.vpak]");
     }
     if (!arguments.empty()) {
         const auto explicit_path = base::path_from_utf8(arguments.front());
