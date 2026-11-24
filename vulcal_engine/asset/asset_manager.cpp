@@ -3,6 +3,7 @@
 #include "base/profiler.h"
 
 #include "base/logger.h"
+#include "base/path_utils.h"
 
 #include <exception>
 #include <string_view>
@@ -123,11 +124,12 @@ void AssetManager::clear() {
 }
 
 void AssetManager::set_library(std::filesystem::path assets_lib_dir) {
+    AssetLibrary library{ std::move(assets_lib_dir) };
+    const auto directory = library.directory().empty() ? "<memory only>" : base::path_to_utf8(library.directory());
     clear();
-    library_ = AssetLibrary{ std::move(assets_lib_dir) };
+    library_ = std::move(library);
 
-    base::log::info("AssetManager: assets cooked library directory set to {}",
-                    library_.directory().empty() ? "<memory only>" : library_.directory().string());
+    base::log::info("AssetManager: assets cooked library directory set to {}", directory);
 }
 
 void AssetManager::set_provider(std::shared_ptr<const resource::ResourceProvider> provider, std::string logical_dir_for_lib) {

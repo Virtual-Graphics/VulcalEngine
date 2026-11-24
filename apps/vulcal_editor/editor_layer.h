@@ -10,6 +10,7 @@
 #include "script/script_runtime.h"
 
 #include <memory>
+#include <string>
 
 namespace apps {
 class ImGuiIntegration;
@@ -41,12 +42,14 @@ public:
 
     EditorContext& context() { return context_; }
     const EditorContext& context() const { return context_; }
+    EditorActions& actions();
     void play();
     void stop();
 
 private:
     void draw_workspace();
     void draw_file_menu();
+    void update_window_title();
 
     void handle_shortcuts();
 
@@ -70,6 +73,7 @@ private:
     InspectorPanel inspector_;
     ViewportPanel viewport_;
 
+    std::string base_window_title_;
     bool hierarchy_open_        = true;
     bool inspector_open_        = true;
     bool viewport_open_         = true;

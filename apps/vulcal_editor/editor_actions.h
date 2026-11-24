@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "scene/entity.h"
+#include "vulcal_editor/project/project_session.h"
 
 namespace apps::nfd {
 struct FileFilter;
@@ -42,6 +43,7 @@ public:
 
     void create_project(const std::filesystem::path& directory, const std::string& name);
     void open_project();
+    void open_project(const std::filesystem::path& project_file);
     void build_project();
     void set_build_settings(const std::filesystem::path& scene_file, const std::filesystem::path& build_dir);
     void new_scene();
@@ -74,9 +76,8 @@ private:
     vulcal::scene::Entity require_selected_mesh_renderer(const char* asset_name) const;
     vulcal::scene::Entity require_selected_sprite_renderer(const char* asset_name) const;
     vulcal::scene::Entity require_selected_script() const;
-    void reset_project_resources();
-
     EditorContext& context_;
+    ProjectSession projects_;
     vulcal::asset::AssetManager& assets_;
     vulcal::asset::GPUResourceRegistry& gpu_resources_;
     Dialogs dialogs_;

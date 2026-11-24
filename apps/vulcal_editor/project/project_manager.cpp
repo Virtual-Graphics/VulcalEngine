@@ -38,6 +38,9 @@ void validate_build_info(const BuildInfo& info, const std::filesystem::path& pro
 
 ProjectManager::ProjectManager()  = default;
 
+ProjectManager::ProjectManager(ProjectManager&&) noexcept = default;
+ProjectManager& ProjectManager::operator=(ProjectManager&&) noexcept = default;
+
 ProjectManager::~ProjectManager() = default;
 
 bool ProjectManager::has_project() const { return !current_project_file_.empty(); }

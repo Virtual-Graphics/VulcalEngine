@@ -4,6 +4,7 @@
 
 #include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
+#include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
 #include "vulcal_editor/dialogs/build_settings_dialog.h"
 #include "vulcal_editor/dialogs/error_dialog.h"
@@ -15,6 +16,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <stdexcept>
 #include <utility>
 
 namespace editor {
@@ -23,6 +25,11 @@ EditorLayer::EditorLayer()
         : engine::Layer("EditorLayer") {}
 
 EditorLayer::~EditorLayer() { stop(); }
+
+EditorActions& EditorLayer::actions() {
+    if (!actions_) throw std::logic_error("Editor actions require an attached editor layer");
+    return *actions_;
+}
 
 void EditorLayer::play() {
     if (context_.playing()) return;
@@ -45,6 +52,7 @@ void EditorLayer::stop() {
 }
 
 void EditorLayer::on_attach() {
+    base_window_title_ = application().get_window().title();
     imgui_   = std::make_unique<apps::ImGuiIntegration>(application().get_window());
     auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -76,6 +84,7 @@ void EditorLayer::on_detach() {
     gpu_resources_.reset();
     assets_.clear();
     renderer_.reset();
+    application().get_window().set_title(base_window_title_);
 }
 
 void EditorLayer::draw_file_menu() {
@@ -195,6 +204,17 @@ void EditorLayer::on_update(base::Timestep dt) {
     if (auto error = actions_->take_error()) error_dialog_->open(std::move(*error));
     error_dialog_->draw();
     imgui_->end_frame();
+    update_window_title();
+}
+
+void EditorLayer::update_window_title() {
+    auto title = base_window_title_;
+    if (context_.has_scene()) {
+        title += " - ";
+        title += base::path_to_utf8(context_.suggested_scene_name());
+        if (context_.scene_dirty()) title += " *";
+    }
+    application().get_window().set_title(std::move(title));
 }
 
 void EditorLayer::on_render() {

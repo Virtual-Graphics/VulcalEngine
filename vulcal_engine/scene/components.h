@@ -15,6 +15,7 @@ struct IDComponent {
 
 struct TagComponent {
     std::string name_ = "Entity";
+    bool operator==(const TagComponent&) const = default;
 };
 
 struct TransformComponent {
@@ -23,12 +24,14 @@ struct TransformComponent {
     glm::vec3 scale_{ 1.0f };
 
     glm::mat4 matrix() const;
+    bool operator==(const TransformComponent&) const = default;
 };
 
 struct MeshRendererComponent {
     asset::MeshAssetID mesh_asset_id_;
     asset::MaterialAssetID material_asset_id_;
     bool visible_ = true;
+    bool operator==(const MeshRendererComponent&) const = default;
 };
 
 struct SpriteRendererComponent {
@@ -40,6 +43,7 @@ struct SpriteRendererComponent {
     bool flip_y_                = false;
     std::int32_t sorting_order_ = 0;
     bool visible_               = true;
+    bool operator==(const SpriteRendererComponent&) const = default;
 };
 
 struct CameraComponent {
@@ -58,6 +62,7 @@ struct CameraComponent {
     float orthographic_top_ = 1.0f;
     float orthographic_near_ = 0.1f;
     float orthographic_far_ = 100.0f;
+    bool operator==(const CameraComponent&) const = default;
 };
 
 enum class LightType { Directional };
@@ -75,15 +80,18 @@ struct LightComponent {
     float shadow_far_ = 50.0f;
     float shadow_depth_bias_ = 0.0015f;
     float shadow_normal_bias_ = 0.02f;
+    bool operator==(const LightComponent&) const = default;
 };
 
 struct EnvironmentComponent {
     glm::vec3 ambient_color_{ 0.1f };
     glm::vec4 clear_color_{ 0.1f, 0.1f, 0.1f, 1.0f };
+    bool operator==(const EnvironmentComponent&) const = default;
 };
 
 struct ScriptComponent {
     std::string script_path_;
+    bool operator==(const ScriptComponent&) const = default;
 };
 
 } // namespace vulcal::scene

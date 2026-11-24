@@ -17,6 +17,8 @@ public:
     ProjectManager();
     ProjectManager(const ProjectManager&) = delete;
     ProjectManager& operator=(const ProjectManager&) = delete;
+    ProjectManager(ProjectManager&&) noexcept;
+    ProjectManager& operator=(ProjectManager&&) noexcept;
     ~ProjectManager();
 
     bool has_project() const;

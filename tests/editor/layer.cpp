@@ -1,4 +1,5 @@
 #include "vulcal_editor/editor_layer.h"
+#include "vulcal_editor/editor_actions.h"
 #include "engine/application.h"
 #include "scene/components.h"
 
@@ -34,10 +35,9 @@ public:
         std::filesystem::create_directories(directory);
     }
     ~ScriptProject() { std::filesystem::remove_all(directory); }
-    vulcal::scene::Entity prepare(editor::EditorLayer& layer) {
-        layer.context().create_project(directory, "Play");
-        layer.context().set_scene(std::make_unique<vulcal::scene::Scene>());
-        const auto entity = layer.context().create_entity();
+    vulcal::scene::Entity prepare(editor::EditorContext& context) {
+        context.set_scene(std::make_unique<vulcal::scene::Scene>());
+        const auto entity = context.create_entity();
         entity.add_component<vulcal::scene::ScriptComponent>().script_path_ = "assets/lifecycle.lua";
         std::ofstream script(directory / "assets/lifecycle.lua");
         script << "function on_create() entity:set_translation(10, 0, 0) end\n"
@@ -117,13 +117,35 @@ protected:
 
 TEST_F(EditorLayerTest, NewSceneShortcutReplacesScene) {
     ScriptProject project;
-    layer_->context().create_project(project.directory, "Shortcuts");
+    layer_->actions().create_project(project.directory, "Shortcuts");
     frame();
     const auto initial_height = hierarchy_height();
     add_entity();
     ASSERT_GT(hierarchy_height(), initial_height);
     new_scene_shortcut();
     EXPECT_FLOAT_EQ(hierarchy_height(), initial_height);
+}
+
+TEST_F(EditorLayerTest, WindowTitleShowsSceneNameAndUnsavedMarker) {
+    ScriptProject project;
+    layer_->actions().create_project(project.directory, "Title");
+    auto& context = layer_->context();
+    auto& window = application_->get_window();
+    frame();
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - Untitled.vscene");
+
+    const auto entity = context.create_entity();
+    frame();
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - Untitled.vscene *");
+
+    context.save_scene_as(context.assets_directory() / "level.vscene");
+    frame();
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - level.vscene");
+
+    context.set_component(entity, vulcal::scene::TagComponent{ .name_ = "Renamed" });
+    frame();
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - level.vscene *");
+    EXPECT_EQ(window.title(), "Editor input test - level.vscene *");
 }
 
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWithoutProject) {
@@ -140,7 +162,7 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWithoutProject) {
 
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotInterruptTextEditing) {
     ScriptProject project;
-    layer_->context().create_project(project.directory, "Shortcuts");
+    layer_->actions().create_project(project.directory, "Shortcuts");
     frame();
     add_entity();
     const auto height     = hierarchy_height();
@@ -155,7 +177,7 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotInterruptTextEditing) {
 
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWhileProjectDialogIsOpen) {
     ScriptProject project;
-    layer_->context().create_project(project.directory, "Shortcuts");
+    layer_->actions().create_project(project.directory, "Shortcuts");
     frame();
     add_entity();
     const auto height = hierarchy_height();
@@ -177,7 +199,7 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWhileProjectDialogIsOpen) {
 TEST_F(EditorLayerTest, BuildSettingsReloadsSavedValuesAfterCancelAndStaysOpenOnSaveFailure) {
     ScriptProject project;
     auto& context = layer_->context();
-    context.create_project(project.directory, "Build Settings");
+    layer_->actions().create_project(project.directory, "Build Settings");
     const auto scene = context.assets_directory() / "main.vscene";
     const auto output = project.directory / "release";
     context.save_scene_as(scene);
@@ -222,7 +244,8 @@ TEST_F(EditorLayerTest, BuildSettingsReloadsSavedValuesAfterCancelAndStaysOpenOn
 
 TEST_F(EditorLayerTest, PlayDrivesLuaAndStopDestroysScriptsBeforeDiscardingScene) {
     ScriptProject project;
-    const auto edit = project.prepare(*layer_);
+    layer_->actions().create_project(project.directory, "Play");
+    const auto edit = project.prepare(layer_->context());
     layer_->play();
     ASSERT_TRUE(layer_->context().playing());
     const auto runtime = layer_->context().selected_entity();
@@ -244,7 +267,8 @@ TEST_F(EditorLayerTest, PlayDrivesLuaAndStopDestroysScriptsBeforeDiscardingScene
 
 TEST_F(EditorLayerTest, DetachStopsPlayBeforeRuntimeSceneDisposal) {
     ScriptProject project;
-    project.prepare(*layer_);
+    layer_->actions().create_project(project.directory, "Play");
+    project.prepare(layer_->context());
     layer_->play();
     RuntimeSceneObserver observer;
     layer_->on_detach();
@@ -257,7 +281,10 @@ TEST(EditorPlayLifecycle, LayerDestructionStopsScriptsWhileRuntimeEntitiesAreAli
     RuntimeSceneObserver observer;
     {
         editor::EditorLayer layer;
-        project.prepare(layer);
+        vulcal::asset::AssetManager assets;
+        editor::ProjectSession projects(layer.context(), assets);
+        projects.create(project.directory, "Play");
+        project.prepare(layer.context());
         layer.play();
     }
     EXPECT_NE(observer.output().find("Destroyed Entity at 999"), std::string::npos);
