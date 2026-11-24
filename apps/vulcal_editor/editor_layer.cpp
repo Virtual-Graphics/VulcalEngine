@@ -4,9 +4,10 @@
 
 #include "asset/gpu_resource_registry.h"
 #include "base/logger.h"
-#include "base/path_utils.h"
 #include "common/imgui/imgui_integration.h"
-#include "common/nfd/file_dialog.h"
+#include "vulcal_editor/dialogs/build_settings_dialog.h"
+#include "vulcal_editor/dialogs/error_dialog.h"
+#include "vulcal_editor/dialogs/new_project_dialog.h"
 #include "vulcal_editor/editor_actions.h"
 #include "engine/application.h"
 #include "gfx/command.h"
@@ -14,7 +15,6 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <misc/cpp/imgui_stdlib.h>
 #include <utility>
 
 namespace editor {
@@ -55,6 +55,9 @@ void EditorLayer::on_attach() {
     gpu_resources_                       = std::make_unique<vulcal::asset::GPUResourceRegistry>(assets_, *renderer_);
     extractor_                           = std::make_unique<vulcal::scene::SceneExtractor>(*gpu_resources_);
     actions_                             = std::make_unique<EditorActions>(context_, assets_, *gpu_resources_);
+    new_project_dialog_                  = std::make_unique<NewProjectDialog>(context_, *actions_);
+    build_settings_dialog_               = std::make_unique<BuildSettingsDialog>(context_, *actions_);
+    error_dialog_                        = std::make_unique<ErrorDialog>();
 
     actions_->new_scene();
     const auto entity_count = context_.scene().registry().view<vulcal::scene::TagComponent>().size();
@@ -64,6 +67,9 @@ void EditorLayer::on_attach() {
 void EditorLayer::on_detach() {
     stop();
     viewport_.release_resources();
+    error_dialog_.reset();
+    build_settings_dialog_.reset();
+    new_project_dialog_.reset();
     actions_.reset();
     imgui_.reset();
     extractor_.reset();
@@ -79,10 +85,7 @@ void EditorLayer::draw_file_menu() {
 
     if (ImGui::MenuItem("New Project...")) {
         viewport_.release_camera();
-        new_project_name_.clear();
-        new_project_directory_ = std::filesystem::current_path();
-        new_project_error_.clear();
-        new_project_requested_ = true;
+        new_project_dialog_->open();
     }
     if (ImGui::MenuItem("Open Project...")) actions_->run_guarded([this] { actions_->open_project(); });
 
@@ -90,11 +93,7 @@ void EditorLayer::draw_file_menu() {
 
     ImGui::BeginDisabled(!context_.has_project());
     if (ImGui::MenuItem("Build Settings...", nullptr, false, context_.has_project())) {
-        const auto& build_info = context_.project_info().build_info;
-        build_scene_file_ = build_info ? context_.project_directory() / build_info->open_scene : std::filesystem::path{};
-        build_output_directory_ = build_info ? build_info->build_dir : std::filesystem::path{};
-        build_settings_error_.clear();
-        build_settings_requested_ = true;
+        build_settings_dialog_->open();
     }
     if (ImGui::MenuItem("Build", nullptr, false, context_.has_project() && !context_.playing()))
         actions_->run_guarded([this] { actions_->build_project(); });
@@ -132,86 +131,6 @@ void EditorLayer::handle_shortcuts() {
     } else if (context_.has_scene() && save_scene) {
         actions_->run_guarded([this] { actions_->save_scene(); });
     }
-}
-
-void EditorLayer::draw_new_project_dialog() {
-    if (new_project_requested_) {
-        ImGui::OpenPopup("New Project");
-        new_project_requested_ = false;
-    }
-
-    const auto center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
-    if (!ImGui::BeginPopupModal("New Project", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
-
-    ImGui::SetNextItemWidth(360.0f);
-    ImGui::InputText("Project name", &new_project_name_);
-    ImGui::TextUnformatted("Project directory");
-    ImGui::TextWrapped("%s", new_project_directory_.empty() ? "Choose an existing directory" : base::path_to_utf8(new_project_directory_).c_str());
-    if (ImGui::Button("Browse...")) {
-        try {
-            if (auto path = apps::nfd::pick_folder(new_project_directory_)) {
-                new_project_directory_ = *path;
-                if (new_project_name_.empty()) new_project_name_ = base::path_to_utf8(new_project_directory_.filename());
-            }
-        } catch (const std::exception& error) {
-            base::log::error("Editor: could not choose project directory: {}", error.what());
-            new_project_error_ = error.what();
-        }
-    }
-
-    if (!new_project_error_.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 440.0f);
-        ImGui::TextColored({ 1.0f, 0.4f, 0.3f, 1.0f }, "%s", new_project_error_.c_str());
-        ImGui::PopTextWrapPos();
-    }
-
-    const bool can_create = !context_.playing() && !new_project_name_.empty() && !new_project_directory_.empty();
-    ImGui::BeginDisabled(!can_create);
-    if (ImGui::Button("Create")) {
-        try {
-            actions_->create_project(new_project_directory_, new_project_name_);
-            new_project_error_.clear();
-            ImGui::CloseCurrentPopup();
-        } catch (const std::exception& error) {
-            base::log::error("Editor: could not create project '{}' in {}: {}", new_project_name_, new_project_directory_.string(),
-                             error.what());
-            new_project_error_ = error.what();
-        }
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-        new_project_error_.clear();
-        ImGui::CloseCurrentPopup();
-    }
-
-    ImGui::EndPopup();
-}
-
-void EditorLayer::draw_error_dialog() {
-    if (actions_) {
-        if (auto error = actions_->take_error()) {
-            error_message_   = std::move(*error);
-            error_requested_ = true;
-        }
-    }
-
-    if (error_requested_) {
-        ImGui::OpenPopup("Operation Failed");
-        error_requested_ = false;
-    }
-
-    const auto center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
-    if (!ImGui::BeginPopupModal("Operation Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
-
-    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 480.0f);
-    ImGui::TextUnformatted(error_message_.c_str());
-    ImGui::PopTextWrapPos();
-    if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
-
-    ImGui::EndPopup();
 }
 
 void EditorLayer::draw_workspace() {
@@ -267,74 +186,15 @@ void EditorLayer::on_update(base::Timestep dt) {
     hierarchy_.draw(context_, hierarchy_open_);
     inspector_.draw(context_, inspector_open_, actions_.get());
     viewport_.draw(viewport_open_, application().get_graphics_context().limits());
-    draw_new_project_dialog();
-    draw_build_settings_dialog();
+    new_project_dialog_->draw();
+    build_settings_dialog_->draw();
     if (!context_.playing()) {
         viewport_.update_camera(dt.get_seconds(), application().get_window().handle());
     }
     handle_shortcuts();
-    draw_error_dialog();
+    if (auto error = actions_->take_error()) error_dialog_->open(std::move(*error));
+    error_dialog_->draw();
     imgui_->end_frame();
-}
-
-void EditorLayer::draw_build_settings_dialog() {
-    if (build_settings_requested_) {
-        ImGui::OpenPopup("Build Settings");
-        build_settings_requested_ = false;
-    }
-    const auto center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
-    if (!ImGui::BeginPopupModal("Build Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
-
-    ImGui::TextUnformatted("Open scene");
-    ImGui::TextWrapped("%s", build_scene_file_.empty() ? "Choose a scene" : base::path_to_utf8(build_scene_file_).c_str());
-    ImGui::SameLine();
-    if (ImGui::Button("Browse scene...")) {
-        try {
-            if (auto path = apps::nfd::open_file(apps::nfd::FileFilter{ "Vulcal Scene", "vscene" }, context_.assets_directory()))
-                build_scene_file_ = *path;
-        } catch (const std::exception& error) {
-            build_settings_error_ = error.what();
-        }
-    }
-
-    ImGui::TextUnformatted("Output directory");
-    ImGui::TextWrapped("%s", build_output_directory_.empty() ? "Default: project/build" : base::path_to_utf8(build_output_directory_).c_str());
-    ImGui::SameLine();
-    if (ImGui::Button("Browse output...")) {
-        try {
-            if (auto path = apps::nfd::pick_folder(build_output_directory_.empty() ? context_.build_directory() : build_output_directory_))
-                build_output_directory_ = *path;
-        } catch (const std::exception& error) {
-            build_settings_error_ = error.what();
-        }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Use default")) build_output_directory_.clear();
-
-    if (!build_settings_error_.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 440.0f);
-        ImGui::TextColored({ 1.0f, 0.4f, 0.3f, 1.0f }, "%s", build_settings_error_.c_str());
-        ImGui::PopTextWrapPos();
-    }
-
-    ImGui::BeginDisabled(context_.playing() || build_scene_file_.empty());
-    if (ImGui::Button("Save")) {
-        try {
-            actions_->set_build_settings(build_scene_file_, build_output_directory_);
-            build_settings_error_.clear();
-            ImGui::CloseCurrentPopup();
-        } catch (const std::exception& error) {
-            build_settings_error_ = error.what();
-        }
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-        build_settings_error_.clear();
-        ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
 }
 
 void EditorLayer::on_render() {

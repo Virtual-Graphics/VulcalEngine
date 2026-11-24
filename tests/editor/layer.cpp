@@ -174,6 +174,52 @@ TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWhileProjectDialogIsOpen) {
     EXPECT_TRUE(dialog->Active);
 }
 
+TEST_F(EditorLayerTest, BuildSettingsReloadsSavedValuesAfterCancelAndStaysOpenOnSaveFailure) {
+    ScriptProject project;
+    auto& context = layer_->context();
+    context.create_project(project.directory, "Build Settings");
+    const auto scene = context.assets_directory() / "main.vscene";
+    const auto output = project.directory / "release";
+    context.save_scene_as(scene);
+    context.set_build_info({ .open_scene = "assets/main.vscene", .build_dir = output });
+    frame();
+
+    const auto open_settings = [&] {
+        click({ 15.0f, ImGui::GetFontSize() * 0.5f });
+        ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);
+        auto* menu = ImGui::GetCurrentContext()->OpenPopupStack[0].Window;
+        ASSERT_NE(menu, nullptr);
+        ImGui::ActivateItemByID(menu->GetID("Build Settings..."));
+        frame();
+    };
+    open_settings();
+    auto* dialog = ImGui::FindWindowByName("Build Settings");
+    ASSERT_NE(dialog, nullptr);
+    ASSERT_TRUE(dialog->Active);
+
+    ImGui::ActivateItemByID(dialog->GetID("Use default"));
+    frame();
+    ImGui::ActivateItemByID(dialog->GetID("Cancel"));
+    frame();
+    ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 0);
+
+    open_settings();
+    ASSERT_TRUE(dialog->Active);
+    ImGui::ActivateItemByID(dialog->GetID("Save"));
+    frame();
+    ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 0);
+    ASSERT_TRUE(context.project_info().build_info);
+    EXPECT_EQ(context.project_info().build_info->build_dir, output);
+
+    ASSERT_TRUE(std::filesystem::remove(scene));
+    open_settings();
+    ASSERT_TRUE(dialog->Active);
+    ImGui::ActivateItemByID(dialog->GetID("Save"));
+    frame();
+    ASSERT_EQ(ImGui::GetCurrentContext()->OpenPopupStack.Size, 1);
+    EXPECT_EQ(ImGui::GetCurrentContext()->OpenPopupStack[0].Window, dialog);
+}
+
 TEST_F(EditorLayerTest, PlayDrivesLuaAndStopDestroysScriptsBeforeDiscardingScene) {
     ScriptProject project;
     const auto edit = project.prepare(*layer_);
