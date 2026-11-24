@@ -77,13 +77,13 @@ jobs:
             wayland-protocols
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }}
+        run: cmake --preset linux-debug -DVULCAL_ENABLE_PROFILING=${{ matrix.profiling }}
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build --preset linux-debug --parallel
 
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build/linux-debug --output-on-failure
 
   static-release:
     runs-on: ubuntu-latest

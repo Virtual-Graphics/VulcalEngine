@@ -36,14 +36,16 @@
 
 从 [Releases](https://github.com/Virtual-Graphics/VulcalEngine/releases) 下载源码，或克隆仓库，然后在源码根目录执行对应平台的命令。
 
+优先使用仓库提供的 CMake 预设。Windows 开发构建使用 `msvc`，Linux 开发构建使用 `linux-debug`，构建分发用播放器使用 `release-static`。运行 `cmake --list-presets=all` 可查看可用预设。
+
 ### Windows
 
 安装 Visual Studio 2026 的 C++ 桌面开发工作负载。
 
 ```powershell
-cmake --preset msvc -B build/msvc
-cmake --build build/msvc --config Debug --parallel
-.\build\msvc\bin\Debug\vulcal_editor.exe
+cmake --preset msvc
+cmake --build --preset msvc --parallel
+.\build\bin\Debug\vulcal_editor.exe
 ```
 
 ### Linux
@@ -51,8 +53,8 @@ cmake --build build/msvc --config Debug --parallel
 安装 Ninja 和[构建指南列出的系统依赖](https://virtual-graphics.github.io/VulcalEngine-website/docs/building/#linux)。
 
 ```bash
-cmake -S . -B build/linux-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/linux-debug --parallel
+cmake --preset linux-debug
+cmake --build --preset linux-debug --parallel
 ./build/linux-debug/bin/vulcal_editor
 ```
 
