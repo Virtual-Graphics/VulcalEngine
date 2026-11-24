@@ -30,6 +30,9 @@ public:
     // Observes every polled event without consuming the window's own handling.
     void set_event_callback(EventCallback callback);
 
+    const std::string& title() const { return title_; }
+    bool set_title(std::string title);
+
     uint32_t width() const { return width_; }
     uint32_t height() const { return height_; }
     bool resized() const { return resized_; }

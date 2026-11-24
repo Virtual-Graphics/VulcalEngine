@@ -14,7 +14,6 @@
 #include "gfx/command.h"
 #include "render/renderer.h"
 
-#include <SDL3/SDL_video.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <stdexcept>
@@ -53,7 +52,7 @@ void EditorLayer::stop() {
 }
 
 void EditorLayer::on_attach() {
-    if (const auto* title = SDL_GetWindowTitle(application().get_window().handle())) base_window_title_ = title;
+    base_window_title_ = application().get_window().title();
     imgui_   = std::make_unique<apps::ImGuiIntegration>(application().get_window());
     auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -85,7 +84,7 @@ void EditorLayer::on_detach() {
     gpu_resources_.reset();
     assets_.clear();
     renderer_.reset();
-    SDL_SetWindowTitle(application().get_window().handle(), base_window_title_.c_str());
+    application().get_window().set_title(base_window_title_);
 }
 
 void EditorLayer::draw_file_menu() {
@@ -215,9 +214,7 @@ void EditorLayer::update_window_title() {
         title += base::path_to_utf8(context_.suggested_scene_name());
         if (context_.scene_dirty()) title += " *";
     }
-    auto* window = application().get_window().handle();
-    const auto* current = SDL_GetWindowTitle(window);
-    if (current && title != current) SDL_SetWindowTitle(window, title.c_str());
+    application().get_window().set_title(std::move(title));
 }
 
 void EditorLayer::on_render() {

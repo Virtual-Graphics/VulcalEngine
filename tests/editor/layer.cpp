@@ -130,21 +130,22 @@ TEST_F(EditorLayerTest, WindowTitleShowsSceneNameAndUnsavedMarker) {
     ScriptProject project;
     layer_->actions().create_project(project.directory, "Title");
     auto& context = layer_->context();
-    auto* window = application_->get_window().handle();
+    auto& window = application_->get_window();
     frame();
-    EXPECT_STREQ(SDL_GetWindowTitle(window), "Editor input test - Untitled.vscene");
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - Untitled.vscene");
 
     const auto entity = context.create_entity();
     frame();
-    EXPECT_STREQ(SDL_GetWindowTitle(window), "Editor input test - Untitled.vscene *");
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - Untitled.vscene *");
 
     context.save_scene_as(context.assets_directory() / "level.vscene");
     frame();
-    EXPECT_STREQ(SDL_GetWindowTitle(window), "Editor input test - level.vscene");
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - level.vscene");
 
     context.set_component(entity, vulcal::scene::TagComponent{ .name_ = "Renamed" });
     frame();
-    EXPECT_STREQ(SDL_GetWindowTitle(window), "Editor input test - level.vscene *");
+    EXPECT_STREQ(SDL_GetWindowTitle(window.handle()), "Editor input test - level.vscene *");
+    EXPECT_EQ(window.title(), "Editor input test - level.vscene *");
 }
 
 TEST_F(EditorLayerTest, NewSceneShortcutDoesNotRunWithoutProject) {

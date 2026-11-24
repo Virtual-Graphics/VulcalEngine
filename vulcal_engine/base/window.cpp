@@ -95,4 +95,11 @@ void Window::poll_events() {
 
 void Window::set_event_callback(EventCallback callback) { event_callback_ = std::move(callback); }
 
+bool Window::set_title(std::string title) {
+    if (title == title_) return true;
+    if (!SDL_SetWindowTitle(window_, title.c_str())) return false;
+    title_ = std::move(title);
+    return true;
+}
+
 } // namespace base
