@@ -9,9 +9,7 @@
 #include "scene/scene_extractor.h"
 #include "script/script_runtime.h"
 
-#include <filesystem>
 #include <memory>
-#include <string>
 
 namespace apps {
 class ImGuiIntegration;
@@ -25,7 +23,10 @@ class GPUResourceRegistry;
 
 namespace editor {
 
+class BuildSettingsDialog;
 class EditorActions;
+class ErrorDialog;
+class NewProjectDialog;
 
 // Assembles editor services and panels, manages their lifetime and frame order.
 class EditorLayer : public engine::Layer {
@@ -46,9 +47,6 @@ public:
 private:
     void draw_workspace();
     void draw_file_menu();
-    void draw_new_project_dialog();
-    void draw_build_settings_dialog();
-    void draw_error_dialog();
 
     void handle_shortcuts();
 
@@ -64,6 +62,9 @@ private:
     // Declared after context so scripts always die before their scene.
     vulcal::script::ScriptRuntime script_runtime_;
     std::unique_ptr<EditorActions> actions_;
+    std::unique_ptr<NewProjectDialog> new_project_dialog_;
+    std::unique_ptr<BuildSettingsDialog> build_settings_dialog_;
+    std::unique_ptr<ErrorDialog> error_dialog_;
 
     HierarchyPanel hierarchy_;
     InspectorPanel inspector_;
@@ -73,19 +74,6 @@ private:
     bool inspector_open_        = true;
     bool viewport_open_         = true;
     bool reset_layout_          = false;
-
-    bool new_project_requested_ = false;
-    std::string new_project_name_;
-    std::filesystem::path new_project_directory_;
-    std::string new_project_error_;
-
-    bool build_settings_requested_ = false;
-    std::filesystem::path build_scene_file_;
-    std::filesystem::path build_output_directory_;
-    std::string build_settings_error_;
-
-    bool error_requested_ = false;
-    std::string error_message_;
 };
 
 } // namespace editor

@@ -5,6 +5,10 @@ add_library(vulcal_editor_lib STATIC
     editor_actions.cpp
     editor_context.cpp
     editor_camera.cpp
+    dialogs/dialog.cpp
+    dialogs/new_project_dialog.cpp
+    dialogs/build_settings_dialog.cpp
+    dialogs/error_dialog.cpp
     project/scene/default_scene.cpp
     panels/viewport_panel.cpp
     panels/hierarchy_panel.cpp
