@@ -53,21 +53,22 @@ EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager
 EditorActions::EditorActions(EditorContext& context, vulcal::asset::AssetManager& assets, vulcal::asset::GPUResourceRegistry& gpu_resources,
                              Dialogs dialogs)
         : context_(context),
+          projects_(context, assets, &gpu_resources),
           assets_(assets),
           gpu_resources_(gpu_resources),
           dialogs_(std::move(dialogs)) {}
 
 void EditorActions::create_project(const std::filesystem::path& directory, const std::string& name) {
-    context_.create_project(directory, name);
-    reset_project_resources();
+    projects_.create(directory, name);
 }
 
 void EditorActions::open_project() {
     context_.require_edit_mode();
-    if (auto path = dialogs_.open_file(project_filter, {})) {
-        context_.open_project(*path);
-        reset_project_resources();
-    }
+    if (auto path = dialogs_.open_file(project_filter, {})) open_project(*path);
+}
+
+void EditorActions::open_project(const std::filesystem::path& project_file) {
+    projects_.open(project_file);
 }
 
 void EditorActions::build_project() {
@@ -173,7 +174,7 @@ void EditorActions::assign_script() {
         if (relative.empty()) {
             throw std::invalid_argument("The selected script is outside the project directory");
         }
-        target.get_component<vulcal::scene::ScriptComponent>().script_path_ = base::path_to_utf8(relative);
+        context_.set_component(target, vulcal::scene::ScriptComponent{ .script_path_ = base::path_to_utf8(relative) });
     }
 }
 
@@ -182,7 +183,9 @@ void EditorActions::import_mesh_asset() {
     if (auto path = dialogs_.open_file(obj_filter, context_.assets_directory())) {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during mesh import");
         const auto id = apps::asset_import::ObjAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
-        target.get_component<vulcal::scene::MeshRendererComponent>().mesh_asset_id_ = id;
+        auto mesh = target.get_component<vulcal::scene::MeshRendererComponent>();
+        mesh.mesh_asset_id_ = id;
+        context_.set_component(target, mesh);
         base::log::debug("Editor: assigned mesh asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
@@ -197,7 +200,9 @@ void EditorActions::import_material_asset() {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during material import");
         const auto id =
                 apps::asset_import::MaterialAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
-        target.get_component<vulcal::scene::MeshRendererComponent>().material_asset_id_ = id;
+        auto mesh = target.get_component<vulcal::scene::MeshRendererComponent>();
+        mesh.material_asset_id_ = id;
+        context_.set_component(target, mesh);
         base::log::debug("Editor: assigned material asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
@@ -211,18 +216,15 @@ void EditorActions::import_texture_asset() {
     if (auto path = dialogs_.open_file(texture_filter, context_.assets_directory())) {
         if (context_.selected_entity() != target) throw std::runtime_error("The selected entity changed during texture import");
         const auto id = apps::asset_import::TextureAssetImporter::import(*path, context_.project_directory(), context_.library_directory());
-        target.get_component<vulcal::scene::SpriteRendererComponent>().texture_asset_id_ = id;
+        auto sprite = target.get_component<vulcal::scene::SpriteRendererComponent>();
+        sprite.texture_asset_id_ = id;
+        context_.set_component(target, sprite);
         base::log::debug("Editor: assigned texture asset {} to entity '{}' ({})", id.to_string(),
                          target.get_component<vulcal::scene::TagComponent>().name_,
                          target.get_component<vulcal::scene::IDComponent>().id_.to_string());
         gpu_resources_.invalidate(id);
         assets_.invalidate(id);
     }
-}
-
-void EditorActions::reset_project_resources() {
-    gpu_resources_.clear();
-    assets_.set_library(context_.library_directory());
 }
 
 } // namespace editor

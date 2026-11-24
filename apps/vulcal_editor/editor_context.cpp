@@ -59,6 +59,7 @@ void EditorContext::set_scene(std::unique_ptr<vulcal::scene::Scene> scene) {
     require_edit_mode();
     project_manager_.set_scene(std::move(scene));
     selected_ = {};
+    mark_scene_changed();
 }
 
 void EditorContext::new_scene() {
@@ -71,6 +72,7 @@ void EditorContext::open_scene(const std::filesystem::path& scene_file) {
     require_edit_mode();
     project_manager_.open_scene(scene_file);
     selected_ = {};
+    mark_scene_changed();
 }
 
 EditorContext::SaveResult EditorContext::save_scene() {
@@ -90,31 +92,10 @@ void EditorContext::save_scene_as(std::filesystem::path scene_file) {
     project_manager_.save_as_scene(scene_file);
 }
 
-void EditorContext::create_project(const std::filesystem::path& directory, const std::string& name) {
-    require_edit_mode();
-    project_manager_.create_project(directory, name);
-    new_scene();
-}
-
-void EditorContext::open_project(const std::filesystem::path& project_file) {
-    require_edit_mode();
-    project_manager_.open_project(project_file);
-
-    const auto last_scene = project_manager_.resolved_last_edited_scene();
-    if (!last_scene.empty()) {
-        std::error_code check_error;
-        if (std::filesystem::is_regular_file(last_scene, check_error)) {
-            try {
-                open_scene(last_scene);
-                return;
-            } catch (const std::exception& open_error) {
-                base::log::warn("Failed to open last edited scene '{}': {}", last_scene.string(), open_error.what());
-            }
-        } else {
-            base::log::warn("Last edited scene '{}' is missing; starting a new scene", last_scene.string());
-        }
-    }
-    new_scene();
+void EditorContext::activate_project(ProjectManager&& project) noexcept {
+    selected_ = {};
+    project_manager_ = std::move(project);
+    mark_scene_changed();
 }
 
 std::filesystem::path EditorContext::project_directory() const { return project_manager_.current_project_dir(); }
@@ -168,6 +149,7 @@ void EditorContext::select(vulcal::scene::Entity entity) {
 vulcal::scene::Entity EditorContext::create_entity() {
     require_edit_mode();
     auto entity = scene().create_entity();
+    mark_scene_changed();
     select(entity);
     return entity;
 }
@@ -175,12 +157,15 @@ vulcal::scene::Entity EditorContext::create_entity() {
 void EditorContext::destroy_entity(vulcal::scene::Entity entity) {
     require_edit_mode();
     if (!entity) return;
-    if (!scene().contains(entity)) {
-        base::log::error("Cannot destroy an entity that belongs to a different scene");
-        throw std::invalid_argument("Entity belongs to a different scene");
-    }
-    if (selected_ == entity) selected_ = {};
+    require_edit_entity(entity);
     scene().destroy_entity(entity);
+    if (selected_ == entity) selected_ = {};
+    mark_scene_changed();
+}
+
+void EditorContext::require_edit_entity(vulcal::scene::Entity entity) const {
+    require_edit_mode();
+    if (!scene().contains(entity)) throw std::invalid_argument("Entity does not belong to the current scene");
 }
 
 } // namespace editor

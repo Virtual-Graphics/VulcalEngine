@@ -14,6 +14,7 @@ add_library(vulcal_editor_lib STATIC
     panels/hierarchy_panel.cpp
     panels/inspector_panel.cpp
     project/project_manager.cpp
+    project/project_session.cpp
     "${IMGUI_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp"
 )
 target_compile_definitions(vulcal_editor_lib PRIVATE ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")

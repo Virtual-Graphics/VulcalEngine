@@ -1,4 +1,6 @@
 #include "vulcal_editor/editor_context.h"
+#include "vulcal_editor/project/project_session.h"
+#include "asset/asset_manager.h"
 #include "scene/components.h"
 
 #include <gtest/gtest.h>
@@ -129,8 +131,10 @@ TEST(EditorPlay, RejectsDocumentProjectAndStructuralEditsWhilePlaying) {
     EXPECT_THROW(context.new_scene(), std::logic_error);
     EXPECT_THROW(context.open_scene("missing.vscene"), std::logic_error);
     EXPECT_THROW(context.set_scene(std::make_unique<vulcal::scene::Scene>()), std::logic_error);
-    EXPECT_THROW(context.create_project("missing", "Blocked"), std::logic_error);
-    EXPECT_THROW(context.open_project("missing.vproj"), std::logic_error);
+    vulcal::asset::AssetManager assets;
+    editor::ProjectSession projects(context, assets);
+    EXPECT_THROW(projects.create("missing", "Blocked"), std::logic_error);
+    EXPECT_THROW(projects.open("missing.vproj"), std::logic_error);
     EXPECT_THROW(context.create_entity(), std::logic_error);
     EXPECT_THROW(context.destroy_entity(selected), std::logic_error);
     EXPECT_EQ(&context.scene(), runtime);

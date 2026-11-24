@@ -271,7 +271,9 @@ TEST_F(EditorActionsTest, CancelledProjectOpenPreservesSceneAndCaches) {
     const auto id       = assets_.add_mesh(triangle());
     const auto cpu      = assets_.load_mesh(id);
     const auto gpu      = gpu_resources_->resolve(id);
+    const auto revision = context_.scene_revision();
     actions_->open_project();
+    EXPECT_EQ(context_.scene_revision(), revision);
     EXPECT_EQ(context_.selected_entity(), selected);
     EXPECT_EQ(assets_.load_mesh(id), cpu);
     EXPECT_EQ(gpu_resources_->resolve(id), gpu);
@@ -281,16 +283,17 @@ TEST_F(EditorActionsTest, ProjectSwitchClearsCachesAndUsesNewRuntimeDirectory) {
     const auto old_id = assets_.add_mesh(triangle());
     const auto gpu    = gpu_resources_->resolve(old_id);
     context_.create_entity();
-    editor::EditorContext other;
+    editor::ProjectManager other;
     std::filesystem::create_directories(directory_ / "other");
     other.create_project(directory_ / "other", "Other");
     const vulcal::asset::MeshAssetID new_id{ 12 };
-    vulcal::asset::MeshAsset::write(other.library_directory() / "12.vmesh", triangle());
-    open_path_ = directory_ / "other" / "Other.vproj";
+    vulcal::asset::MeshAsset::write(other.current_library_dir() / "12.vmesh", triangle());
+    const auto revision = context_.scene_revision();
 
-    actions_->open_project();
+    actions_->open_project(other.current_project_file());
     EXPECT_FALSE(context_.selected_entity());
-    EXPECT_EQ(context_.library_directory(), other.library_directory());
+    EXPECT_EQ(context_.library_directory(), other.current_library_dir());
+    EXPECT_EQ(context_.scene_revision(), revision + 1);
     EXPECT_FALSE(assets_.load_mesh(old_id));
     ASSERT_TRUE(assets_.load_mesh(new_id));
     EXPECT_THROW(draw(gpu), std::invalid_argument);

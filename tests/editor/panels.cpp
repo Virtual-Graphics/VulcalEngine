@@ -121,8 +121,10 @@ TEST_F(EditorPanels, DuplicateNamesRemainIndependentlySelectable) {
 
 TEST_F(EditorPanels, InspectorEditsNameThroughTextInput) {
     auto entity = context_.create_entity();
+    const auto revision = context_.scene_revision();
     frame();
     frame();
+    EXPECT_EQ(context_.scene_revision(), revision);
     auto* window = ImGui::FindWindowByName("Inspector");
     click({ window->DC.CursorStartPos.x + 40.0f, window->DC.CursorStartPos.y + ImGui::GetFrameHeight() * 0.5f });
     auto& io = ImGui::GetIO();
@@ -134,6 +136,7 @@ TEST_F(EditorPanels, InspectorEditsNameThroughTextInput) {
     io.AddInputCharactersUTF8("Renamed entity");
     frame();
     EXPECT_EQ(entity.get_component<vulcal::scene::TagComponent>().name_, "Renamed entity");
+    EXPECT_GT(context_.scene_revision(), revision);
 }
 
 TEST_F(EditorPanels, InspectorPreventsSingularScaleFromNumericInput) {

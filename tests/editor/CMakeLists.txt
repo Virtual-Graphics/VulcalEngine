@@ -5,6 +5,7 @@ add_executable(editor_state_test
     ../../apps/vulcal_editor/editor_context.cpp
     ../../apps/vulcal_editor/editor_camera.cpp
     ../../apps/vulcal_editor/project/project_manager.cpp
+    ../../apps/vulcal_editor/project/project_session.cpp
     ../../apps/vulcal_editor/project/scene/default_scene.cpp
     snake.cpp
     arena.cpp

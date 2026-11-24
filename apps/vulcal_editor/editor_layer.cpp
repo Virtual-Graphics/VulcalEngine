@@ -15,6 +15,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <stdexcept>
 #include <utility>
 
 namespace editor {
@@ -23,6 +24,11 @@ EditorLayer::EditorLayer()
         : engine::Layer("EditorLayer") {}
 
 EditorLayer::~EditorLayer() { stop(); }
+
+EditorActions& EditorLayer::actions() {
+    if (!actions_) throw std::logic_error("Editor actions require an attached editor layer");
+    return *actions_;
+}
 
 void EditorLayer::play() {
     if (context_.playing()) return;

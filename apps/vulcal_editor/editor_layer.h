@@ -41,6 +41,7 @@ public:
 
     EditorContext& context() { return context_; }
     const EditorContext& context() const { return context_; }
+    EditorActions& actions();
     void play();
     void stop();
 
